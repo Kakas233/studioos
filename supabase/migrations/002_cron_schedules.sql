@@ -1,9 +1,14 @@
 -- Migration: Set up pg_cron schedules for Edge Functions
--- Run this AFTER enabling pg_cron and pg_net extensions in Supabase Dashboard
-
--- Enable extensions (must be done in Dashboard → Database → Extensions first)
--- CREATE EXTENSION IF NOT EXISTS pg_cron;
--- CREATE EXTENSION IF NOT EXISTS pg_net;
+--
+-- BEFORE running this:
+-- 1. Go to Supabase Dashboard → Database → Extensions
+-- 2. Enable "pg_cron"
+-- 3. Enable "pg_net"
+--
+-- INSTRUCTIONS:
+-- Replace YOUR_SUPABASE_URL with your project URL (e.g. https://abcdefg.supabase.co)
+-- Replace YOUR_SERVICE_ROLE_KEY with your service_role key from Settings → API
+--
 
 -- Scrape cam data every 15 minutes
 SELECT cron.schedule(
@@ -11,11 +16,8 @@ SELECT cron.schedule(
   '*/15 * * * *',
   $$
   SELECT net.http_post(
-    url := current_setting('app.settings.supabase_url') || '/functions/v1/scrape-cam-data',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key'),
-      'Content-Type', 'application/json'
-    ),
+    url := 'YOUR_SUPABASE_URL/functions/v1/scrape-cam-data',
+    headers := '{"Authorization": "Bearer YOUR_SERVICE_ROLE_KEY", "Content-Type": "application/json"}'::jsonb,
     body := '{}'::jsonb
   );
   $$
@@ -27,11 +29,8 @@ SELECT cron.schedule(
   '0 6 * * *',
   $$
   SELECT net.http_post(
-    url := current_setting('app.settings.supabase_url') || '/functions/v1/fetch-exchange-rate',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key'),
-      'Content-Type', 'application/json'
-    ),
+    url := 'YOUR_SUPABASE_URL/functions/v1/fetch-exchange-rate',
+    headers := '{"Authorization": "Bearer YOUR_SERVICE_ROLE_KEY", "Content-Type": "application/json"}'::jsonb,
     body := '{}'::jsonb
   );
   $$
@@ -43,11 +42,8 @@ SELECT cron.schedule(
   '0 * * * *',
   $$
   SELECT net.http_post(
-    url := current_setting('app.settings.supabase_url') || '/functions/v1/correlate-shifts',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key'),
-      'Content-Type', 'application/json'
-    ),
+    url := 'YOUR_SUPABASE_URL/functions/v1/correlate-shifts',
+    headers := '{"Authorization": "Bearer YOUR_SERVICE_ROLE_KEY", "Content-Type": "application/json"}'::jsonb,
     body := '{}'::jsonb
   );
   $$
@@ -59,11 +55,8 @@ SELECT cron.schedule(
   '0 9 * * *',
   $$
   SELECT net.http_post(
-    url := current_setting('app.settings.supabase_url') || '/functions/v1/check-trial-reminders',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key'),
-      'Content-Type', 'application/json'
-    ),
+    url := 'YOUR_SUPABASE_URL/functions/v1/check-trial-reminders',
+    headers := '{"Authorization": "Bearer YOUR_SERVICE_ROLE_KEY", "Content-Type": "application/json"}'::jsonb,
     body := '{}'::jsonb
   );
   $$
