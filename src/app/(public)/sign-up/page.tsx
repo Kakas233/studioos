@@ -28,6 +28,8 @@ function SignUpForm() {
   const [emailSent, setEmailSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   // If no tier selected, redirect to pricing page to pick a plan
   useEffect(() => {
@@ -116,11 +118,48 @@ function SignUpForm() {
               Click the link to verify your account and activate your studio. The link expires in 24 hours.
             </p>
             <p className="text-xs text-gray-600">
-              Didn&apos;t receive it? Check your spam folder.
+              Didn&apos;t receive it? Check your spam folder or resend below.
             </p>
-            <div className="pt-2">
+            <div className="pt-2 space-y-2">
+              <Button
+                variant="outline"
+                className="w-full border-[#C9A84C]/20 text-[#C9A84C] hover:bg-[#C9A84C]/10"
+                disabled={resending || resendSuccess}
+                onClick={async () => {
+                  setResending(true);
+                  try {
+                    const res = await fetch("/api/auth/resend-verification", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: formData.email }),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      setResendSuccess(true);
+                      toast.success("Verification email resent!");
+                    } else {
+                      toast.error(data.error || "Failed to resend email");
+                    }
+                  } catch {
+                    toast.error("Failed to resend email. Please try again.");
+                  } finally {
+                    setResending(false);
+                  }
+                }}
+              >
+                {resending ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </div>
+                ) : resendSuccess ? (
+                  "Email Resent!"
+                ) : (
+                  "Resend Verification Email"
+                )}
+              </Button>
               <Link href="/sign-in">
-                <Button variant="outline" className="w-full border-[#C9A84C]/20 text-[#C9A84C] hover:bg-[#C9A84C]/10">
+                <Button variant="ghost" className="w-full text-gray-500 hover:text-white hover:bg-white/5">
                   Go to Sign In
                 </Button>
               </Link>

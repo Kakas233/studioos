@@ -31,6 +31,9 @@ export default function SignInPage() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotError, setForgotError] = useState("");
+  const [showResendVerification, setShowResendVerification] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [resendVerificationSent, setResendVerificationSent] = useState(false);
 
   useEffect(() => {
     if (!authLoading && account && studio) {
@@ -53,7 +56,13 @@ export default function SignInPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Login failed");
+        const errMsg = data.error || "Login failed";
+        setError(errMsg);
+        // Detect unverified email error
+        const lower = errMsg.toLowerCase();
+        if (lower.includes("not confirmed") || lower.includes("not verified") || lower.includes("email_not_confirmed")) {
+          setShowResendVerification(true);
+        }
       } else {
         router.push("/dashboard");
         router.refresh();
@@ -110,7 +119,39 @@ export default function SignInPage() {
             {error && (
               <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                 <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                <p className="text-sm text-red-400">{error}</p>
+                <div className="flex-1">
+                  <p className="text-sm text-red-400">{error}</p>
+                  {showResendVerification && (
+                    <button
+                      type="button"
+                      disabled={resendingVerification || resendVerificationSent}
+                      className="mt-2 text-xs text-[#C9A84C] hover:underline disabled:opacity-50"
+                      onClick={async () => {
+                        setResendingVerification(true);
+                        try {
+                          const res = await fetch("/api/auth/resend-verification", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ email }),
+                          });
+                          if (res.ok) {
+                            setResendVerificationSent(true);
+                          }
+                        } catch {
+                          // silently fail
+                        } finally {
+                          setResendingVerification(false);
+                        }
+                      }}
+                    >
+                      {resendingVerification
+                        ? "Sending..."
+                        : resendVerificationSent
+                          ? "Verification email sent! Check your inbox."
+                          : "Resend verification email"}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
