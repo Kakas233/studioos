@@ -157,12 +157,21 @@ export async function POST(request: NextRequest) {
 
     // Send styled verification email via Resend
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://getstudioos.com";
-    // Extract the token from Supabase's link and build our own verify URL
+    // Build verify URL pointing to our verify-email page with the token_hash
     let verifyUrl = `${appUrl}/verify-email`;
     if (linkData?.properties?.hashed_token) {
-      verifyUrl = `${appUrl}/auth/callback?token_hash=${linkData.properties.hashed_token}&type=signup`;
+      verifyUrl = `${appUrl}/verify-email?token_hash=${linkData.properties.hashed_token}&type=signup`;
     } else if (linkData?.properties?.action_link) {
-      verifyUrl = linkData.properties.action_link;
+      // Rewrite Supabase's action_link to go through our verify-email page
+      try {
+        const actionUrl = new URL(linkData.properties.action_link);
+        const tokenHash = actionUrl.searchParams.get("token_hash") || actionUrl.searchParams.get("token");
+        if (tokenHash) {
+          verifyUrl = `${appUrl}/verify-email?token_hash=${tokenHash}&type=signup`;
+        }
+      } catch {
+        verifyUrl = linkData.properties.action_link;
+      }
     }
 
     const emailResult = await sendVerificationEmail(
