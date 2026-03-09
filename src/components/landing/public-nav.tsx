@@ -70,7 +70,7 @@ export default function PublicNav({ activePage }: { activePage?: string }) {
               </Button>
             </a>
           ) : (
-            <Link href="/sign-up">
+            <Link href="/pricing">
               <Button className="bg-[#C9A84C] hover:bg-[#B8973B] text-black font-medium rounded-full px-5 text-sm">
                 Get Started
               </Button>
@@ -114,7 +114,7 @@ export default function PublicNav({ activePage }: { activePage?: string }) {
                 </Button>
               </a>
             ) : (
-              <Link href="/sign-up" onClick={() => setMobileMenuOpen(false)}>
+              <Link href="/pricing" onClick={() => setMobileMenuOpen(false)}>
                 <Button className="w-full bg-[#C9A84C] hover:bg-[#B8973B] text-black font-medium rounded-full text-sm">
                   Get Started
                 </Button>

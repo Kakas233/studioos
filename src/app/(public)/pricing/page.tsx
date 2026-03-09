@@ -224,12 +224,12 @@ export default function PricingPage() {
             Start with a free 7-day trial on any plan. Upgrade, downgrade, or
             cancel at any time.
           </p>
-          <Link
-            href="/sign-up"
+          <a
+            href="#pricing-plans"
             className="mt-8 inline-block rounded-lg bg-[#C9A84C] px-8 py-3 text-base font-medium text-black transition-colors hover:bg-[#B89A3E]"
           >
-            Start Free Trial
-          </Link>
+            Choose a Plan Above
+          </a>
         </div>
       </section>
     </div>

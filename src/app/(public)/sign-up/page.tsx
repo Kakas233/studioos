@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,12 +20,21 @@ export default function SignUpPage() {
 
 function SignUpForm() {
   const searchParams = useSearchParams();
-  const selectedTier = searchParams.get("tier") || "starter";
+  const router = useRouter();
+  const tierParam = searchParams.get("tier");
+  const selectedTier = tierParam || "starter";
 
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  // If no tier selected, redirect to pricing page to pick a plan
+  useEffect(() => {
+    if (!tierParam) {
+      router.replace("/pricing");
+    }
+  }, [tierParam, router]);
   const [formData, setFormData] = useState({
     firstName: "",
     email: "",

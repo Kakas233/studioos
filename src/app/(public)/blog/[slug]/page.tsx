@@ -109,7 +109,7 @@ export default function BlogPost() {
             analytics, and cross-platform viewer intelligence in one dashboard.
           </p>
           <Link
-            href="/sign-up"
+            href="/pricing"
             className="inline-block bg-[#C9A84C] hover:bg-[#B8973B] text-black font-medium rounded-full px-8 py-3 text-sm transition-colors"
           >
             Start Free Trial

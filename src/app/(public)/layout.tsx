@@ -1,4 +1,5 @@
 import Link from "next/link";
+import SupportChatWidget from "@/components/support/support-chat-widget";
 
 export default function PublicLayout({
   children,
@@ -49,7 +50,7 @@ export default function PublicLayout({
               Sign In
             </Link>
             <Link
-              href="/sign-up"
+              href="/pricing"
               className="rounded-lg bg-[#C9A84C] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#B89A3E]"
             >
               Get Started
@@ -60,6 +61,9 @@ export default function PublicLayout({
 
       {/* Page content */}
       <main className="flex-1">{children}</main>
+
+      {/* Support Chat Widget */}
+      <SupportChatWidget />
 
       {/* Footer */}
       <footer className="border-t border-white/[0.04] bg-[#0A0A0A]">

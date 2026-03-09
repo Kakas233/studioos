@@ -177,7 +177,7 @@ export default function SignInPage() {
               </button>
               <p className="text-gray-500">
                 Don&apos;t have an account?{" "}
-                <Link href="/sign-up" className="text-[#C9A84C] hover:underline font-medium">
+                <Link href="/pricing" className="text-[#C9A84C] hover:underline font-medium">
                   Create Studio
                 </Link>
               </p>
