@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
+import SupportChatPanel from "@/components/support/support-chat-panel";
+import { useAuth } from "@/lib/auth/auth-context";
 
 const AGENT_IMAGES = {
   luke: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6963df2bdfca920e5f5d8cfe/1b865c1f2_8fc796920cad7587fa016ad1fb423d45.jpg",
@@ -28,18 +30,7 @@ export default function SupportChatWidget() {
           )}
           style={{ boxShadow: "0 25px 60px rgba(0,0,0,0.4)" }}
         >
-          {/* SupportChatPanel placeholder - will be implemented */}
-          <div className="flex-1 bg-[#0A0A0A] flex flex-col">
-            <div className="h-14 border-b border-white/[0.06] flex items-center justify-between px-4">
-              <span className="text-sm font-medium text-white">Support</span>
-              <button onClick={() => setOpen(false)} className="text-[#A8A49A]/60 hover:text-white">
-                <ChevronDown className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 flex items-center justify-center text-[#A8A49A]/40 text-sm">
-              Support chat coming soon
-            </div>
-          </div>
+          <SupportChatPanel onClose={() => setOpen(false)} agentImages={AGENT_IMAGES} />
         </div>
       )}
 
