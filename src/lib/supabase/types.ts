@@ -9,7 +9,7 @@
  */
 
 export type UserRole = "owner" | "admin" | "operator" | "model" | "accountant";
-export type ShiftStatus = "scheduled" | "completed" | "no_show" | "cancelled" | "pending_approval";
+export type ShiftStatus = "scheduled" | "completed" | "in_progress" | "no_show" | "cancelled" | "pending_approval";
 export type RequestStatus = "pending" | "approved" | "rejected";
 export type SubscriptionTier = "free" | "starter" | "pro" | "elite";
 export type SubscriptionStatus = "trialing" | "active" | "cancelled" | "past_due" | "suspended";
@@ -48,425 +48,496 @@ export type ShowType =
   | "offline"
   | "unknown";
 
+// ─── Row types (standalone, no circular references) ───
+
+type StudioRow = {
+  id: string;
+  name: string;
+  subdomain: string;
+  timezone: string | null;
+  primary_currency: string;
+  secondary_currency: string | null;
+  subscription_tier: SubscriptionTier;
+  subscription_status: SubscriptionStatus;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  model_limit: number;
+  current_model_count: number;
+  grace_period_ends_at: string | null;
+  trial_ends_at: string | null;
+  onboarding_completed: boolean;
+  logo_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+type AccountRow = {
+  id: string;
+  auth_user_id: string;
+  studio_id: string;
+  email: string;
+  first_name: string;
+  last_name: string | null;
+  role: UserRole;
+  is_active: boolean;
+  is_super_admin: boolean;
+  works_alone: boolean;
+  cut_percentage: number;
+  operator_cut_percentage: number;
+  weekly_goal_hours: number | null;
+  weekly_goal_enabled: boolean;
+  payout_method: string;
+  onboarding_dismissed: boolean;
+  onboarding_completed_steps: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+type RoomRow = {
+  id: string;
+  studio_id: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+type CamAccountRow = {
+  id: string;
+  studio_id: string;
+  model_id: string;
+  platform: CamPlatform;
+  username: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+type ShiftRow = {
+  id: string;
+  studio_id: string;
+  model_id: string;
+  operator_id: string | null;
+  room_id: string | null;
+  start_time: string;
+  end_time: string;
+  status: ShiftStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+type ShiftRequestRow = {
+  id: string;
+  studio_id: string;
+  model_id: string;
+  requested_date: string;
+  start_time: string;
+  end_time: string;
+  preferred_room_id: string | null;
+  status: RequestStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+type ShiftChangeRequestRow = {
+  id: string;
+  studio_id: string;
+  shift_id: string;
+  requested_by_id: string;
+  old_data: Record<string, unknown>;
+  new_data: Record<string, unknown>;
+  status: RequestStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+type AssignmentRow = {
+  id: string;
+  studio_id: string;
+  operator_id: string;
+  model_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+type EarningRow = {
+  id: string;
+  studio_id: string;
+  model_id: string;
+  cam_account_id: string | null;
+  shift_id: string | null;
+  shift_date: string;
+  total_gross_usd: number;
+  studio_cut_usd: number;
+  model_pay_usd: number;
+  operator_pay_usd: number;
+  total_gross_secondary: number;
+  model_pay_secondary: number;
+  operator_pay_secondary: number;
+  myfreecams_usd: number;
+  chaturbate_usd: number;
+  stripchat_usd: number;
+  bongacams_usd: number;
+  cam4_usd: number;
+  camsoda_usd: number;
+  flirt4free_usd: number;
+  livejasmin_usd: number;
+  onlyfans_usd: number;
+  is_estimated: boolean;
+  operator_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+type PayoutRow = {
+  id: string;
+  studio_id: string;
+  model_id: string;
+  period_start: string;
+  period_end: string;
+  amount_usd: number;
+  amount_secondary: number;
+  status: string;
+  payout_method: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+type GlobalSettingsRow = {
+  id: string;
+  studio_id: string;
+  secondary_currency: string;
+  exchange_rate: number;
+  exchange_rate_mode: ExchangeRateMode;
+  payout_frequency: string;
+  myfreecams_rate: number;
+  chaturbate_rate: number;
+  stripchat_rate: number;
+  bongacams_rate: number;
+  cam4_rate: number;
+  camsoda_rate: number;
+  flirt4free_rate: number;
+  livejasmin_rate: number;
+  created_at: string;
+  updated_at: string;
+}
+
+type StreamingSessionRow = {
+  id: string;
+  studio_id: string;
+  cam_account_id: string;
+  is_currently_live: boolean;
+  show_type: ShowType;
+  scraped_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+type DailyStreamStatsRow = {
+  id: string;
+  studio_id: string;
+  cam_account_id: string;
+  model_id: string;
+  date: string;
+  platform: string;
+  total_minutes: number;
+  unique_minutes: number;
+  free_chat_minutes: number;
+  private_chat_minutes: number;
+  nude_chat_minutes: number;
+  member_chat_minutes: number;
+  group_chat_minutes: number;
+  semiprivate_minutes: number;
+  vip_chat_minutes: number;
+  happy_hour_minutes: number;
+  party_chat_minutes: number;
+  pre_gold_show_minutes: number;
+  gold_show_minutes: number;
+  true_private_minutes: number;
+  paid_chat_minutes: number;
+  away_minutes: number;
+  break_minutes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+type StreamSegmentRow = {
+  id: string;
+  studio_id: string;
+  cam_account_id: string;
+  model_id: string;
+  start_time: string;
+  end_time: string;
+  date: string;
+  duration_minutes: number;
+  show_type: ShowType;
+  source: string;
+  platform: string;
+  tokens_earned: number;
+  usd_earned: number;
+  created_at: string;
+  updated_at: string;
+}
+
+type ShiftAnalysisRow = {
+  id: string;
+  studio_id: string;
+  shift_id: string | null;
+  model_id: string;
+  scheduled_start: string;
+  scheduled_end: string;
+  shift_date: string;
+  adherence_percentage: number;
+  late_start_minutes: number;
+  early_end_minutes: number;
+  total_online_minutes: number;
+  total_break_minutes: number;
+  actual_start: string | null;
+  actual_end: string | null;
+  segment_count: number;
+  platforms_used: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+type DataFetchJobRow = {
+  id: string;
+  studio_id: string;
+  cam_account_id: string;
+  model_id: string;
+  model_name: string;
+  platform: string;
+  username: string;
+  status: FetchJobStatus;
+  target_days: number;
+  total_pages: number | null;
+  pages_fetched: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+type MemberAlertRow = {
+  id: string;
+  studio_id: string;
+  account_id: string;
+  cam_account_id: string;
+  model_username: string;
+  model_name: string;
+  sites: string[];
+  spending_threshold: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+type ChatChannelRow = {
+  id: string;
+  studio_id: string;
+  name: string;
+  channel_type: ChannelType;
+  created_at: string;
+  updated_at: string;
+}
+
+type ChatMessageRow = {
+  id: string;
+  channel_id: string;
+  studio_id: string;
+  user_id: string;
+  user_name: string;
+  user_role: UserRole;
+  message_text: string;
+  is_hidden: boolean;
+  created_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+type SupportTicketRow = {
+  id: string;
+  studio_id: string;
+  account_id: string;
+  subject: string;
+  status: TicketStatus;
+  priority: string;
+  is_escalated: boolean;
+  rating: number | null;
+  messages: Record<string, unknown>[];
+  created_at: string;
+  updated_at: string;
+}
+
+type AuditLogRow = {
+  id: string;
+  studio_id: string | null;
+  entity_type: string;
+  entity_id: string;
+  event_type: AuditEventType;
+  summary: string;
+  actor_email: string;
+  old_data: Record<string, unknown> | null;
+  new_data: Record<string, unknown> | null;
+  created_at: string;
+}
+
+type ErrorLogRow = {
+  id: string;
+  studio_id: string | null;
+  error_type: string;
+  message: string;
+  stack_trace: string | null;
+  url: string | null;
+  user_agent: string | null;
+  account_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+// ─── Database interface ───
+
 export interface Database {
   public: {
     Tables: {
       studios: {
-        Row: {
-          id: string;
-          name: string;
-          subdomain: string;
-          timezone: string | null;
-          primary_currency: string;
-          secondary_currency: string | null;
-          subscription_tier: SubscriptionTier;
-          subscription_status: SubscriptionStatus;
-          stripe_customer_id: string | null;
-          stripe_subscription_id: string | null;
-          model_limit: number;
-          current_model_count: number;
-          grace_period_ends_at: string | null;
-          trial_ends_at: string | null;
-          onboarding_completed: boolean;
-          logo_url: string | null;
-          created_by: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["studios"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["studios"]["Insert"]>;
+        Row: StudioRow;
+        Insert: Partial<Omit<StudioRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<StudioRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       accounts: {
-        Row: {
-          id: string;
-          auth_user_id: string;
-          studio_id: string;
-          email: string;
-          first_name: string;
-          last_name: string | null;
-          role: UserRole;
-          is_active: boolean;
-          is_super_admin: boolean;
-          works_alone: boolean;
-          cut_percentage: number;
-          operator_cut_percentage: number;
-          weekly_goal_hours: number | null;
-          weekly_goal_enabled: boolean;
-          payout_method: string;
-          onboarding_dismissed: boolean;
-          onboarding_completed_steps: string[];
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["accounts"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["accounts"]["Insert"]>;
+        Row: AccountRow;
+        Insert: Partial<Omit<AccountRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<AccountRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       rooms: {
-        Row: {
-          id: string;
-          studio_id: string;
-          name: string;
-          is_active: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["rooms"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["rooms"]["Insert"]>;
+        Row: RoomRow;
+        Insert: Partial<Omit<RoomRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<RoomRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       cam_accounts: {
-        Row: {
-          id: string;
-          studio_id: string;
-          model_id: string;
-          platform: CamPlatform;
-          username: string;
-          is_active: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["cam_accounts"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["cam_accounts"]["Insert"]>;
+        Row: CamAccountRow;
+        Insert: Partial<Omit<CamAccountRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<CamAccountRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       shifts: {
-        Row: {
-          id: string;
-          studio_id: string;
-          model_id: string;
-          operator_id: string | null;
-          room_id: string | null;
-          start_time: string;
-          end_time: string;
-          status: ShiftStatus;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["shifts"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["shifts"]["Insert"]>;
+        Row: ShiftRow;
+        Insert: Partial<Omit<ShiftRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<ShiftRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       shift_requests: {
-        Row: {
-          id: string;
-          studio_id: string;
-          model_id: string;
-          requested_date: string;
-          start_time: string;
-          end_time: string;
-          preferred_room_id: string | null;
-          status: RequestStatus;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["shift_requests"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["shift_requests"]["Insert"]>;
+        Row: ShiftRequestRow;
+        Insert: Partial<Omit<ShiftRequestRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<ShiftRequestRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       shift_change_requests: {
-        Row: {
-          id: string;
-          studio_id: string;
-          shift_id: string;
-          requested_by_id: string;
-          old_data: Record<string, unknown>;
-          new_data: Record<string, unknown>;
-          status: RequestStatus;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["shift_change_requests"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["shift_change_requests"]["Insert"]>;
+        Row: ShiftChangeRequestRow;
+        Insert: Partial<Omit<ShiftChangeRequestRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<ShiftChangeRequestRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       assignments: {
-        Row: {
-          id: string;
-          studio_id: string;
-          operator_id: string;
-          model_id: string;
-          is_active: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["assignments"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["assignments"]["Insert"]>;
+        Row: AssignmentRow;
+        Insert: Partial<Omit<AssignmentRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<AssignmentRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       earnings: {
-        Row: {
-          id: string;
-          studio_id: string;
-          model_id: string;
-          cam_account_id: string | null;
-          shift_id: string | null;
-          shift_date: string;
-          total_gross_usd: number;
-          studio_cut_usd: number;
-          model_pay_usd: number;
-          operator_pay_usd: number;
-          total_gross_secondary: number;
-          model_pay_secondary: number;
-          operator_pay_secondary: number;
-          myfreecams_usd: number;
-          chaturbate_usd: number;
-          stripchat_usd: number;
-          bongacams_usd: number;
-          cam4_usd: number;
-          camsoda_usd: number;
-          flirt4free_usd: number;
-          livejasmin_usd: number;
-          onlyfans_usd: number;
-          is_estimated: boolean;
-          operator_id: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["earnings"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["earnings"]["Insert"]>;
+        Row: EarningRow;
+        Insert: Partial<Omit<EarningRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<EarningRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       payouts: {
-        Row: {
-          id: string;
-          studio_id: string;
-          model_id: string;
-          period_start: string;
-          period_end: string;
-          amount_usd: number;
-          amount_secondary: number;
-          status: string;
-          payout_method: string | null;
-          notes: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["payouts"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["payouts"]["Insert"]>;
+        Row: PayoutRow;
+        Insert: Partial<Omit<PayoutRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<PayoutRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       global_settings: {
-        Row: {
-          id: string;
-          studio_id: string;
-          secondary_currency: string;
-          exchange_rate: number;
-          exchange_rate_mode: ExchangeRateMode;
-          payout_frequency: string;
-          myfreecams_rate: number;
-          chaturbate_rate: number;
-          stripchat_rate: number;
-          bongacams_rate: number;
-          cam4_rate: number;
-          camsoda_rate: number;
-          flirt4free_rate: number;
-          livejasmin_rate: number;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["global_settings"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["global_settings"]["Insert"]>;
+        Row: GlobalSettingsRow;
+        Insert: Partial<Omit<GlobalSettingsRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<GlobalSettingsRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       streaming_sessions: {
-        Row: {
-          id: string;
-          studio_id: string;
-          cam_account_id: string;
-          is_currently_live: boolean;
-          show_type: ShowType;
-          scraped_at: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["streaming_sessions"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["streaming_sessions"]["Insert"]>;
+        Row: StreamingSessionRow;
+        Insert: Partial<Omit<StreamingSessionRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<StreamingSessionRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       daily_stream_stats: {
-        Row: {
-          id: string;
-          studio_id: string;
-          cam_account_id: string;
-          model_id: string;
-          date: string;
-          platform: string;
-          total_minutes: number;
-          unique_minutes: number;
-          free_chat_minutes: number;
-          private_chat_minutes: number;
-          nude_chat_minutes: number;
-          member_chat_minutes: number;
-          group_chat_minutes: number;
-          semiprivate_minutes: number;
-          vip_chat_minutes: number;
-          happy_hour_minutes: number;
-          party_chat_minutes: number;
-          pre_gold_show_minutes: number;
-          gold_show_minutes: number;
-          true_private_minutes: number;
-          paid_chat_minutes: number;
-          away_minutes: number;
-          break_minutes: number;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["daily_stream_stats"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["daily_stream_stats"]["Insert"]>;
+        Row: DailyStreamStatsRow;
+        Insert: Partial<Omit<DailyStreamStatsRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<DailyStreamStatsRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       stream_segments: {
-        Row: {
-          id: string;
-          studio_id: string;
-          cam_account_id: string;
-          model_id: string;
-          start_time: string;
-          end_time: string;
-          date: string;
-          duration_minutes: number;
-          show_type: ShowType;
-          source: string;
-          platform: string;
-          tokens_earned: number;
-          usd_earned: number;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["stream_segments"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["stream_segments"]["Insert"]>;
+        Row: StreamSegmentRow;
+        Insert: Partial<Omit<StreamSegmentRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<StreamSegmentRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       shift_analyses: {
-        Row: {
-          id: string;
-          studio_id: string;
-          shift_id: string | null;
-          model_id: string;
-          scheduled_start: string;
-          scheduled_end: string;
-          shift_date: string;
-          adherence_percentage: number;
-          late_start_minutes: number;
-          early_end_minutes: number;
-          total_online_minutes: number;
-          total_break_minutes: number;
-          actual_start: string | null;
-          actual_end: string | null;
-          segment_count: number;
-          platforms_used: string[];
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["shift_analyses"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["shift_analyses"]["Insert"]>;
+        Row: ShiftAnalysisRow;
+        Insert: Partial<Omit<ShiftAnalysisRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<ShiftAnalysisRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       data_fetch_jobs: {
-        Row: {
-          id: string;
-          studio_id: string;
-          cam_account_id: string;
-          model_id: string;
-          model_name: string;
-          platform: string;
-          username: string;
-          status: FetchJobStatus;
-          target_days: number;
-          total_pages: number | null;
-          pages_fetched: number;
-          error_message: string | null;
-          started_at: string | null;
-          completed_at: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["data_fetch_jobs"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["data_fetch_jobs"]["Insert"]>;
+        Row: DataFetchJobRow;
+        Insert: Partial<Omit<DataFetchJobRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<DataFetchJobRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       member_alerts: {
-        Row: {
-          id: string;
-          studio_id: string;
-          account_id: string;
-          cam_account_id: string;
-          model_username: string;
-          model_name: string;
-          sites: string[];
-          spending_threshold: number;
-          is_active: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["member_alerts"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["member_alerts"]["Insert"]>;
+        Row: MemberAlertRow;
+        Insert: Partial<Omit<MemberAlertRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<MemberAlertRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       chat_channels: {
-        Row: {
-          id: string;
-          studio_id: string;
-          name: string;
-          channel_type: ChannelType;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["chat_channels"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["chat_channels"]["Insert"]>;
+        Row: ChatChannelRow;
+        Insert: Partial<Omit<ChatChannelRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<ChatChannelRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       chat_messages: {
-        Row: {
-          id: string;
-          channel_id: string;
-          studio_id: string;
-          user_id: string;
-          user_name: string;
-          user_role: UserRole;
-          message_text: string;
-          is_hidden: boolean;
-          created_date: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["chat_messages"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["chat_messages"]["Insert"]>;
+        Row: ChatMessageRow;
+        Insert: Partial<Omit<ChatMessageRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<ChatMessageRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       support_tickets: {
-        Row: {
-          id: string;
-          studio_id: string;
-          account_id: string;
-          subject: string;
-          status: TicketStatus;
-          priority: string;
-          is_escalated: boolean;
-          rating: number | null;
-          messages: Record<string, unknown>[];
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["support_tickets"]["Row"], "id" | "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["support_tickets"]["Insert"]>;
+        Row: SupportTicketRow;
+        Insert: Partial<Omit<SupportTicketRow, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<SupportTicketRow, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
       };
       audit_logs: {
-        Row: {
-          id: string;
-          studio_id: string | null;
-          entity_type: string;
-          entity_id: string;
-          event_type: AuditEventType;
-          summary: string;
-          actor_email: string;
-          old_data: Record<string, unknown> | null;
-          new_data: Record<string, unknown> | null;
-          created_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["audit_logs"]["Row"], "id" | "created_at">;
-        Update: Partial<Database["public"]["Tables"]["audit_logs"]["Insert"]>;
+        Row: AuditLogRow;
+        Insert: Partial<Omit<AuditLogRow, "id" | "created_at">>;
+        Update: Partial<Omit<AuditLogRow, "id" | "created_at">>;
+        Relationships: [];
       };
       error_logs: {
-        Row: {
-          id: string;
-          studio_id: string | null;
-          error_type: string;
-          message: string;
-          stack_trace: string | null;
-          url: string | null;
-          user_agent: string | null;
-          account_id: string | null;
-          metadata: Record<string, unknown> | null;
-          created_at: string;
-        };
-        Insert: Omit<Database["public"]["Tables"]["error_logs"]["Row"], "id" | "created_at">;
-        Update: Partial<Database["public"]["Tables"]["error_logs"]["Insert"]>;
+        Row: ErrorLogRow;
+        Insert: Partial<Omit<ErrorLogRow, "id" | "created_at">>;
+        Update: Partial<Omit<ErrorLogRow, "id" | "created_at">>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
     Functions: {
       get_user_studio_id: {
         Args: Record<string, never>;
@@ -475,6 +546,10 @@ export interface Database {
       get_user_role: {
         Args: Record<string, never>;
         Returns: string;
+      };
+      increment_model_count: {
+        Args: { p_studio_id: string };
+        Returns: void;
       };
     };
   };

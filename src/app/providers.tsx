@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { useEffect } from "react";
 import { initErrorReporter } from "@/lib/error-reporter";
@@ -20,9 +21,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <ErrorReporterInit />
-          {children}
-          <Toaster
+          <TooltipProvider>
+            <ErrorReporterInit />
+            {children}
+            <Toaster
             theme="dark"
             position="bottom-right"
             toastOptions={{
@@ -33,6 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               },
             }}
           />
+          </TooltipProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
