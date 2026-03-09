@@ -4,34 +4,34 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, User, ChevronRight } from "lucide-react";
-import {
-  format,
-  parseISO,
-  isAfter,
-  differenceInHours,
-  differenceInMinutes,
-} from "date-fns";
+import { format, parseISO, isAfter, differenceInHours, differenceInMinutes } from "date-fns";
+import { useStudioAccounts } from "@/hooks/use-studio-data";
 import type { Database } from "@/lib/supabase/types";
 
 type Shift = Database["public"]["Tables"]["shifts"]["Row"];
 
-const STATUS_COLORS: Record<string, string> = {
+interface OperatorAgendaProps {
+  shifts: Shift[];
+}
+
+const statusColors: Record<string, string> = {
   scheduled: "bg-amber-500/15 text-amber-200 border-amber-500/30",
   completed: "bg-emerald-500/15 text-emerald-200 border-emerald-500/30",
   no_show: "bg-red-500/15 text-red-200 border-red-500/30",
-  cancelled: "bg-zinc-500/15 text-zinc-200 border-zinc-500/30",
-  pending_approval: "bg-blue-500/15 text-blue-200 border-blue-500/30",
 };
 
-export default function OperatorAgenda({ shifts }: { shifts: Shift[] }) {
+export default function OperatorAgenda({ shifts }: OperatorAgendaProps) {
   const now = new Date();
+  const { data: accounts = [] } = useStudioAccounts();
+
+  const getModelName = (modelId: string) => {
+    const account = accounts.find((a) => a.id === modelId);
+    return account?.first_name || "Unknown";
+  };
 
   const upcomingShifts = shifts
     .filter((shift) => isAfter(parseISO(shift.start_time), now))
-    .sort(
-      (a, b) =>
-        parseISO(a.start_time).getTime() - parseISO(b.start_time).getTime()
-    )
+    .sort((a, b) => parseISO(a.start_time).getTime() - parseISO(b.start_time).getTime())
     .slice(0, 8);
 
   const getTimeUntil = (startTime: string) => {
@@ -83,25 +83,16 @@ export default function OperatorAgenda({ shifts }: { shifts: Shift[] }) {
                       <User className="w-4 h-4 sm:w-5 sm:h-5 text-[#A8A49A]/40" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-sm text-white truncate">
-                        Shift
-                      </p>
+                      <p className="font-medium text-sm text-white truncate">{getModelName(shift.model_id)}</p>
                       <div className="flex items-center gap-1.5 text-xs text-[#A8A49A]/40">
                         <Clock className="w-3 h-3 shrink-0" />
-                        <span>
-                          {format(start, "HH:mm")}–{format(end, "HH:mm")}
-                        </span>
-                        <span className="text-[#A8A49A]/20 hidden sm:inline">
-                          ({duration}h)
-                        </span>
+                        <span>{format(start, "HH:mm")}{"\u2013"}{format(end, "HH:mm")}</span>
+                        <span className="text-[#A8A49A]/20 hidden sm:inline">({duration}h)</span>
                       </div>
                     </div>
                   </div>
                   <div className="text-right shrink-0 ml-2">
-                    <Badge
-                      variant="outline"
-                      className={`${STATUS_COLORS[shift.status] || STATUS_COLORS.scheduled} text-[10px] sm:text-xs`}
-                    >
+                    <Badge variant="outline" className={`${statusColors[shift.status] || statusColors.scheduled} text-[10px] sm:text-xs`}>
                       {shift.status}
                     </Badge>
                     <p className="text-[10px] text-[#A8A49A]/30 mt-0.5">

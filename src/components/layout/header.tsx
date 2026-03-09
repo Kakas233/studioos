@@ -30,9 +30,7 @@ export default function Header({ title, onMobileMenuToggle }: HeaderProps) {
           >
             <Menu className="w-5 h-5" />
           </Button>
-          <h1 className="text-base sm:text-lg font-medium text-white tracking-tight truncate">
-            {title}
-          </h1>
+          <h1 className="text-base sm:text-lg font-medium text-white tracking-tight truncate">{title}</h1>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -42,13 +40,8 @@ export default function Header({ title, onMobileMenuToggle }: HeaderProps) {
             </span>
           </div>
           <div className="hidden sm:block">
-            <p className="text-sm font-medium text-white">
-              {account?.first_name || "User"}
-            </p>
-            <Badge
-              variant="outline"
-              className={`${roleColor.bg} ${roleColor.text} text-[10px] capitalize`}
-            >
+            <p className="text-sm font-medium text-white">{account?.first_name || "User"}</p>
+            <Badge variant="outline" className={`${roleColor} text-[10px] capitalize`}>
               {userRole}
             </Badge>
           </div>

@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Loader2, Mail, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 
 export default function SignUpPage() {
   return (
@@ -20,28 +19,19 @@ export default function SignUpPage() {
 }
 
 function SignUpForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const tier = searchParams.get("tier");
+  const selectedTier = searchParams.get("tier") || "starter";
 
+  const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [formData, setFormData] = useState({
-    studioName: "",
-    ownerName: "",
+    firstName: "",
     email: "",
     password: "",
-    subdomain: "",
-    agreeToTerms: false,
+    studioName: "",
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  const passwordChecks = {
-    length: formData.password.length >= 8,
-    uppercase: /[A-Z]/.test(formData.password),
-    number: /[0-9]/.test(formData.password),
-    special: /[^A-Za-z0-9]/.test(formData.password),
-  };
 
   const generateSubdomain = (name: string) => {
     return name
@@ -51,68 +41,81 @@ function SignUpForm() {
       .slice(0, 50);
   };
 
-  const handleStudioNameChange = (value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      studioName: value,
-      subdomain: prev.subdomain || generateSubdomain(value),
-    }));
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.agreeToTerms) {
-      toast.error("Please agree to the Terms of Service");
+    if (!formData.firstName || !formData.email || !formData.password || !formData.studioName) {
+      toast.error("Please fill in all fields");
       return;
     }
 
-    if (!Object.values(passwordChecks).every(Boolean)) {
-      toast.error("Password does not meet requirements");
+    if (!agreedToTerms) {
+      toast.error("You must agree to the Terms of Service and Privacy Policy");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      toast.error("Password must be at least 8 characters");
       return;
     }
 
     setLoading(true);
-
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
-          tier: tier || undefined,
+          email: formData.email,
+          password: formData.password,
+          ownerName: formData.firstName,
+          studioName: formData.studioName,
+          subdomain: generateSubdomain(formData.studioName),
+          tier: selectedTier,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.error || "Sign up failed");
+        toast.error(data.error || "Signup failed");
         return;
       }
 
-      setSuccess(true);
+      setEmailSent(true);
     } catch {
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Signup failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
+  if (emailSent) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-md border-border/50 bg-card text-center">
-          <CardContent className="pt-8 pb-8">
-            <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-500" />
-            <h2 className="mb-2 text-xl font-semibold">Check your email</h2>
-            <p className="mb-6 text-sm text-muted-foreground">
-              We sent a verification link to <strong>{formData.email}</strong>.
-              Click the link to activate your account.
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6">
+        <Card className="w-full max-w-md bg-[#0A0A0A] border-[#C9A84C]/10 shadow-2xl">
+          <CardHeader className="text-center pb-4">
+            <div className="w-16 h-16 bg-[#C9A84C]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-8 h-8 text-[#C9A84C]" />
+            </div>
+            <CardTitle className="text-xl text-white">Check Your Email!</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-gray-400">
+              We&apos;ve sent a verification link to <strong className="text-[#C9A84C]">{formData.email}</strong>
             </p>
-            <Button onClick={() => router.push("/sign-in")} variant="outline">
-              Go to Sign In
-            </Button>
+            <p className="text-sm text-gray-500">
+              Click the link to verify your account and activate your studio. The link expires in 24 hours.
+            </p>
+            <p className="text-xs text-gray-600">
+              Didn&apos;t receive it? Check your spam folder.
+            </p>
+            <div className="pt-2">
+              <Link href="/sign-in">
+                <Button variant="outline" className="w-full border-[#C9A84C]/20 text-[#C9A84C] hover:bg-[#C9A84C]/10">
+                  Go to Sign In
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -120,170 +123,118 @@ function SignUpForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-      <Card className="w-full max-w-md border-border/50 bg-card">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 text-3xl font-bold text-primary">
+    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6">
+      <Card className="w-full max-w-md bg-[#0A0A0A] border-[#C9A84C]/10 shadow-2xl">
+        <CardHeader className="space-y-3 pb-4 text-center">
+          <div className="text-2xl font-bold bg-gradient-to-r from-[#C9A84C] to-[#E8D48B] bg-clip-text text-transparent mb-1">
             StudioOS
           </div>
-          <CardTitle className="text-xl">Create your account</CardTitle>
-          {tier && (
-            <p className="text-sm text-muted-foreground">
-              Starting with the{" "}
-              <span className="font-medium capitalize text-primary">{tier}</span>{" "}
-              plan
-            </p>
-          )}
+          <CardTitle className="text-xl font-bold text-white">Create Your Studio</CardTitle>
+          <p className="text-gray-500 text-sm">Start your 7-day free trial · No credit card required</p>
         </CardHeader>
+
         <CardContent>
-          <form onSubmit={handleSignUp} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="studioName">Studio Name</Label>
+              <Label htmlFor="firstName" className="text-gray-300">Your Name</Label>
               <Input
-                id="studioName"
-                placeholder="My Studio"
-                value={formData.studioName}
-                onChange={(e) => handleStudioNameChange(e.target.value)}
+                id="firstName"
+                placeholder="John"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 required
+                className="bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="subdomain">Subdomain</Label>
-              <div className="flex items-center">
-                <Input
-                  id="subdomain"
-                  placeholder="my-studio"
-                  value={formData.subdomain}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-                    }))
-                  }
-                  required
-                  className="rounded-r-none"
-                />
-                <span className="flex h-9 items-center rounded-r-md border border-l-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-                  .getstudioos.com
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ownerName">Your Full Name</Label>
+              <Label htmlFor="email" className="text-gray-300">Email Address</Label>
               <Input
-                id="ownerName"
-                placeholder="John Smith"
-                value={formData.ownerName}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, ownerName: e.target.value }))
-                }
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="signupEmail">Email</Label>
-              <Input
-                id="signupEmail"
+                id="email"
                 type="email"
                 placeholder="you@example.com"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, email: e.target.value }))
-                }
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
-                autoComplete="email"
+                className="bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="signupPassword">Password</Label>
+              <Label htmlFor="password" className="text-gray-300">Password</Label>
               <div className="relative">
                 <Input
-                  id="signupPassword"
+                  id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Create a strong password"
+                  placeholder="Min. 8 characters"
                   value={formData.password}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, password: e.target.value }))
-                  }
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
-                  autoComplete="new-password"
+                  className="pr-10 bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {formData.password && (
-                <div className="mt-2 space-y-1 text-xs">
-                  {[
-                    { check: passwordChecks.length, label: "At least 8 characters" },
-                    { check: passwordChecks.uppercase, label: "One uppercase letter" },
-                    { check: passwordChecks.number, label: "One number" },
-                    { check: passwordChecks.special, label: "One special character" },
-                  ].map(({ check, label }) => (
-                    <div
-                      key={label}
-                      className={check ? "text-green-500" : "text-muted-foreground"}
-                    >
-                      {check ? "✓" : "○"} {label}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
-            <div className="flex items-start space-x-2">
-              <Checkbox
-                id="terms"
-                checked={formData.agreeToTerms}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    agreeToTerms: checked === true,
-                  }))
-                }
+            <div className="space-y-2">
+              <Label htmlFor="studioName" className="text-gray-300">Studio Name</Label>
+              <Input
+                id="studioName"
+                placeholder="My Studio"
+                value={formData.studioName}
+                onChange={(e) => setFormData({ ...formData, studioName: e.target.value })}
+                required
+                className="bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
               />
-              <label htmlFor="terms" className="text-xs text-muted-foreground">
+            </div>
+
+            <label className="flex items-start gap-3 cursor-pointer p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 accent-[#C9A84C]"
+              />
+              <span className="text-xs text-gray-400 leading-relaxed">
                 I agree to the{" "}
-                <Link href="/terms" className="text-primary hover:underline">
+                <Link href="/legal/terms" target="_blank" className="text-[#C9A84C] hover:underline">
                   Terms of Service
                 </Link>{" "}
                 and{" "}
-                <Link href="/privacy" className="text-primary hover:underline">
+                <Link href="/legal/privacy" target="_blank" className="text-[#C9A84C] hover:underline">
                   Privacy Policy
                 </Link>
-              </label>
-            </div>
+              </span>
+            </label>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-[#C9A84C] to-[#E8D48B] hover:from-[#B8973B] hover:to-[#D4C07A] text-black h-11 text-base font-semibold"
+              disabled={loading || !agreedToTerms}
+            >
               {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
-                </>
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Creating Account...
+                </div>
               ) : (
-                "Create Account"
+                "Start Free Trial"
               )}
             </Button>
-          </form>
 
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/sign-in" className="text-primary hover:underline">
-              Sign in
-            </Link>
-          </p>
+            <p className="text-xs text-center text-gray-500">
+              Already have an account?{" "}
+              <Link href="/sign-in" className="text-[#C9A84C] hover:underline font-medium">
+                Sign In
+              </Link>
+            </p>
+          </form>
         </CardContent>
       </Card>
     </div>

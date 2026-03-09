@@ -1,251 +1,341 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useRooms, useStudioAccounts } from "@/hooks/use-studio-data";
-import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Building2, MoreVertical, X } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRooms, useAssignments, useStudioAccounts } from "@/hooks/use-studio-data";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Building2, Plus, Edit2, Trash2, Users, UserPlus, X } from "lucide-react";
+import { toast } from "sonner";
+import FeatureGate from "@/components/shared/feature-gate";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RoomsPage() {
-  const { isAdmin } = useAuth();
-  const { data: rooms = [], isLoading: roomsLoading } = useRooms();
-  const { data: accounts = [], isLoading: accountsLoading } = useStudioAccounts();
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const { account, loading: authLoading } = useAuth();
+  const supabase = createClient();
+  const userRole = account?.role || "model";
+  const isAdmin = userRole === "admin" || userRole === "owner";
 
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newRoomName, setNewRoomName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [editingRoom, setEditingRoom] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<any>(null);
 
-  const handleCreate = useCallback(async () => {
-    if (!newRoomName.trim()) return;
-    setCreating(true);
-    try {
-      const res = await fetch("/api/rooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newRoomName.trim() }),
-      });
-      if (res.ok) {
-        setNewRoomName("");
-        setShowCreateForm(false);
-        queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      }
-    } finally {
-      setCreating(false);
-    }
-  }, [newRoomName, queryClient]);
+  const { data: rooms = [] } = useRooms();
+  const { data: assignments = [] } = useAssignments();
+  const { data: allAccounts = [] } = useStudioAccounts();
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assignRoomId, setAssignRoomId] = useState<string | null>(null);
 
-  const handleUpdate = useCallback(async (id: string, data: Record<string, unknown>) => {
-    await fetch("/api/rooms", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ...data }),
-    });
-    queryClient.invalidateQueries({ queryKey: ["rooms"] });
-    setEditingRoom(null);
-  }, [queryClient]);
+  const models = allAccounts.filter((u) => u.role === "model" && u.is_active !== false);
 
-  const handleDelete = useCallback(async (id: string) => {
-    await fetch(`/api/rooms?id=${id}`, { method: "DELETE" });
-    queryClient.invalidateQueries({ queryKey: ["rooms"] });
-  }, [queryClient]);
+  // Helper to get model name by ID
+  const getModelName = (id: string) => {
+    const model = allAccounts.find((a) => a.id === id);
+    return model?.first_name || "Unknown";
+  };
 
-  const isLoading = roomsLoading || accountsLoading;
+  const createAssignmentMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      const { error } = await supabase.from("assignments").insert(data);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      toast.success("Model assigned to room");
+    },
+  });
 
-  if (isLoading) {
+  const updateAssignmentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const { error } = await supabase.from("assignments").update(data).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      toast.success("Assignment updated");
+    },
+  });
+
+  const removeAssignmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("assignments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      toast.success("Model unassigned");
+    },
+  });
+
+  const createRoomMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      const { error } = await supabase.from("rooms").insert({ ...data, studio_id: account?.studio_id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      setModalOpen(false);
+      setSelectedRoom(null);
+      toast.success("Room created");
+    },
+  });
+
+  const updateRoomMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const { error } = await supabase.from("rooms").update(data).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      setModalOpen(false);
+      setSelectedRoom(null);
+      toast.success("Room updated");
+    },
+  });
+
+  const deleteRoomMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("rooms").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      toast.success("Room deleted");
+    },
+  });
+
+  if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#C9A84C]" />
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  if (!account || !isAdmin) {
+    router.push("/dashboard");
+    return null;
+  }
+
+  const getAssignedModels = (roomId: string) => assignments.filter((a) => a.room_id === roomId);
+  const handleOpenAssignModel = (roomId: string) => { setAssignRoomId(roomId); setAssignModalOpen(true); };
+  const handleAssignModel = (modelId: string) => {
+    const model = models.find((m) => m.id === modelId);
+    const room = rooms.find((r) => r.id === assignRoomId);
+    if (!model || !room) return;
+
+    const existingAssignment = assignments.find((a) => a.model_id === modelId);
+    const assignmentData = {
+      studio_id: account?.studio_id,
+      operator_id: existingAssignment?.operator_id || modelId,
+      model_id: modelId,
+      room_id: assignRoomId,
+    };
+
+    if (existingAssignment) {
+      updateAssignmentMutation.mutate({ id: existingAssignment.id, data: assignmentData });
+    } else {
+      createAssignmentMutation.mutate(assignmentData);
+    }
+    setAssignModalOpen(false);
+  };
+  const handleRemoveFromRoom = (assignmentId: string) => {
+    if (window.confirm("Remove this model from the room?")) {
+      removeAssignmentMutation.mutate(assignmentId);
+    }
+  };
+  const handleAddRoom = () => { setSelectedRoom(null); setModalOpen(true); };
+  const handleEditRoom = (room: any) => { setSelectedRoom(room); setModalOpen(true); };
+  const handleDeleteRoom = (roomId: string) => { if (window.confirm("Are you sure you want to delete this room?")) deleteRoomMutation.mutate(roomId); };
+  const handleSaveRoom = (roomData: Record<string, unknown>) => {
+    if (selectedRoom) { updateRoomMutation.mutate({ id: selectedRoom.id, data: roomData }); }
+    else { createRoomMutation.mutate(roomData); }
+  };
+
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-[#A8A49A]/40">
-            {rooms.length} room{rooms.length !== 1 ? "s" : ""} configured
-          </p>
-        </div>
-        {isAdmin && (
-          <Button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-[#C9A84C] hover:bg-[#b8963f] text-black font-medium"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Room
-          </Button>
-        )}
-      </div>
-
-      {/* Create Form */}
-      {showCreateForm && (
-        <div className="bg-[#111111] border border-[#C9A84C]/20 rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <Input
-              placeholder="Room name (e.g. Studio A, Room 1)"
-              value={newRoomName}
-              onChange={(e) => setNewRoomName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              className="bg-[#0A0A0A] border-white/[0.06] text-white flex-1"
-              autoFocus
-            />
-            <Button
-              onClick={handleCreate}
-              disabled={creating || !newRoomName.trim()}
-              className="bg-[#C9A84C] hover:bg-[#b8963f] text-black"
-            >
-              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create"}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setShowCreateForm(false);
-                setNewRoomName("");
-              }}
-              className="text-[#A8A49A]/40 hover:text-white"
-            >
-              <X className="w-4 h-4" />
-            </Button>
+    <FeatureGate requiredTier="starter">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Room Management</h2>
+            <p className="text-white/60 text-sm hidden sm:block">Manage studio rooms and their assignments</p>
           </div>
+          <Button onClick={handleAddRoom} size="sm" className="bg-[#C9A84C] hover:bg-[#B8973B] text-black shrink-0">
+            <Plus className="w-4 h-4 mr-1" />Add Room
+          </Button>
         </div>
-      )}
 
-      {/* Rooms Grid */}
-      {rooms.length === 0 ? (
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-12 text-center">
-          <Building2 className="w-10 h-10 text-[#A8A49A]/20 mx-auto mb-3" />
-          <p className="text-sm text-[#A8A49A]/40 mb-1">No rooms configured yet</p>
-          <p className="text-xs text-[#A8A49A]/25">
-            Add rooms to organize your studio workspace and assign them to shifts.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {rooms.map((room) => {
-            const activeModels = accounts.filter(
-              (a) => a.role === "model" && a.is_active
-            );
-            const isEditing = editingRoom === room.id;
-
-            return (
-              <div
-                key={room.id}
-                className="bg-[#111111] border border-white/[0.04] rounded-xl p-4 hover:border-white/[0.08] transition-colors"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-[#C9A84C]/10 flex items-center justify-center shrink-0">
-                      <Building2 className="w-4 h-4 text-[#C9A84C]" />
-                    </div>
-                    <div className="min-w-0">
-                      {isEditing ? (
-                        <Input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleUpdate(room.id, { name: editName });
-                            if (e.key === "Escape") setEditingRoom(null);
-                          }}
-                          onBlur={() => handleUpdate(room.id, { name: editName })}
-                          className="h-7 text-sm bg-[#0A0A0A] border-white/[0.06] text-white"
-                          autoFocus
-                        />
-                      ) : (
-                        <p className="text-sm font-medium text-white">{room.name}</p>
-                      )}
-                      <Badge
-                        variant="outline"
-                        className={`text-[9px] mt-0.5 ${
-                          room.is_active !== false
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                            : "bg-red-500/10 text-red-400 border-red-500/20"
-                        }`}
-                      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {rooms.length === 0 ? (
+            <Card className="col-span-full bg-[#111111]/80 border-white/[0.04]">
+              <CardContent className="py-12 text-center">
+                <Building2 className="w-12 h-12 mx-auto text-white/30 mb-4" />
+                <p className="text-white/60">No rooms created yet</p>
+                <Button onClick={handleAddRoom} variant="link" className="text-[#C9A84C] mt-2">Add your first room</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            rooms.map((room) => {
+              const roomAssignments = getAssignedModels(room.id);
+              return (
+                <Card key={room.id} className="bg-[#111111]/80 border-white/[0.04] overflow-hidden">
+                  <div className={`h-1 ${room.is_active !== false ? "bg-green-500" : "bg-gray-300"}`} />
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+                        <Building2 className="w-5 h-5 text-[#C9A84C]" />{room.name}
+                      </CardTitle>
+                      <Badge variant="outline" className={room.is_active !== false ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-white/[0.05] text-white/40 border-white/[0.08]"}>
                         {room.is_active !== false ? "Active" : "Inactive"}
                       </Badge>
                     </div>
-                  </div>
-                  {isAdmin && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-[#A8A49A]/30 hover:text-white h-7 w-7 shrink-0"
-                        >
-                          <MoreVertical className="w-3.5 h-3.5" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2 text-sm">
+                        <Users className="w-4 h-4 text-white/40 mt-0.5" />
+                        <div className="flex-1">
+                          {roomAssignments.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {roomAssignments.map((a) => (
+                                <Badge key={a.id} variant="outline" className="bg-white/[0.03] text-white flex items-center gap-1 pr-1">
+                                  {getModelName(a.model_id)}
+                                  <button onClick={() => handleRemoveFromRoom(a.id)} className="ml-1 hover:text-red-600 rounded-full">
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-white/70">No models assigned</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenAssignModel(room.id)} className="flex-1">
+                          <UserPlus className="w-4 h-4 mr-1" />Assign Model
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="bg-[#1a1a1a] border-white/[0.08]">
-                        <DropdownMenuItem
-                          className="text-white"
-                          onClick={() => {
-                            setEditingRoom(room.id);
-                            setEditName(room.name);
-                          }}
-                        >
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-white"
-                          onClick={() =>
-                            handleUpdate(room.id, { is_active: room.is_active === false })
-                          }
-                        >
-                          {room.is_active !== false ? "Deactivate" : "Activate"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-400"
-                          onClick={() => handleDelete(room.id)}
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-
-                <div className="pt-3 border-t border-white/[0.04]">
-                  <p className="text-[10px] text-[#A8A49A]/30 mb-1.5">
-                    Studio Models ({activeModels.length})
-                  </p>
-                  <div className="flex -space-x-1.5">
-                    {activeModels.slice(0, 5).map((model) => (
-                      <div
-                        key={model.id}
-                        className="w-6 h-6 rounded-full bg-white/[0.08] border border-[#111111] flex items-center justify-center text-[9px] text-white"
-                        title={`${model.first_name || ""} ${model.last_name || ""}`}
-                      >
-                        {(model.first_name?.charAt(0) || "?").toUpperCase()}
+                        <Button variant="outline" size="sm" onClick={() => handleEditRoom(room)} className="flex-1">
+                          <Edit2 className="w-4 h-4 mr-1" />Edit
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteRoom(room.id)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 border-white/[0.06]">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
-                    ))}
-                    {activeModels.length > 5 && (
-                      <div className="w-6 h-6 rounded-full bg-white/[0.04] border border-[#111111] flex items-center justify-center text-[9px] text-[#A8A49A]/40">
-                        +{activeModels.length - 5}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
         </div>
-      )}
+
+        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+          <DialogContent className="sm:max-w-[400px] bg-white/[0.03]">
+            <DialogHeader><DialogTitle className="text-white">{selectedRoom ? "Edit Room" : "Add Room"}</DialogTitle></DialogHeader>
+            <RoomForm room={selectedRoom} onSave={handleSaveRoom} onClose={() => { setModalOpen(false); setSelectedRoom(null); }} />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
+          <DialogContent className="sm:max-w-[400px] bg-white/[0.03]">
+            <DialogHeader><DialogTitle className="text-white">Assign Model to Room</DialogTitle></DialogHeader>
+            <AssignModelToRoom
+              models={models}
+              existingAssignments={assignments}
+              roomId={assignRoomId}
+              onAssign={handleAssignModel}
+              onClose={() => setAssignModalOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+    </FeatureGate>
+  );
+}
+
+function AssignModelToRoom({
+  models,
+  existingAssignments,
+  roomId,
+  onAssign,
+  onClose,
+}: {
+  models: any[];
+  existingAssignments: any[];
+  roomId: string | null;
+  onAssign: (modelId: string) => void;
+  onClose: () => void;
+}) {
+  const [selectedModelId, setSelectedModelId] = useState("");
+  // Show models not already assigned to this room
+  const alreadyAssignedIds = existingAssignments.filter((a) => a.room_id === roomId).map((a) => a.model_id);
+  const availableModels = models.filter((m) => !alreadyAssignedIds.includes(m.id));
+
+  return (
+    <div className="space-y-4 py-4">
+      <div className="space-y-2">
+        <Label>Select Model</Label>
+        <Select value={selectedModelId} onValueChange={(v) => v !== null && setSelectedModelId(v)}>
+          <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
+            <SelectValue placeholder="Choose a model..." />
+          </SelectTrigger>
+          <SelectContent>
+            {availableModels.map((m) => (
+              <SelectItem key={m.id} value={m.id}>{m.first_name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {availableModels.length === 0 && (
+          <p className="text-xs text-white/50">All models are already assigned to this room.</p>
+        )}
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={() => onAssign(selectedModelId)} disabled={!selectedModelId} className="bg-[#C9A84C] hover:bg-[#B8973B] text-black">
+          Assign
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+function RoomForm({ room, onSave, onClose }: { room: any; onSave: (data: Record<string, unknown>) => void; onClose: () => void }) {
+  const [name, setName] = useState(room?.name || "");
+  const [isActive, setIsActive] = useState(room?.is_active !== false);
+
+  const handleSubmit = () => {
+    if (!name.trim()) { toast.error("Please enter a room name"); return; }
+    onSave({ name: name.trim(), is_active: isActive });
+  };
+
+  return (
+    <div className="space-y-4 py-4">
+      <div className="space-y-2">
+        <Label>Room Name</Label>
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Room 1, Studio A" className="bg-white/[0.04] border-white/[0.06] text-white" />
+      </div>
+      <div className="flex items-center justify-between">
+        <Label>Active</Label>
+        <Switch checked={isActive} onCheckedChange={setIsActive} />
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={handleSubmit} className="bg-[#C9A84C] hover:bg-[#B8973B] text-black">{room ? "Update" : "Create"} Room</Button>
+      </DialogFooter>
     </div>
   );
 }

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
+import SuperAdminReturnBanner from "@/components/shared/super-admin-return-banner";
+import SuspendedBanner from "@/components/shared/suspended-banner";
+import ReadOnlyOverlay from "@/components/shared/read-only-overlay";
+import SupportChatWidget from "@/components/support/support-chat-widget";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -14,17 +17,17 @@ const PAGE_TITLES: Record<string, string> = {
   "/accounting": "Accounting",
   "/payouts": "Payouts",
   "/chat": "Team Chat",
+  "/users": "User Management",
+  "/rooms": "Room Management",
+  "/settings": "Settings",
+  "/data-backup": "Data Backup",
   "/stream-time": "Stream Time",
+  "/billing": "Billing",
   "/model-insights": "Model Insights",
   "/member-lookup": "Member Lookup",
-  "/model-lookup": "Model Lookup",
   "/member-alerts": "Member Alerts",
-  "/users": "Team Management",
-  "/rooms": "Rooms",
-  "/settings": "Settings",
-  "/billing": "Billing",
-  "/data-backup": "Audit & Recovery",
-  "/faq": "FAQ & Support",
+  "/model-lookup": "Model Lookup",
+  "/faq": "FAQ",
 };
 
 export default function AuthLayout({
@@ -33,52 +36,85 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hasSuperAdminReturn, setHasSuperAdminReturn] = useState(false);
   const pathname = usePathname();
-  const { loading, isAuthenticated } = useAuth();
+  const { account, studio, loading, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    setHasSuperAdminReturn(!!localStorage.getItem("studioos_superadmin_return"));
+  }, []);
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    // The middleware should handle redirects, but this is a fallback
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-muted-foreground">Redirecting to sign in...</p>
+          <p className="text-[#A8A49A]/50">Redirecting to sign in...</p>
         </div>
       </div>
     );
   }
 
+  // Block non-admin users from accessing anything except Billing when suspended
+  const isSuspended = studio?.subscription_status === "suspended";
+  const canAccessBilling = account?.role === "owner" || account?.role === "admin";
+  const isBillingPage = pathname === "/billing";
+  const isFaqPage = pathname === "/faq";
+  const blockedBySuspension = isSuspended && !isBillingPage && !isFaqPage;
+
   const title = PAGE_TITLES[pathname] || "StudioOS";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#0A0A0A]">
+      <SuperAdminReturnBanner />
       <Sidebar
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
+        mobileOpen={mobileMenuOpen}
+        setMobileOpen={setMobileMenuOpen}
       />
-
       <div
         className={cn(
           "transition-all duration-300",
-          sidebarCollapsed ? "md:ml-16" : "md:ml-64"
+          "ml-0 md:ml-16",
+          !sidebarCollapsed && "md:ml-64",
+          hasSuperAdminReturn && "pt-8"
         )}
       >
         <Header
           title={title}
-          onMobileMenuToggle={() => setMobileOpen(true)}
+          onMobileMenuToggle={() => setMobileMenuOpen(true)}
         />
-        <main className="p-3 sm:p-6">{children}</main>
+        <main className="p-3 sm:p-6">
+          <SuspendedBanner />
+          <ReadOnlyOverlay>
+            {blockedBySuspension ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-5">
+                  <span className="text-3xl">{"\uD83D\uDD12"}</span>
+                </div>
+                <h2 className="text-lg font-medium text-white mb-2">Studio Access Paused</h2>
+                <p className="text-sm text-[#A8A49A]/50 max-w-md">
+                  {canAccessBilling
+                    ? "Your subscription has expired. Please go to Billing to subscribe and restore access."
+                    : "This studio's subscription has expired. Please contact your studio administrator."}
+                </p>
+              </div>
+            ) : (
+              children
+            )}
+          </ReadOnlyOverlay>
+        </main>
       </div>
+      <SupportChatWidget />
     </div>
   );
 }

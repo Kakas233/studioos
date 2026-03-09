@@ -46,11 +46,11 @@ export const STORAGE_KEYS = {
   cookieConsent: "studioos_cookie_consent",
 } as const;
 
-/** Role display colors */
-export const ROLE_COLORS: Record<string, { text: string; bg: string }> = {
-  owner: { text: "text-amber-400", bg: "bg-amber-500/10" },
-  admin: { text: "text-amber-400", bg: "bg-amber-500/10" },
-  operator: { text: "text-orange-400", bg: "bg-orange-500/10" },
-  model: { text: "text-emerald-400", bg: "bg-emerald-500/10" },
-  accountant: { text: "text-blue-400", bg: "bg-blue-500/10" },
+/** Role display colors — match original exactly */
+export const ROLE_COLORS: Record<string, string> = {
+  owner: "bg-[#C9A84C]/20 text-[#C9A84C] border-[#C9A84C]/20",
+  admin: "bg-[#C9A84C]/20 text-[#C9A84C] border-[#C9A84C]/20",
+  operator: "bg-amber-500/20 text-amber-400 border-amber-500/20",
+  model: "bg-emerald-500/20 text-emerald-400 border-emerald-500/20",
+  accountant: "bg-blue-500/20 text-blue-400 border-blue-500/20",
 };

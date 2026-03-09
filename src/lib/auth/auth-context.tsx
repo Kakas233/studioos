@@ -20,6 +20,12 @@ import type { Database, UserRole } from "@/lib/supabase/types";
 type Account = Database["public"]["Tables"]["accounts"]["Row"];
 type Studio = Database["public"]["Tables"]["studios"]["Row"];
 
+interface LoginResult {
+  success: boolean;
+  error?: string;
+  studio?: Studio | null;
+}
+
 interface AuthState {
   /** Supabase auth user (from httpOnly cookie session) */
   user: User | null;
@@ -41,10 +47,16 @@ interface AuthState {
   isSuperAdmin: boolean;
   /** Whether this is a read-only support session */
   isReadOnly: boolean;
+  /** Whether this is a support impersonation session */
+  isSupportSession: boolean;
   /** Auth actions */
+  login: (email: string, password: string) => Promise<LoginResult>;
+  logout: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshStudio: () => Promise<void>;
   refreshAccount: () => Promise<void>;
+  checkSession: () => Promise<void>;
+  updateAccountLocal: (updates: Partial<Account>) => void;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -54,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [studio, setStudio] = useState<Studio | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSupportSession, setIsSupportSession] = useState(false);
 
   const supabase = createClient();
 
@@ -155,6 +168,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) setAccount(data);
   }, [supabase, user]);
 
+  const login = useCallback(
+    async (email: string, password: string): Promise<LoginResult> => {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error || !data.user) {
+        return { success: false, error: error?.message || "Login failed" };
+      }
+
+      setUser(data.user);
+      await fetchAccountAndStudio(data.user);
+
+      // Re-fetch the studio to return it
+      const { data: accountData } = await supabase
+        .from("accounts")
+        .select("*, studios(*)")
+        .eq("auth_user_id", data.user.id)
+        .eq("is_active", true)
+        .single();
+
+      const studioData = accountData?.studios as unknown as Studio | null;
+      return { success: true, studio: studioData ?? null };
+    },
+    [supabase, fetchAccountAndStudio]
+  );
+
+  const checkSession = useCallback(async () => {
+    try {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      if (authUser) {
+        setUser(authUser);
+        await fetchAccountAndStudio(authUser);
+      } else {
+        setUser(null);
+        setAccount(null);
+        setStudio(null);
+      }
+    } catch (error) {
+      console.error("Session check failed:", error);
+    }
+  }, [supabase, fetchAccountAndStudio]);
+
+  const updateAccountLocal = useCallback((updates: Partial<Account>) => {
+    setAccount((prev) => (prev ? { ...prev, ...updates } : prev));
+  }, []);
+
   const role = account?.role ?? null;
 
   const value: AuthState = {
@@ -171,9 +235,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAccountant: role === "accountant",
     isSuperAdmin: account?.is_super_admin ?? false,
     isReadOnly: false, // Will be set by impersonation logic
+    isSupportSession,
+    login,
+    logout: signOut,
     signOut,
     refreshStudio,
     refreshAccount,
+    checkSession,
+    updateAccountLocal,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

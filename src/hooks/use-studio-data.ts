@@ -250,3 +250,79 @@ export function useAssignments() {
     enabled: !!studio?.id,
   });
 }
+
+export function useShiftRequests() {
+  const { studio } = useAuth();
+  return useQuery<Tables["shift_requests"]["Row"][]>({
+    queryKey: ["shiftRequests", studio?.id],
+    queryFn: async () => {
+      if (!studio?.id) return [];
+      const { data } = await supabase
+        .from("shift_requests")
+        .select("*")
+        .eq("studio_id", studio.id)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!studio?.id,
+  });
+}
+
+export function useStreamSegments(
+  camAccountIds: string[],
+  dateFrom?: string,
+  dateTo?: string
+) {
+  const { studio } = useAuth();
+  return useQuery<Tables["stream_segments"]["Row"][]>({
+    queryKey: ["streamSegments", studio?.id, camAccountIds, dateFrom, dateTo],
+    queryFn: async () => {
+      if (!studio?.id || !camAccountIds.length) return [];
+      let query = supabase
+        .from("stream_segments")
+        .select("*")
+        .eq("studio_id", studio.id)
+        .in("cam_account_id", camAccountIds)
+        .order("start_time", { ascending: false });
+      if (dateFrom) query = query.gte("date", dateFrom);
+      if (dateTo) query = query.lte("date", dateTo);
+      const { data } = await query;
+      return data || [];
+    },
+    enabled: !!studio?.id && camAccountIds.length > 0,
+  });
+}
+
+export function useShiftAnalysis() {
+  const { studio } = useAuth();
+  return useQuery<Tables["shift_analyses"]["Row"][]>({
+    queryKey: ["shiftAnalyses", studio?.id],
+    queryFn: async () => {
+      if (!studio?.id) return [];
+      const { data } = await supabase
+        .from("shift_analyses")
+        .select("*")
+        .eq("studio_id", studio.id)
+        .order("shift_date", { ascending: false });
+      return data || [];
+    },
+    enabled: !!studio?.id,
+  });
+}
+
+export function useDataFetchJobs() {
+  const { studio } = useAuth();
+  return useQuery<Tables["data_fetch_jobs"]["Row"][]>({
+    queryKey: ["dataFetchJobs", studio?.id],
+    queryFn: async () => {
+      if (!studio?.id) return [];
+      const { data } = await supabase
+        .from("data_fetch_jobs")
+        .select("*")
+        .eq("studio_id", studio.id);
+      return data || [];
+    },
+    enabled: !!studio?.id,
+    refetchInterval: 5000,
+  });
+}

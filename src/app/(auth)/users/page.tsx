@@ -1,262 +1,833 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useStudioAccounts } from "@/hooks/use-studio-data";
-import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, UserPlus, Search, MoreVertical } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useStudioAccounts, useAssignments, useRooms } from "@/hooks/use-studio-data";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { InviteModal } from "@/components/users/invite-modal";
-import { EditUserDialog } from "@/components/users/edit-user-dialog";
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Tabs, TabsContent, TabsList, TabsTrigger,
+} from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import {
+  Users, UserPlus, Edit2, Link2, Banknote, CreditCard, Percent, Trash2,
+  Video, UserCheck, Loader2, Shuffle, Copy, Eye, EyeOff,
+} from "lucide-react";
+import { toast } from "sonner";
+import CamAccountsTab from "@/components/users/cam-accounts-tab";
+import FeatureGate from "@/components/shared/feature-gate";
+import WeeklyGoalSettings from "@/components/users/weekly-goal-settings";
+import { createClient } from "@/lib/supabase/client";
 
-const ROLE_COLORS: Record<string, string> = {
-  owner: "bg-[#C9A84C]/20 text-[#C9A84C] border-[#C9A84C]/30",
-  admin: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  operator: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  model: "bg-pink-500/20 text-pink-400 border-pink-500/30",
-  accountant: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-};
-
-export default function UsersPage() {
-  const { isAdmin } = useAuth();
-  const { data: accounts = [], isLoading } = useStudioAccounts();
+export default function UsersManagementPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<typeof accounts[0] | null>(null);
+  const { account, loading: authLoading } = useAuth();
+  const supabase = createClient();
 
-  const filteredAccounts = accounts.filter((acc) => {
-    const name = `${acc.first_name || ""} ${acc.last_name || ""} ${acc.email || ""}`.toLowerCase();
-    return name.includes(searchQuery.toLowerCase());
+  const userRole = account?.role || "model";
+  const isAdmin = userRole === "admin" || userRole === "owner";
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+
+  const { data: allAccounts = [] } = useStudioAccounts();
+  const { data: assignments = [] } = useAssignments();
+  const { data: rooms = [] } = useRooms();
+
+  const createAssignmentMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      const { error } = await supabase.from("assignments").insert(data);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      toast.success("Assignment created");
+    },
   });
 
-  const activeAccounts = filteredAccounts.filter((a) => a.is_active);
-  const inactiveAccounts = filteredAccounts.filter((a) => !a.is_active);
+  const updateAssignmentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const { error } = await supabase.from("assignments").update(data).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      toast.success("Assignment updated");
+    },
+  });
 
-  const handleInvite = useCallback(async (data: {
-    email: string;
-    first_name: string;
-    last_name: string;
-    role: string;
-    cut_percentage?: number;
-  }) => {
-    const res = await fetch("/api/auth/invite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Failed to send invite");
+  const deleteAssignmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("assignments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+    },
+  });
+
+  useEffect(() => {
+    if (!authLoading && (!account || !isAdmin)) {
+      router.push(account ? "/dashboard" : "/sign-in");
     }
-    queryClient.invalidateQueries({ queryKey: ["accounts"] });
-  }, [queryClient]);
+  }, [authLoading, account, isAdmin, router]);
 
-  const handleEditSave = useCallback(async (id: string, data: Record<string, unknown>) => {
-    const res = await fetch("/api/users", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ...data }),
-    });
-    if (!res.ok) throw new Error("Failed to update user");
-    queryClient.invalidateQueries({ queryKey: ["accounts"] });
-  }, [queryClient]);
-
-  if (isLoading) {
+  if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#C9A84C]" />
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  if (!account || !isAdmin) return null;
+
+  const models = allAccounts.filter((u) => u.role === "model" && u.is_active !== false);
+  const operators = allAccounts.filter((u) => u.role === "operator" && u.is_active !== false);
+
+  const getAssignmentForModel = (modelId: string) => {
+    return assignments.find((a) => a.model_id === modelId);
+  };
+
+  const handleEditUser = (user: any) => {
+    setSelectedUser(user);
+    setEditModalOpen(true);
+  };
+
+  const handleAssignments = (model: any) => {
+    setSelectedUser(model);
+    setAssignmentModalOpen(true);
+  };
+
+  const handleSaveAssignment = (operatorId: string, roomId: string) => {
+    const existingAssignment = getAssignmentForModel(selectedUser.id);
+    const operator = operators.find((o) => o.id === operatorId);
+    const room = rooms.find((r) => r.id === roomId);
+
+    const assignmentData = {
+      studio_id: account?.studio_id,
+      operator_id: operatorId,
+      model_id: selectedUser.id,
+    };
+
+    if (existingAssignment) {
+      updateAssignmentMutation.mutate({ id: existingAssignment.id, data: assignmentData });
+    } else {
+      createAssignmentMutation.mutate(assignmentData);
+    }
+
+    setAssignmentModalOpen(false);
+    setSelectedUser(null);
+  };
+
+  const roleColors: Record<string, string> = {
+    owner: "bg-[#C9A84C]/20 text-[#C9A84C]",
+    admin: "bg-[#C9A84C]/20 text-[#C9A84C]",
+    operator: "bg-amber-500/20 text-amber-400",
+    model: "bg-emerald-500/20 text-emerald-400",
+    accountant: "bg-blue-500/20 text-blue-400",
+  };
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const { error } = await supabase
+        .from("accounts")
+        .update({ is_active: false })
+        .eq("id", accountId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      toast.success("Account deactivated successfully");
+    },
+    onError: () => {
+      toast.error("Failed to deactivate account");
+    },
+  });
+
+  const handleDeleteUser = (user: any) => {
+    if (user.id === account.id) {
+      toast.error("You cannot deactivate your own account");
+      return;
+    }
+    if (user.role === "owner") {
+      toast.error("The studio owner account cannot be deactivated");
+      return;
+    }
+    if (window.confirm("Are you sure you want to deactivate this account? They will lose access.")) {
+      deleteAccountMutation.mutate(user.id);
+    }
+  };
+
+  // Helper to get operator name for a model assignment
+  const getOperatorName = (operatorId: string | null) => {
+    if (!operatorId) return "Unknown";
+    const op = allAccounts.find((a) => a.id === operatorId);
+    return op?.first_name || "Unknown";
+  };
+
+  // Helper to get room name for assignment
+  const getRoomNameForAssignment = (assignment: any) => {
+    if (!assignment?.room_id) return null;
+    const room = rooms.find((r) => r.id === assignment.room_id);
+    return room?.name || null;
+  };
+
   return (
-    <div className="space-y-5">
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A8A49A]/40" />
-          <Input
-            placeholder="Search team members..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-[#111111] border-white/[0.04] text-white placeholder:text-[#A8A49A]/30"
-          />
-        </div>
-        {isAdmin && (
+    <FeatureGate requiredTier="starter">
+      {/* Users management requires Starter tier */}
+      <div className="space-y-6">
+        <div className="flex justify-end">
           <Button
-            onClick={() => setInviteOpen(true)}
-            className="bg-[#C9A84C] hover:bg-[#b8963f] text-black font-medium"
+            onClick={() => setCreateModalOpen(true)}
+            size="sm"
+            className="bg-[#C9A84C] hover:bg-[#B8973B] text-black"
           >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Invite Member
+            <UserPlus className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">Invite User</span>
+            <span className="sm:hidden">Invite</span>
           </Button>
-        )}
-      </div>
+        </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3">
-          <p className="text-[10px] text-[#A8A49A]/40 mb-1">Total Members</p>
-          <p className="text-lg font-semibold text-white">{accounts.length}</p>
-        </div>
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3">
-          <p className="text-[10px] text-[#A8A49A]/40 mb-1">Active</p>
-          <p className="text-lg font-semibold text-emerald-400">
-            {accounts.filter((a) => a.is_active).length}
-          </p>
-        </div>
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3">
-          <p className="text-[10px] text-[#A8A49A]/40 mb-1">Models</p>
-          <p className="text-lg font-semibold text-pink-400">
-            {accounts.filter((a) => a.role === "model").length}
-          </p>
-        </div>
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3">
-          <p className="text-[10px] text-[#A8A49A]/40 mb-1">Operators</p>
-          <p className="text-lg font-semibold text-blue-400">
-            {accounts.filter((a) => a.role === "operator").length}
-          </p>
-        </div>
-      </div>
+        <Card className="bg-[#111111]/80 border-white/[0.04]">
+          <CardHeader className="pb-3 border-b border-white/[0.04]">
+            <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              All Users
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-white/[0.03]">
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Cut %</TableHead>
+                    <TableHead>Payout Method</TableHead>
+                    <TableHead>Assignment</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allAccounts.filter((a) => a.is_active !== false).map((u) => {
+                    const assignment = getAssignmentForModel(u.id);
 
-      {/* Active Members Table */}
-      <div className="bg-[#111111] border border-white/[0.04] rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/[0.04]">
-          <p className="text-sm font-medium text-white">
-            Active Members ({activeAccounts.length})
-          </p>
-        </div>
-        <div className="divide-y divide-white/[0.04]">
-          {activeAccounts.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-[#A8A49A]/30">
-              No members found.
+                    return (
+                      <TableRow key={u.id} className="hover:bg-white/[0.03]/50">
+                        <TableCell className="font-medium text-white">{u.first_name}</TableCell>
+                        <TableCell className="text-white/70">{u.email}</TableCell>
+                        <TableCell>
+                          <Badge className={roleColors[u.role] || "bg-gray-500 text-white"}>
+                            {u.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {(u.role === "model" || u.role === "operator") && (
+                            <Badge variant="outline" className="bg-white/[0.03] text-white/70 border-white/[0.08]">
+                              {u.cut_percentage || 33}%
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {u.payout_method === "Cash" ? (
+                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                              <Banknote className="w-3 h-3 mr-1" />
+                              Cash
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20">
+                              <CreditCard className="w-3 h-3 mr-1" />
+                              Bank
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {u.role === "model" && u.works_alone && (
+                            <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/20">
+                              <UserCheck className="w-3 h-3 mr-1" />Works Alone
+                            </Badge>
+                          )}
+                          {u.role === "model" && !u.works_alone && assignment && (
+                            <div className="text-sm">
+                              <p className="text-white">{getOperatorName(assignment.operator_id)}</p>
+                              <p className="text-white/50 text-xs">{getRoomNameForAssignment(assignment) || "No room"}</p>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditUser(u)}
+                              className="text-white/60 hover:text-[#e8e6e3]"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            {u.role === "model" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleAssignments(u)}
+                                className="text-white/60 hover:text-[#e8e6e3]"
+                              >
+                                <Link2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {u.id !== account.id && u.role !== "owner" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteUser(u)}
+                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
-          )}
-          {activeAccounts.map((acc) => (
-            <div
-              key={acc.id}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors"
-            >
-              <div className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-xs font-medium text-white shrink-0">
-                {(acc.first_name?.charAt(0) || "?").toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-white truncate">
-                  {acc.first_name || ""} {acc.last_name || ""}
-                </p>
-                <p className="text-xs text-[#A8A49A]/40 truncate">{acc.email}</p>
-              </div>
-              {acc.role === "model" && acc.cut_percentage != null && (
-                <span className="text-[10px] text-[#A8A49A]/30">{acc.cut_percentage}%</span>
-              )}
-              <Badge
-                variant="outline"
-                className={`text-[10px] capitalize ${ROLE_COLORS[acc.role || ""] || "bg-white/[0.04] text-[#A8A49A]/40"}`}
-              >
-                {acc.role}
-              </Badge>
-              {isAdmin && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-[#A8A49A]/30 hover:text-white shrink-0"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-[#1a1a1a] border-white/[0.08]">
-                    <DropdownMenuItem
-                      className="text-white"
-                      onClick={() => {
-                        setEditingAccount(acc);
-                        setEditOpen(true);
-                      }}
-                    >
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-red-400"
-                      onClick={() => handleEditSave(acc.id, { is_active: false })}
-                    >
-                      Deactivate
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+          </CardContent>
+        </Card>
 
-      {/* Inactive Members */}
-      {inactiveAccounts.length > 0 && (
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/[0.04]">
-            <p className="text-sm font-medium text-[#A8A49A]/60">
-              Inactive Members ({inactiveAccounts.length})
-            </p>
-          </div>
-          <div className="divide-y divide-white/[0.04]">
-            {inactiveAccounts.map((acc) => (
-              <div
-                key={acc.id}
-                className="flex items-center gap-3 px-4 py-3 opacity-50"
-              >
-                <div className="w-8 h-8 rounded-full bg-white/[0.04] flex items-center justify-center text-xs font-medium text-[#A8A49A]/40 shrink-0">
-                  {(acc.first_name?.charAt(0) || "?").toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-[#A8A49A]/60 truncate">
-                    {acc.first_name || ""} {acc.last_name || ""}
-                  </p>
-                  <p className="text-xs text-[#A8A49A]/30 truncate">{acc.email}</p>
-                </div>
-                <Badge
-                  variant="outline"
-                  className="text-[10px] bg-white/[0.02] text-[#A8A49A]/30 border-white/[0.04]"
-                >
-                  {acc.role}
-                </Badge>
-                {isAdmin && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEditSave(acc.id, { is_active: true })}
-                    className="text-xs text-[#A8A49A]/40 hover:text-emerald-400"
-                  >
-                    Reactivate
-                  </Button>
-                )}
-              </div>
+        <Dialog open={assignmentModalOpen} onOpenChange={setAssignmentModalOpen}>
+          <DialogContent className="sm:max-w-[400px] bg-[#111111] border-white/[0.06]">
+            <DialogHeader>
+              <DialogTitle className="text-white">
+                Assign {selectedUser?.first_name}
+              </DialogTitle>
+            </DialogHeader>
+            <AssignmentForm
+              model={selectedUser}
+              operators={operators}
+              rooms={rooms}
+              existingAssignment={selectedUser ? getAssignmentForModel(selectedUser.id) : null}
+              onSave={handleSaveAssignment}
+              onClose={() => setAssignmentModalOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent className={`bg-[#111111] border-white/[0.06] ${selectedUser?.role === "model" ? "sm:max-w-[500px]" : "sm:max-w-[400px]"}`}>
+            <DialogHeader>
+              <DialogTitle className="text-white">Edit {selectedUser?.first_name || "User"}</DialogTitle>
+            </DialogHeader>
+            {selectedUser?.role === "model" ? (
+              <Tabs defaultValue="details" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 bg-white/[0.05]">
+                  <TabsTrigger value="details">Details</TabsTrigger>
+                  <TabsTrigger value="cam_accounts" className="flex items-center gap-1">
+                    <Video className="w-3 h-3" />
+                    Cam Accounts
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="details">
+                  <EditUserForm
+                    user={selectedUser}
+                    onClose={() => {
+                      setEditModalOpen(false);
+                      setSelectedUser(null);
+                    }}
+                  />
+                </TabsContent>
+                <TabsContent value="cam_accounts">
+                  <CamAccountsTab user={selectedUser} studioId={account?.studio_id} />
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <EditUserForm
+                user={selectedUser}
+                onClose={() => {
+                  setEditModalOpen(false);
+                  setSelectedUser(null);
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+          <DialogContent className="sm:max-w-[500px] bg-[#111111] border-white/[0.06]">
+            <DialogHeader>
+              <DialogTitle className="text-white">Invite New User</DialogTitle>
+            </DialogHeader>
+            <CreateUserForm
+              studioId={account?.studio_id}
+              onClose={() => setCreateModalOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+    </FeatureGate>
+  );
+}
+
+function AssignmentForm({
+  model,
+  operators,
+  rooms,
+  existingAssignment,
+  onSave,
+  onClose,
+}: {
+  model: any;
+  operators: any[];
+  rooms: any[];
+  existingAssignment: any;
+  onSave: (operatorId: string, roomId: string) => void;
+  onClose: () => void;
+}) {
+  const [operatorId, setOperatorId] = useState(existingAssignment?.operator_id || "");
+  const [roomId, setRoomId] = useState(existingAssignment?.room_id || "");
+
+  // Only show active operators
+  const activeOperators = operators.filter((op) => op.is_active !== false);
+
+  return (
+    <div className="space-y-4 py-4">
+      <div className="space-y-2">
+        <Label className="text-gray-100 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Assign to Operator</Label>
+        <Select value={operatorId} onValueChange={(v) => v !== null && setOperatorId(v)}>
+          <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
+            <SelectValue placeholder="Select operator" />
+          </SelectTrigger>
+          <SelectContent>
+            {activeOperators.map((op) => (
+              <SelectItem key={op.id} value={op.id}>
+                {op.first_name}
+              </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label className="text-gray-100 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Assign Room</Label>
+        <Select value={roomId} onValueChange={(v) => v !== null && setRoomId(v)}>
+          <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
+            <SelectValue placeholder="Select room" />
+          </SelectTrigger>
+          <SelectContent>
+            {rooms.map((room) => (
+              <SelectItem key={room.id} value={room.id}>
+                {room.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button
+          onClick={() => onSave(operatorId, roomId)}
+          className="bg-[#C9A84C] hover:bg-[#B8973B] text-black"
+          disabled={!operatorId}
+        >
+          Save Assignment
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+  const [role, setRole] = useState(user?.role || "model");
+  const [cutPercentage, setCutPercentage] = useState(user?.cut_percentage || 33);
+  const [payoutMethod, setPayoutMethod] = useState(user?.payout_method || "Bank");
+  const [worksAlone, setWorksAlone] = useState(user?.works_alone || false);
+  const [newPassword, setNewPassword] = useState("");
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const updateAccountMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      const { error } = await supabase
+        .from("accounts")
+        .update(data)
+        .eq("id", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      toast.success("User updated successfully");
+      onClose();
+    },
+  });
+
+  const handleResetPassword = async () => {
+    if (!newPassword || newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: user.id,
+          new_password: newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (data.success || res.ok) {
+        toast.success(`Password updated for ${user.first_name}`);
+        setNewPassword("");
+        setShowPasswordSection(false);
+      } else {
+        toast.error(data.error || "Failed to reset password");
+      }
+    } catch {
+      toast.error("Failed to reset password");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleSave = () => {
+    if (user.role === "owner" && role !== "owner") {
+      toast.error("Cannot change the studio owner's role");
+      return;
+    }
+    if (role === "owner" && user.role !== "owner") {
+      toast.error("Cannot assign the owner role");
+      return;
+    }
+    const clampedCut = Math.max(0, Math.min(100, Number(cutPercentage) || 0));
+    const data: Record<string, unknown> = {
+      role,
+      cut_percentage: clampedCut,
+      payout_method: payoutMethod,
+    };
+    if (role === "model") {
+      data.works_alone = worksAlone;
+    }
+    updateAccountMutation.mutate(data);
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="space-y-4 py-4">
+      <div className="space-y-2">
+        <Label className="text-gray-100 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Role</Label>
+        <Select value={role} onValueChange={(v) => v !== null && setRole(v)}>
+          <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {user?.role === "owner" && <SelectItem value="owner">Owner</SelectItem>}
+            <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="operator">Operator</SelectItem>
+            <SelectItem value="model">Model</SelectItem>
+            <SelectItem value="accountant">Accountant</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {role === "model" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 bg-purple-500/[0.06] rounded-lg border border-purple-500/10">
+            <div>
+              <p className="text-sm font-medium text-purple-300">Works Alone</p>
+              <p className="text-xs text-purple-400/60 mt-0.5">
+                Model can manage own shifts without an operator
+              </p>
+            </div>
+            <Switch
+              checked={worksAlone}
+              onCheckedChange={setWorksAlone}
+            />
           </div>
+
+          <WeeklyGoalSettings user={user} />
         </div>
       )}
 
-      {/* Modals */}
-      <InviteModal
-        open={inviteOpen}
-        onOpenChange={setInviteOpen}
-        onInvite={handleInvite}
-      />
-      <EditUserDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        account={editingAccount}
-        onSave={handleEditSave}
-      />
+      <div className="space-y-2">
+        <Label className="text-gray-100 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Cut Percentage</Label>
+        <div className="flex items-center gap-2">
+          <Input type="number" min="0" max="100" value={cutPercentage}
+            onChange={(e) => setCutPercentage(Number(e.target.value))} className="bg-white/[0.04] border-white/[0.06] text-white" />
+          <Percent className="w-4 h-4 text-white/50" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label className="text-gray-100 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Payout Method</Label>
+        <Select value={payoutMethod} onValueChange={(v) => v !== null && setPayoutMethod(v)}>
+          <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Bank">Bank Transfer</SelectItem>
+            <SelectItem value="Cash">Cash</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Password Reset Section */}
+      <div className="border-t border-white/[0.06] pt-3">
+        {!showPasswordSection ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPasswordSection(true)}
+            className="bg-background text-zinc-900 px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm h-8 w-full border-white/[0.08] hover:text-white hover:bg-white/[0.06]"
+          >
+            Reset Password
+          </Button>
+        ) : (
+          <div className="space-y-2 p-3 bg-amber-500/[0.04] rounded-lg border border-amber-500/10">
+            <p className="text-xs font-medium text-amber-300">Set New Password</p>
+            <Input
+              type="password"
+              placeholder="Min. 8 characters"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="bg-white/[0.04] border-white/[0.06] text-white h-8 text-sm"
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={handleResetPassword}
+                disabled={passwordLoading}
+                className="bg-[#C9A84C] hover:bg-[#B8973B] text-black h-7 text-xs flex-1"
+              >
+                {passwordLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Update Password"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => { setShowPasswordSection(false); setNewPassword(""); }}
+                className="h-7 text-xs"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={handleSave} className="bg-[#C9A84C] hover:bg-[#B8973B] text-black">
+          Save Changes
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+function CreateUserForm({ studioId, onClose }: { studioId: string; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const { studio } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [role, setRole] = useState("model");
+  const [cutPercentage, setCutPercentage] = useState(33);
+  const [payoutMethod, setPayoutMethod] = useState("Bank");
+  const [inviting, setInviting] = useState(false);
+
+  const generateSecurePassword = () => {
+    const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const lower = "abcdefghjkmnpqrstuvwxyz";
+    const digits = "23456789";
+    const symbols = "!@#$%&*";
+    const all = upper + lower + digits + symbols;
+    const randomBytes = new Uint8Array(16);
+    crypto.getRandomValues(randomBytes);
+    // Ensure at least one of each category
+    let pw = "";
+    pw += upper[randomBytes[0] % upper.length];
+    pw += lower[randomBytes[1] % lower.length];
+    pw += digits[randomBytes[2] % digits.length];
+    pw += symbols[randomBytes[3] % symbols.length];
+    for (let i = 4; i < 16; i++) {
+      pw += all[randomBytes[i] % all.length];
+    }
+    // Shuffle using crypto-random
+    const shuffleBytes = new Uint8Array(pw.length);
+    crypto.getRandomValues(shuffleBytes);
+    const chars = pw.split("");
+    chars.sort((a, b) => shuffleBytes[chars.indexOf(a)] - shuffleBytes[chars.indexOf(b)]);
+    setPassword(chars.join(""));
+    setShowPassword(true);
+  };
+
+  const copyPassword = () => {
+    navigator.clipboard.writeText(password);
+    toast.success("Password copied");
+  };
+
+  const handleSubmit = async () => {
+    if (!email || !password || !firstName) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    setInviting(true);
+
+    try {
+      const res = await fetch("/api/auth/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          first_name: firstName,
+          role,
+          studio_id: studioId,
+          cut_percentage: cutPercentage,
+          payout_method: payoutMethod,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        toast.error(data.error || "Failed to invite user");
+        setInviting(false);
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      onClose();
+      toast.success(`Invitation sent to ${email}`);
+    } catch {
+      toast.error("Failed to invite user");
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 py-4">
+      <div className="space-y-4 p-4 bg-white/[0.03] rounded-lg border border-white/[0.06]">
+        <p className="text-sm font-medium text-white">Login Details</p>
+        <div className="space-y-2">
+          <Label className="text-white/70">Email *</Label>
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+            placeholder="user@youragency.com" className="bg-white/[0.04] border-white/[0.06] text-white" />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-white/70">Password *</Label>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="--------"
+                className="bg-white/[0.04] border-white/[0.06] text-white pr-16"
+              />
+              <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="p-1.5 rounded hover:bg-white/[0.06] text-white/40 hover:text-white/70 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+                {password && (
+                  <button
+                    type="button"
+                    onClick={copyPassword}
+                    className="p-1.5 rounded hover:bg-white/[0.06] text-white/40 hover:text-white/70 transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={generateSecurePassword}
+              className="shrink-0 text-[#C9A84C] border-[#C9A84C]/20 hover:bg-[#C9A84C]/10 text-xs gap-1"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              Generate
+            </Button>
+          </div>
+          {password && showPassword && (
+            <p className="text-xs text-white/40 font-mono break-all">{password}</p>
+          )}
+        </div>
+      </div>
+      <div className="space-y-4 p-4 bg-white/[0.03] rounded-lg border border-white/[0.06]">
+        <p className="text-sm font-medium text-white">Profile Info</p>
+        <div className="space-y-2">
+          <Label className="text-white/70">First Name *</Label>
+          <Input value={firstName} onChange={(e) => setFirstName(e.target.value)}
+            placeholder="John" className="bg-white/[0.04] border-white/[0.06] text-white" />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-white/70">Role *</Label>
+          <Select value={role} onValueChange={(v) => v !== null && setRole(v)}>
+            <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="operator">Operator</SelectItem>
+              <SelectItem value="model">Model</SelectItem>
+              <SelectItem value="accountant">Accountant</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-4 p-4 bg-white/[0.03] rounded-lg border border-white/[0.06]">
+        <p className="text-sm font-medium text-white">Financials</p>
+        <div className="space-y-2">
+          <Label className="text-white/70">Cut %</Label>
+          <div className="flex items-center gap-2">
+            <Input type="number" min="0" max="100" value={cutPercentage}
+              onChange={(e) => setCutPercentage(Number(e.target.value))} className="bg-white/[0.04] border-white/[0.06] text-white" />
+            <Percent className="w-4 h-4 text-white/50" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label className="text-white/70">Payout Method</Label>
+          <Select value={payoutMethod} onValueChange={(v) => v !== null && setPayoutMethod(v)}>
+            <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Bank">Bank Transfer</SelectItem>
+              <SelectItem value="Cash">Cash</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={handleSubmit} disabled={inviting} className="bg-[#C9A84C] hover:bg-[#B8973B] text-black">
+          {inviting ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Inviting...</> : <><UserPlus className="w-4 h-4 mr-1" />Invite User</>}
+        </Button>
+      </DialogFooter>
     </div>
   );
 }

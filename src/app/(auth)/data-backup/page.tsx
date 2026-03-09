@@ -1,183 +1,161 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useAuditLogs } from "@/hooks/use-studio-data";
-import { Loader2, Database, Download, Shield, Clock, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { parseISO, format, formatDistanceToNow } from "date-fns";
-
-const ACTION_COLORS: Record<string, string> = {
-  create: "bg-emerald-500/10 text-emerald-400",
-  update: "bg-blue-500/10 text-blue-400",
-  delete: "bg-red-500/10 text-red-400",
-  login: "bg-purple-500/10 text-purple-400",
-  export: "bg-yellow-500/10 text-yellow-400",
-};
+import {
+  useShifts,
+  useEarnings,
+  useStudioAccounts,
+  useAuditLogs,
+} from "@/hooks/use-studio-data";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Shield } from "lucide-react";
+import AuditStats from "@/components/audit/audit-stats";
+import AuditFilters from "@/components/audit/audit-filters";
+import AuditTimeline from "@/components/audit/audit-timeline";
+import ExportSection from "@/components/audit/export-section";
+import type { AuditLog } from "@/components/audit/audit-log-item";
 
 export default function DataBackupPage() {
-  const { isAdmin } = useAuth();
-  const [page, setPage] = useState(0);
-  const pageSize = 25;
+  const router = useRouter();
+  const { account, studio, loading: authLoading } = useAuth();
+  const isAdmin = account?.role === "admin" || account?.role === "owner";
+  const isSuperAdmin = account?.is_super_admin;
 
-  const { data: auditResult, isLoading } = useAuditLogs(page, pageSize);
-  const auditLogs = auditResult?.data || [];
-  const totalCount = auditResult?.count || 0;
-  const totalPages = Math.ceil(totalCount / pageSize);
+  const [filters, setFilters] = useState({
+    search: "",
+    entityType: "all",
+    eventType: "all",
+    dateFrom: "",
+    dateTo: "",
+  });
 
-  if (isLoading) {
+  // Pagination for audit logs - load a large set
+  const [page] = useState(0);
+  const pageSize = 500;
+
+  const { data: allAccounts = [] } = useStudioAccounts();
+  const { data: shifts = [] } = useShifts();
+  const { data: earnings = [] } = useEarnings();
+
+  // Fetch audit logs
+  const { data: auditResult, isLoading: logsLoading } = useAuditLogs(
+    page,
+    pageSize
+  );
+  const auditLogs: AuditLog[] = (auditResult?.data || []).map((log) => ({
+    ...log,
+    event_type: log.event_type || "",
+    entity_type: log.entity_type || "",
+    summary: log.summary || undefined,
+    actor_email: log.actor_email || undefined,
+    old_values: log.old_data as Record<string, unknown> | null,
+    new_values: log.new_data as Record<string, unknown> | null,
+    synced_to_sheets: false,
+  }));
+
+  const filteredLogs = useMemo(() => {
+    return auditLogs.filter((log) => {
+      if (
+        filters.entityType !== "all" &&
+        log.entity_type !== filters.entityType
+      )
+        return false;
+      if (filters.eventType !== "all" && log.event_type !== filters.eventType)
+        return false;
+      if (filters.search) {
+        const s = filters.search.toLowerCase();
+        const match =
+          (log.summary || "").toLowerCase().includes(s) ||
+          (log.actor_email || "").toLowerCase().includes(s) ||
+          (log.entity_type || "").toLowerCase().includes(s) ||
+          (log.studio_name || "").toLowerCase().includes(s);
+        if (!match) return false;
+      }
+      if (filters.dateFrom) {
+        const dateField = log.created_at || log.created_date;
+        const logDate = dateField?.split("T")[0];
+        if (logDate && logDate < filters.dateFrom) return false;
+      }
+      if (filters.dateTo) {
+        const dateField = log.created_at || log.created_date;
+        const logDate = dateField?.split("T")[0];
+        if (logDate && logDate > filters.dateTo) return false;
+      }
+      return true;
+    });
+  }, [auditLogs, filters]);
+
+  useEffect(() => {
+    if (!authLoading && (!account || !isAdmin)) {
+      router.push(account ? "/dashboard" : "/sign-in");
+    }
+  }, [authLoading, account, isAdmin, router]);
+
+  if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#C9A84C]" />
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  if (!account || !isAdmin) return null;
+
   return (
-    <div className="space-y-5">
-      {/* Header Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-4 hover:border-white/[0.08] transition-colors">
-          <div className="flex items-center gap-2 mb-2">
-            <Database className="w-4 h-4 text-[#C9A84C]" />
-            <p className="text-sm font-medium text-white">Data Export</p>
-          </div>
-          <p className="text-xs text-[#A8A49A]/40 mb-3">
-            Export your studio data in CSV or JSON format for backup or analysis.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs border-white/[0.08] text-[#A8A49A]/60 hover:text-white bg-transparent"
-          >
-            <Download className="w-3.5 h-3.5 mr-1.5" />
-            Export Data
-          </Button>
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 bg-[#C9A84C]/10 rounded-xl">
+          <Shield className="w-5 h-5 text-[#C9A84C]" />
         </div>
-
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-4 hover:border-white/[0.08] transition-colors">
-          <div className="flex items-center gap-2 mb-2">
-            <Shield className="w-4 h-4 text-emerald-400" />
-            <p className="text-sm font-medium text-white">Audit Trail</p>
-          </div>
-          <p className="text-xs text-[#A8A49A]/40 mb-3">
-            Track all changes and actions performed within your studio.
+        <div>
+          <h2 className="text-2xl font-bold text-white">Audit & Recovery</h2>
+          <p className="text-white/50 text-sm">
+            Track every change, export backups, and sync to Google Sheets
           </p>
-          <div className="flex items-center gap-2">
-            <p className="text-lg font-semibold text-white">{totalCount}</p>
-            <p className="text-[10px] text-[#A8A49A]/30">total events</p>
-          </div>
-        </div>
-
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-4 hover:border-white/[0.08] transition-colors">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-4 h-4 text-blue-400" />
-            <p className="text-sm font-medium text-white">Recovery</p>
-          </div>
-          <p className="text-xs text-[#A8A49A]/40 mb-3">
-            Restore data from a previous point in time if needed.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            className="text-xs border-white/[0.08] text-[#A8A49A]/30 bg-transparent"
-          >
-            Coming Soon
-          </Button>
         </div>
       </div>
 
-      {/* Audit Log Table */}
-      <div className="bg-[#111111] border border-white/[0.04] rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/[0.04] flex items-center justify-between">
-          <p className="text-sm font-medium text-white">Audit Log</p>
-          <p className="text-xs text-[#A8A49A]/30">
-            Page {page + 1} of {Math.max(totalPages, 1)}
-          </p>
-        </div>
-        <div className="divide-y divide-white/[0.04]">
-          {auditLogs.length === 0 ? (
-            <div className="px-4 py-12 text-center">
-              <Shield className="w-10 h-10 text-[#A8A49A]/20 mx-auto mb-3" />
-              <p className="text-sm text-[#A8A49A]/40">No audit logs yet</p>
-              <p className="text-xs text-[#A8A49A]/25 mt-1">
-                Actions performed in your studio will be recorded here.
-              </p>
+      <AuditStats logs={auditLogs} />
+
+      <Tabs defaultValue="timeline" className="w-full">
+        <TabsList className="bg-white/[0.05] border border-white/[0.04]">
+          <TabsTrigger value="timeline">Activity Timeline</TabsTrigger>
+          <TabsTrigger value="export">Export & Backup</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="timeline" className="mt-4 space-y-4">
+          <AuditFilters
+            filters={filters}
+            onChange={setFilters}
+            onClear={() =>
+              setFilters({
+                search: "",
+                entityType: "all",
+                eventType: "all",
+                dateFrom: "",
+                dateTo: "",
+              })
+            }
+          />
+          {logsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-6 h-6 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            auditLogs.map((log) => {
-              const actionType = (log.event_type || "").split("_")[0] || "update";
-              const colorClass =
-                ACTION_COLORS[actionType] || "bg-white/[0.04] text-[#A8A49A]/40";
-
-              return (
-                <div
-                  key={log.id}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <Badge
-                        variant="outline"
-                        className={`text-[9px] capitalize border-transparent ${colorClass}`}
-                      >
-                        {log.event_type}
-                      </Badge>
-                      <span className="text-[10px] text-[#A8A49A]/25">
-                        {log.entity_type}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#A8A49A]/50 truncate">
-                      {log.summary || `${log.event_type} on ${log.entity_type}`}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[10px] text-[#A8A49A]/30">
-                      {log.created_at
-                        ? formatDistanceToNow(parseISO(log.created_at), {
-                            addSuffix: true,
-                          })
-                        : "N/A"}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
+            <AuditTimeline logs={filteredLogs} />
           )}
-        </div>
+        </TabsContent>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-white/[0.04] flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={page === 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="text-xs text-[#A8A49A]/40 hover:text-white"
-            >
-              <ChevronLeft className="w-3.5 h-3.5 mr-1" />
-              Previous
-            </Button>
-            <span className="text-xs text-[#A8A49A]/30">
-              {page * pageSize + 1}-{Math.min((page + 1) * pageSize, totalCount)} of{" "}
-              {totalCount}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={page >= totalPages - 1}
-              onClick={() => setPage((p) => p + 1)}
-              className="text-xs text-[#A8A49A]/40 hover:text-white"
-            >
-              Next
-              <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          </div>
-        )}
-      </div>
+        <TabsContent value="export" className="mt-4">
+          <ExportSection
+            shifts={shifts as Record<string, unknown>[]}
+            earnings={earnings as Record<string, unknown>[]}
+            accounts={allAccounts as Record<string, unknown>[]}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

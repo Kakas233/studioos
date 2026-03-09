@@ -12,7 +12,7 @@ export type UserRole = "owner" | "admin" | "operator" | "model" | "accountant";
 export type ShiftStatus = "scheduled" | "completed" | "in_progress" | "no_show" | "cancelled" | "pending_approval";
 export type RequestStatus = "pending" | "approved" | "rejected";
 export type SubscriptionTier = "free" | "starter" | "pro" | "elite";
-export type SubscriptionStatus = "trialing" | "active" | "cancelled" | "past_due" | "suspended";
+export type SubscriptionStatus = "trialing" | "active" | "cancelled" | "past_due" | "suspended" | "grace_period";
 export type FetchJobStatus = "pending" | "in_progress" | "completed" | "failed";
 export type AuditEventType = "create" | "update" | "delete";
 export type ExchangeRateMode = "manual" | "auto";
@@ -67,9 +67,11 @@ type StudioRow = {
   trial_ends_at: string | null;
   onboarding_completed: boolean;
   logo_url: string | null;
+  payout_frequency: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  [key: string]: unknown;
 }
 
 type AccountRow = {
@@ -157,9 +159,11 @@ type AssignmentRow = {
   studio_id: string;
   operator_id: string;
   model_id: string;
+  room_id: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  [key: string]: unknown;
 }
 
 type EarningRow = {

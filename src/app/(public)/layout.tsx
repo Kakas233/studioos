@@ -6,7 +6,7 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col">
+    <div id="public-layout" className="min-h-screen bg-[#0A0A0A] text-white flex flex-col">
       {/* Navigation */}
       <header className="sticky top-0 z-50 border-b border-white/[0.04] bg-[#0A0A0A]/80 backdrop-blur-md">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
@@ -32,6 +32,12 @@ export default function PublicLayout({
               className="text-sm text-[#A8A49A]/70 transition-colors hover:text-white"
             >
               FAQ
+            </Link>
+            <Link
+              href="/blog"
+              className="text-sm text-[#A8A49A]/70 transition-colors hover:text-white"
+            >
+              Blog
             </Link>
           </div>
 
@@ -106,7 +112,7 @@ export default function PublicLayout({
               <ul className="mt-3 space-y-2">
                 <li>
                   <Link
-                    href="/legal/privacy"
+                    href="/privacy"
                     className="text-sm text-[#A8A49A]/40 transition-colors hover:text-white"
                   >
                     Privacy Policy
@@ -114,19 +120,51 @@ export default function PublicLayout({
                 </li>
                 <li>
                   <Link
-                    href="/legal/terms"
+                    href="/terms"
                     className="text-sm text-[#A8A49A]/40 transition-colors hover:text-white"
                   >
                     Terms of Service
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    href="/cookies"
+                    className="text-sm text-[#A8A49A]/40 transition-colors hover:text-white"
+                  >
+                    Cookie Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/acceptable-use"
+                    className="text-sm text-[#A8A49A]/40 transition-colors hover:text-white"
+                  >
+                    Acceptable Use
+                  </Link>
+                </li>
               </ul>
             </div>
 
-            {/* Community */}
+            {/* Resources */}
             <div>
-              <h3 className="text-sm font-semibold text-white/80">Community</h3>
+              <h3 className="text-sm font-semibold text-white/80">Resources</h3>
               <ul className="mt-3 space-y-2">
+                <li>
+                  <Link
+                    href="/blog"
+                    className="text-sm text-[#A8A49A]/40 transition-colors hover:text-white"
+                  >
+                    Blog
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/help-center"
+                    className="text-sm text-[#A8A49A]/40 transition-colors hover:text-white"
+                  >
+                    Help Center
+                  </Link>
+                </li>
                 <li>
                   <a
                     href="https://t.me/StudioOS_updates"

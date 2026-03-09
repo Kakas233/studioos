@@ -3,207 +3,243 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
-  useStudioAccounts,
   useCamAccounts,
+  useStudioAccounts,
   useStudioDailyStats,
   useStreamingSessions,
+  useStreamSegments,
+  useShifts,
+  useShiftAnalysis,
 } from "@/hooks/use-studio-data";
-import { Loader2, Radio, Circle, Wifi, WifiOff } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
+import { subDays, format } from "date-fns";
+
+import LiveStatus from "@/components/streamtime/live-status";
+import StreamSummaryCards from "@/components/streamtime/stream-summary-cards";
+import StreamTimeChart from "@/components/streamtime/stream-time-chart";
+import StreamLog from "@/components/streamtime/stream-log";
+import EnhancedSessionBreakdown from "@/components/streamtime/enhanced-session-breakdown";
+import FeatureGate from "@/components/shared/feature-gate";
 
 export default function StreamTimePage() {
-  const { isAdmin } = useAuth();
-  const { data: accounts = [], isLoading: accountsLoading } = useStudioAccounts();
-  const { data: camAccounts = [], isLoading: camLoading } = useCamAccounts();
+  const { account, loading } = useAuth();
 
-  const modelIds = useMemo(
-    () =>
-      new Set(
-        accounts
-          .filter((a) => a.role === "model" && a.is_active)
-          .map((a) => a.id)
-      ),
-    [accounts]
+  const [selectedModel, setSelectedModel] = useState("all");
+  const [selectedPlatform, setSelectedPlatform] = useState("all");
+  const [dateFrom, setDateFrom] = useState(
+    format(subDays(new Date(), 7), "yyyy-MM-dd")
   );
+  const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
 
-  const camAccountIds = useMemo(
-    () => camAccounts.filter((ca) => modelIds.has(ca.model_id)).map((ca) => ca.id),
-    [camAccounts, modelIds]
+  const { data: camAccounts = [], isLoading: loadingCam } = useCamAccounts();
+  const { data: studioAccounts = [] } = useStudioAccounts();
+
+  const models = studioAccounts.filter(
+    (a) => a.role === "model" && a.is_active !== false
   );
+  const modelIds = new Set(models.map((m) => m.id));
 
-  const { data: dailyStats = [], isLoading: statsLoading } =
-    useStudioDailyStats(camAccountIds);
-  const { data: sessions = [], isLoading: sessionsLoading } =
-    useStreamingSessions(camAccountIds);
-
-  const [selectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-
-  const formatMinutes = (mins: number) => {
-    if (!mins) return "0h 0m";
-    const h = Math.floor(mins / 60);
-    const m = Math.round(mins % 60);
-    return `${h}h ${m}m`;
-  };
-
-  const todayStats = dailyStats.filter((s) => s.date === selectedDate);
-  const totalMinutesToday = todayStats.reduce(
-    (sum, s) => sum + (Number(s.total_minutes) || 0),
-    0
+  const studioCamAccounts = camAccounts.filter((ca) =>
+    modelIds.has(ca.model_id)
   );
-  const totalPublicMinutes = todayStats.reduce(
-    (sum, s) => sum + (Number(s.free_chat_minutes) || 0),
-    0
+  const studioCamAccountIds = useMemo(
+    () => studioCamAccounts.map((ca) => ca.id),
+    [studioCamAccounts]
   );
-  const totalPrivateMinutes = todayStats.reduce(
-    (sum, s) => sum + (Number(s.private_chat_minutes) || 0),
-    0
-  );
+  const studioCamIds = new Set(studioCamAccountIds);
 
-  const activeSessions = sessions.filter((s) => s.is_currently_live);
+  const { data: rawSessions = [], isLoading: loadingSessions } =
+    useStreamingSessions(studioCamAccountIds);
+  const studioSessions = rawSessions;
 
-  const getModelName = (modelId: string | null) => {
-    if (!modelId) return "Unknown";
-    const acc = accounts.find((a) => a.id === modelId);
-    return acc ? `${acc.first_name || ""} ${acc.last_name || ""}`.trim() : "Unknown";
-  };
+  const { data: allStats = [], isLoading: loadingStats } =
+    useStudioDailyStats(studioCamAccountIds);
+  const { data: streamSegments = [], isLoading: loadingSegments } =
+    useStreamSegments(studioCamAccountIds, dateFrom, dateTo);
+  const { data: shifts = [] } = useShifts();
+  const { data: shiftAnalyses = [], isLoading: loadingAnalyses } =
+    useShiftAnalysis();
 
-  const getCamAccountModel = (camAccountId: string) => {
-    const ca = camAccounts.find((c) => c.id === camAccountId);
-    return ca ? getModelName(ca.model_id) : "Unknown";
-  };
+  const platforms = [
+    ...new Set(studioCamAccounts.map((ca) => ca.platform)),
+  ].sort();
 
-  const getCamPlatform = (camAccountId: string) => {
-    const ca = camAccounts.find((c) => c.id === camAccountId);
-    return ca?.platform || "Unknown";
-  };
+  const camPlatformMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    studioCamAccounts.forEach((ca) => {
+      map[ca.id] = ca.platform;
+    });
+    return map;
+  }, [studioCamAccounts]);
 
-  const isLoading = accountsLoading || camLoading || statsLoading || sessionsLoading;
+  const filteredStats = useMemo(() => {
+    return allStats.filter((stat) => {
+      if (!studioCamIds.has(stat.cam_account_id)) return false;
+      if (selectedModel !== "all" && stat.model_id !== selectedModel)
+        return false;
+      if (
+        selectedPlatform !== "all" &&
+        camPlatformMap[stat.cam_account_id] !== selectedPlatform
+      )
+        return false;
+      if (stat.date && (stat.date < dateFrom || stat.date > dateTo))
+        return false;
+      return true;
+    });
+  }, [
+    allStats,
+    selectedModel,
+    selectedPlatform,
+    dateFrom,
+    dateTo,
+    studioCamIds,
+    camPlatformMap,
+  ]);
 
-  if (isLoading) {
+  const isLoading = loading || loadingCam || loadingSessions || loadingStats;
+
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#C9A84C]" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" />
+      </div>
+    );
+  }
+
+  if (!account || !["owner", "admin"].includes(account.role)) {
+    return (
+      <div className="text-center py-12 text-white/50">
+        <p>You don&apos;t have permission to view this page.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
-      {/* Live Sessions */}
-      <div className="bg-[#111111] border border-white/[0.04] rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/[0.04] flex items-center gap-2">
-          <div className="relative">
-            <Radio className="w-4 h-4 text-red-400" />
-            {activeSessions.length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-            )}
+    <FeatureGate requiredTier="starter">
+      <div className="space-y-6">
+        {/* Filters */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-3 sm:gap-4">
+          <div className="space-y-1">
+            <Label className="text-xs text-white/60">Model</Label>
+            <Select value={selectedModel} onValueChange={(v) => v !== null && setSelectedModel(v)}>
+              <SelectTrigger className="w-full sm:w-[180px] bg-white/[0.04] border-white/[0.06] text-white text-xs sm:text-sm">
+                <SelectValue placeholder="All Models" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Models</SelectItem>
+                {models
+                  .filter((m) =>
+                    studioCamAccounts.some((ca) => ca.model_id === m.id)
+                  )
+                  .map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.first_name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </div>
-          <p className="text-sm font-medium text-white">
-            Live Now ({activeSessions.length})
-          </p>
+          <div className="space-y-1">
+            <Label className="text-xs text-white/60">Platform</Label>
+            <Select
+              value={selectedPlatform}
+              onValueChange={(v) => v !== null && setSelectedPlatform(v)}
+            >
+              <SelectTrigger className="w-full sm:w-[180px] bg-white/[0.04] border-white/[0.06] text-white text-xs sm:text-sm">
+                <SelectValue placeholder="All Platforms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Platforms</SelectItem>
+                {platforms.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-white/60">From</Label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full sm:w-[160px] bg-white/[0.04] border-white/[0.06] text-white text-xs sm:text-sm [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-70"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-white/60">To</Label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-full sm:w-[160px] bg-white/[0.04] border-white/[0.06] text-white text-xs sm:text-sm [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-70"
+            />
+          </div>
         </div>
-        <div className="divide-y divide-white/[0.04]">
-          {activeSessions.length === 0 ? (
-            <div className="px-4 py-8 text-center">
-              <WifiOff className="w-8 h-8 text-[#A8A49A]/20 mx-auto mb-2" />
-              <p className="text-sm text-[#A8A49A]/40">No active streams right now</p>
-            </div>
-          ) : (
-            activeSessions.map((session) => (
-              <div
-                key={session.id}
-                className="flex items-center gap-3 px-4 py-3"
-              >
-                <div className="relative">
-                  <Circle className="w-2.5 h-2.5 fill-emerald-400 text-emerald-400 animate-pulse" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-white">
-                    {getCamAccountModel(session.cam_account_id)}
-                  </p>
-                  <p className="text-xs text-[#A8A49A]/40">
-                    {getCamPlatform(session.cam_account_id)}
-                  </p>
-                </div>
-                <Badge
-                  variant="outline"
-                  className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                >
-                  <Wifi className="w-3 h-3 mr-1" />
-                  Live
-                </Badge>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
 
-      {/* Today's Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs text-[#A8A49A]/40 mb-1">Total Online Today</p>
-          <p className="text-lg sm:text-xl font-semibold text-white">
-            {formatMinutes(totalMinutesToday)}
-          </p>
-        </div>
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs text-[#A8A49A]/40 mb-1">Public Chat</p>
-          <p className="text-lg sm:text-xl font-semibold text-blue-400">
-            {formatMinutes(totalPublicMinutes)}
-          </p>
-        </div>
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs text-[#A8A49A]/40 mb-1">Private Chat</p>
-          <p className="text-lg sm:text-xl font-semibold text-pink-400">
-            {formatMinutes(totalPrivateMinutes)}
-          </p>
-        </div>
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs text-[#A8A49A]/40 mb-1">Active Models</p>
-          <p className="text-lg sm:text-xl font-semibold text-[#C9A84C]">
-            {activeSessions.length}
-          </p>
-        </div>
-      </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-[#C9A84C]" />
+          </div>
+        ) : (
+          <>
+            {/* Summary cards */}
+            <StreamSummaryCards stats={filteredStats} />
 
-      {/* Daily Stats by Model */}
-      <div className="bg-[#111111] border border-white/[0.04] rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/[0.04]">
-          <p className="text-sm font-medium text-white">
-            Today&apos;s Stream Stats by Account
-          </p>
-        </div>
-        <div className="divide-y divide-white/[0.04]">
-          {todayStats.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-[#A8A49A]/30">
-              No stream data for today yet.
-            </div>
-          ) : (
-            todayStats.map((stat) => (
-              <div
-                key={stat.id}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-white">
-                    {getCamAccountModel(stat.cam_account_id)}
-                  </p>
-                  <p className="text-xs text-[#A8A49A]/40">
-                    {getCamPlatform(stat.cam_account_id)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-white">
-                    {formatMinutes(Number(stat.total_minutes) || 0)}
-                  </p>
-                  <p className="text-[10px] text-[#A8A49A]/30">total online</p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+            {/* Stacked bar chart */}
+            <StreamTimeChart stats={filteredStats} />
+
+            {/* Live status */}
+            <LiveStatus
+              sessions={studioSessions}
+              camAccounts={studioCamAccounts}
+              models={models}
+            />
+
+            {/* Enhanced Session Breakdown with shift correlation & multi-platform timelines */}
+            <EnhancedSessionBreakdown
+              shiftAnalyses={shiftAnalyses.filter((a) => {
+                if (
+                  selectedModel !== "all" &&
+                  a.model_id !== selectedModel
+                )
+                  return false;
+                if (
+                  a.shift_date &&
+                  (a.shift_date < dateFrom || a.shift_date > dateTo)
+                )
+                  return false;
+                return true;
+              })}
+              streamSegments={streamSegments}
+              shifts={shifts}
+              models={models}
+              selectedModel={selectedModel}
+              isLoading={loadingSegments || loadingAnalyses}
+            />
+
+            {/* Stream Log */}
+            <StreamLog
+              stats={filteredStats}
+              camAccounts={studioCamAccounts}
+              models={models}
+              allAccounts={studioAccounts}
+              shifts={shifts}
+              isLoading={loadingStats}
+            />
+          </>
+        )}
       </div>
-    </div>
+    </FeatureGate>
   );
 }

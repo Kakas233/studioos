@@ -1,215 +1,312 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useEarnings, useStudioAccounts } from "@/hooks/use-studio-data";
-import { useCurrency } from "@/hooks/use-currency";
-import { Loader2, Download, Filter } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useShifts, useEarnings, useGlobalSettings, useStudioAccounts, useRooms } from "@/hooks/use-studio-data";
+import EarningsForm from "@/components/accounting/earnings-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { parseISO, format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
-import type { Database } from "@/lib/supabase/types";
-
-type Earning = Database["public"]["Tables"]["earnings"]["Row"];
+import { Badge } from "@/components/ui/badge";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { DollarSign, TrendingUp, Edit2, FileText, Eye } from "lucide-react";
+import { format, parseISO, isBefore } from "date-fns";
+import { toast } from "sonner";
+import { useCurrency } from "@/hooks/use-currency";
+import { createClient } from "@/lib/supabase/client";
 
 export default function AccountingPage() {
-  const { account, isAdmin, role } = useAuth();
-  const userRole = role || "owner";
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { account, loading: authLoading, isAdmin } = useAuth();
+  const userRole = account?.role || "model";
+  const isAccountant = userRole === "accountant";
 
-  const { data: earnings = [], isLoading: earningsLoading } = useEarnings();
-  const { data: accounts = [], isLoading: accountsLoading } = useStudioAccounts();
-  const { formatUsdShort } = useCurrency();
+  const [selectedShift, setSelectedShift] = useState<any>(null);
+  const [earningsModalOpen, setEarningsModalOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const now = new Date();
-  const [dateRange, setDateRange] = useState({
-    start: startOfMonth(now),
-    end: endOfMonth(now),
-  });
+  const { data: shifts = [] } = useShifts();
+  const { data: earnings = [] } = useEarnings();
+  const { data: settings } = useGlobalSettings();
+  const { data: allAccounts = [] } = useStudioAccounts();
+  const { data: rooms = [] } = useRooms();
 
-  const filteredEarnings = useMemo(() => {
-    let result = earnings as Earning[];
+  const globalSettings = settings || { exchange_rate: 1 };
+  const { formatUsd, formatSecondary, secondaryCurrencyCode } = useCurrency();
 
-    // Role-based filtering
-    if (!isAdmin && userRole !== "accountant") {
-      if (userRole === "model") {
-        result = result.filter((e) => e.model_id === account?.id);
-      } else if (userRole === "operator") {
-        result = result.filter((e) => e.operator_id === account?.id);
-      }
-    }
+  const supabase = createClient();
 
-    // Date filtering
-    result = result.filter((e) => {
-      if (!e.shift_date) return false;
-      try {
-        return isWithinInterval(parseISO(e.shift_date), {
-          start: dateRange.start,
-          end: dateRange.end,
-        });
-      } catch {
-        return false;
-      }
-    });
-
-    return result;
-  }, [earnings, isAdmin, userRole, account?.id, dateRange]);
-
-  const totalGross = filteredEarnings.reduce(
-    (sum, e) => sum + (Number(e.total_gross_usd) || 0),
-    0
-  );
-  const totalModelPay = filteredEarnings.reduce(
-    (sum, e) => sum + (Number(e.model_pay_usd) || 0),
-    0
-  );
-  const totalOperatorPay = filteredEarnings.reduce(
-    (sum, e) => sum + (Number(e.operator_pay_usd) || 0),
-    0
-  );
-  const studioNet = totalGross - totalModelPay - totalOperatorPay;
-
+  // Helper to get account name by ID
   const getAccountName = (id: string | null) => {
-    if (!id) return "N/A";
-    const acc = accounts.find((a) => a.id === id);
-    return acc ? `${acc.first_name || ""} ${acc.last_name || ""}`.trim() : "Unknown";
+    if (!id) return "Unknown";
+    const acc = allAccounts.find((a) => a.id === id);
+    return acc?.first_name || "Unknown";
   };
 
-  const isLoading = earningsLoading || accountsLoading;
+  // Helper to get room name by ID
+  const getRoomName = (id: string | null) => {
+    if (!id) return "N/A";
+    const room = rooms.find((r) => r.id === id);
+    return room?.name || "N/A";
+  };
 
-  if (isLoading) {
+  if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#C9A84C]" />
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  if (!account) {
+    router.push("/sign-in");
+    return null;
+  }
+
+  const now = new Date();
+  const pastShifts = shifts.filter((shift) => {
+    const isPast = isBefore(parseISO(shift.end_time), now);
+    if (!isPast) return false;
+    if (isAdmin) return true;
+    if (userRole === "operator") return shift.operator_id === account.id;
+    if (userRole === "model") return shift.model_id === account.id;
+    return false;
+  });
+
+  const filteredShifts = pastShifts.filter((shift) => {
+    if (statusFilter === "all") return true;
+    return shift.status === statusFilter;
+  });
+
+  const getEarningForShift = (shiftId: string) => earnings.find((e) => e.shift_id === shiftId);
+
+  const handleReportEarnings = (shift: any) => {
+    setSelectedShift(shift);
+    setEarningsModalOpen(true);
+  };
+
+  const handleSaveEarning = async (earningData: Record<string, unknown>, requiresApproval: boolean) => {
+    const existingEarning = getEarningForShift(selectedShift.id);
+
+    if (requiresApproval) {
+      await supabase.from("shift_change_requests").insert({
+        studio_id: account?.studio_id,
+        shift_id: selectedShift.id,
+        requested_by_id: account.id,
+        old_data: existingEarning || {},
+        new_data: earningData,
+        status: "pending",
+      });
+      await supabase.from("shifts").update({ status: "pending_approval" }).eq("id", selectedShift.id);
+      queryClient.invalidateQueries({ queryKey: ["shiftChangeRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["shifts"] });
+      setEarningsModalOpen(false);
+      setSelectedShift(null);
+      toast.success("Edit request sent to Admin for approval");
+      return;
+    }
+
+    if (existingEarning) {
+      await supabase.from("earnings").update(earningData).eq("id", existingEarning.id);
+    } else {
+      await supabase.from("earnings").insert(earningData);
+    }
+
+    await supabase.from("shifts").update({ status: "completed" }).eq("id", selectedShift.id);
+    queryClient.invalidateQueries({ queryKey: ["earnings"] });
+    queryClient.invalidateQueries({ queryKey: ["shifts"] });
+    setEarningsModalOpen(false);
+    setSelectedShift(null);
+    toast.success("Earnings saved and shift marked as completed");
+  };
+
+  // Helper to read secondary currency values (backward compat with _huf fields)
+  const getSecondaryGross = (e: any) => e.total_gross_secondary || e.total_gross_huf || 0;
+  const getSecondaryModelPay = (e: any) => e.model_pay_secondary || e.model_pay_huf || 0;
+  const getSecondaryOperatorPay = (e: any) => e.operator_pay_secondary || e.operator_pay_huf || 0;
+
+  const allEarnings = earnings.filter((e) => {
+    if (isAdmin) return true;
+    if (userRole === "model") return e.model_id === account.id;
+    if (userRole === "operator") return e.operator_id === account.id;
+    return true;
+  });
+
+  const totalGrossUsd = allEarnings.reduce((sum, e) => sum + (e.total_gross_usd || 0), 0);
+  const totalGrossSecondary = allEarnings.reduce((sum, e) => sum + getSecondaryGross(e), 0);
+  const totalModelPay = userRole === "model" ? allEarnings.reduce((sum, e) => sum + getSecondaryModelPay(e), 0) : 0;
+  const totalOperatorPay = userRole === "operator" ? allEarnings.reduce((sum, e) => sum + getSecondaryOperatorPay(e), 0) : 0;
+
+  const statusColors: Record<string, string> = {
+    scheduled: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    completed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    no_show: "bg-red-500/20 text-red-400 border-red-500/30",
+    cancelled: "bg-white/[0.06] text-white/50 border-white/[0.08]",
+    pending_approval: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  };
+
+  const canEdit = isAdmin || userRole === "operator";
+  const isReadOnly = userRole === "model" || isAccountant;
+  const effectiveUserRole = isAdmin ? "admin" : isAccountant ? "admin" : userRole;
+
   return (
-    <div className="space-y-5">
-      {/* Date Range & Actions */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-[#A8A49A]/40" />
-          <span className="text-sm text-white">
-            {format(dateRange.start, "MMM d")} - {format(dateRange.end, "MMM d, yyyy")}
-          </span>
-        </div>
-        <Button
-          variant="outline"
-          className="border-white/[0.08] text-[#A8A49A]/60 hover:text-white bg-transparent"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Export CSV
-        </Button>
-      </div>
+    <div className="space-y-4 sm:space-y-6">
+      {isAccountant && (
+        <Card className="bg-blue-500/[0.06] border-blue-500/10">
+          <CardContent className="p-4">
+            <p className="text-blue-300 text-sm">You have read-only access to all financial data for accounting purposes.</p>
+          </CardContent>
+        </Card>
+      )}
+      {userRole === "model" && (
+        <Card className="bg-blue-500/[0.06] border-blue-500/10">
+          <CardContent className="p-4">
+            <p className="text-blue-300 text-sm">Earnings are reported by your operator. You can view them here.</p>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs text-[#A8A49A]/40 mb-1">Total Revenue</p>
-          <p className="text-lg sm:text-xl font-semibold text-white">
-            {formatUsdShort(totalGross)}
-          </p>
-        </div>
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs text-[#A8A49A]/40 mb-1">Model Payouts</p>
-          <p className="text-lg sm:text-xl font-semibold text-pink-400">
-            {formatUsdShort(totalModelPay)}
-          </p>
-        </div>
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs text-[#A8A49A]/40 mb-1">Operator Payouts</p>
-          <p className="text-lg sm:text-xl font-semibold text-blue-400">
-            {formatUsdShort(totalOperatorPay)}
-          </p>
-        </div>
-        <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs text-[#A8A49A]/40 mb-1">Studio Net</p>
-          <p className="text-lg sm:text-xl font-semibold text-[#C9A84C]">
-            {formatUsdShort(studioNet)}
-          </p>
-        </div>
-      </div>
-
-      {/* Earnings Table */}
-      <div className="bg-[#111111] border border-white/[0.04] rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/[0.04]">
-          <p className="text-sm font-medium text-white">
-            Earnings ({filteredEarnings.length})
-          </p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/[0.04]">
-                <th className="text-left px-4 py-2.5 text-[10px] font-medium text-[#A8A49A]/40 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-medium text-[#A8A49A]/40 uppercase tracking-wider">
-                  Model
-                </th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-medium text-[#A8A49A]/40 uppercase tracking-wider">
-                  Operator
-                </th>
-                <th className="text-right px-4 py-2.5 text-[10px] font-medium text-[#A8A49A]/40 uppercase tracking-wider">
-                  Gross
-                </th>
-                <th className="text-right px-4 py-2.5 text-[10px] font-medium text-[#A8A49A]/40 uppercase tracking-wider">
-                  Model Pay
-                </th>
-                <th className="text-right px-4 py-2.5 text-[10px] font-medium text-[#A8A49A]/40 uppercase tracking-wider">
-                  Op. Pay
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.04]">
-              {filteredEarnings.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-[#A8A49A]/30"
-                  >
-                    No earnings found for this period.
-                  </td>
-                </tr>
-              )}
-              {filteredEarnings.slice(0, 50).map((earning) => (
-                <tr
-                  key={earning.id}
-                  className="hover:bg-white/[0.02] transition-colors"
-                >
-                  <td className="px-4 py-2.5 text-[#A8A49A]/60 text-xs">
-                    {earning.shift_date
-                      ? format(parseISO(earning.shift_date), "MMM d")
-                      : "-"}
-                  </td>
-                  <td className="px-4 py-2.5 text-white text-xs">
-                    {getAccountName(earning.model_id)}
-                  </td>
-                  <td className="px-4 py-2.5 text-[#A8A49A]/60 text-xs">
-                    {getAccountName(earning.operator_id)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-white text-xs">
-                    {formatUsdShort(Number(earning.total_gross_usd) || 0)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-pink-400 text-xs">
-                    {formatUsdShort(Number(earning.model_pay_usd) || 0)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-blue-400 text-xs">
-                    {formatUsdShort(Number(earning.operator_pay_usd) || 0)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {filteredEarnings.length > 50 && (
-          <div className="px-4 py-2 border-t border-white/[0.04] text-center">
-            <p className="text-xs text-[#A8A49A]/30">
-              Showing 50 of {filteredEarnings.length} records
-            </p>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+        <Card className="bg-[#111111]/80 border-white/[0.04]">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-emerald-500/10 rounded-xl"><TrendingUp className="w-5 h-5 text-emerald-400" /></div>
+              <div>
+                <p className="text-sm text-white/60">Total Gross</p>
+                <p className="text-lg font-bold text-white">{formatUsd(totalGrossUsd)}</p>
+                <p className="text-sm text-white/50">{formatSecondary(totalGrossSecondary)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        {userRole === "model" && (
+          <Card className="bg-[#111111]/80 border-white/[0.04]">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-[#C9A84C]/10 rounded-xl"><DollarSign className="w-5 h-5 text-[#C9A84C]" /></div>
+                <div>
+                  <p className="text-sm text-white/60">My Earnings</p>
+                  <p className="text-lg font-bold text-white">{formatSecondary(totalModelPay)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {userRole === "operator" && (
+          <Card className="bg-[#111111]/80 border-white/[0.04]">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-amber-500/10 rounded-xl"><DollarSign className="w-5 h-5 text-amber-400" /></div>
+                <div>
+                  <p className="text-sm text-white/60">My Earnings</p>
+                  <p className="text-lg font-bold text-white">{formatSecondary(totalOperatorPay)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
+
+      <Card className="bg-[#111111]/80 border-white/[0.04]">
+        <CardHeader className="pb-3 border-b border-[#1F2937]/10">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base sm:text-lg font-semibold text-white">All Shifts</CardTitle>
+            <Select value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
+              <SelectTrigger className="w-32 sm:w-40 bg-white/[0.04] border-white/[0.06] text-white text-xs sm:text-sm"><SelectValue placeholder="Filter by status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="scheduled">Pending</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="no_show">No Show</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-white/[0.03]">
+                  <TableHead className="text-white/70">Date</TableHead><TableHead className="text-white/70">Model</TableHead><TableHead className="text-white/70">Time</TableHead>
+                  <TableHead className="text-white/70">Status</TableHead><TableHead className="text-white/70">Gross (USD)</TableHead><TableHead className="text-white/70">Gross ({secondaryCurrencyCode})</TableHead>
+                  {isAdmin && <TableHead className="text-white/70">Model Pay</TableHead>}
+                  {isAdmin && <TableHead className="text-white/70">Operator Pay</TableHead>}
+                  {userRole === "model" && <TableHead className="text-white/70">My Pay</TableHead>}
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredShifts.length === 0 ? (
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-white/50">No past shifts found</TableCell></TableRow>
+                ) : (
+                  filteredShifts.map((shift) => {
+                    const earning = getEarningForShift(shift.id);
+                    const hasEarning = !!earning;
+                    return (
+                      <TableRow key={shift.id} className="hover:bg-white/[0.03]/50">
+                        <TableCell className="font-medium text-white">{format(parseISO(shift.start_time), "MMM d, yyyy")}</TableCell>
+                        <TableCell className="text-white">{getAccountName(shift.model_id)}</TableCell>
+                        <TableCell className="text-white/70">
+                          {format(parseISO(shift.start_time), "HH:mm")} - {format(parseISO(shift.end_time), "HH:mm")}
+                        </TableCell>
+                        <TableCell><Badge className={statusColors[shift.status]}>{shift.status}</Badge></TableCell>
+                        <TableCell className="font-medium text-white">{hasEarning ? formatUsd(earning.total_gross_usd) : "-"}</TableCell>
+                        <TableCell className="font-medium text-white">{hasEarning ? formatSecondary(getSecondaryGross(earning)) : "-"}</TableCell>
+                        {isAdmin && (
+                          <>
+                            <TableCell className="font-medium text-[#C9A84C]">{hasEarning ? formatSecondary(getSecondaryModelPay(earning)) : "-"}</TableCell>
+                            <TableCell className="font-medium text-amber-600">{hasEarning ? formatSecondary(getSecondaryOperatorPay(earning)) : "-"}</TableCell>
+                          </>
+                        )}
+                        {userRole === "model" && (
+                          <TableCell className="font-medium text-[#C9A84C]">{hasEarning ? formatSecondary(getSecondaryModelPay(earning)) : "-"}</TableCell>
+                        )}
+                        <TableCell>
+                          {canEdit ? (
+                            <Button variant="ghost" size="sm" onClick={() => handleReportEarnings(shift)}
+                              className={hasEarning ? "text-blue-400 hover:text-blue-300" : "text-[#C9A84C] hover:text-[#E8D48B]"}>
+                              {hasEarning ? (<><Edit2 className="w-4 h-4 mr-1" />Edit</>) : (<><FileText className="w-4 h-4 mr-1" />Report</>)}
+                            </Button>
+                          ) : hasEarning ? (
+                            <Button variant="ghost" size="sm" onClick={() => handleReportEarnings(shift)} className="text-blue-400 hover:text-blue-300">
+                              <Eye className="w-4 h-4 mr-1" />View
+                            </Button>
+                          ) : null}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {(canEdit || (isReadOnly && selectedShift)) && selectedShift && (
+        <EarningsForm
+          open={earningsModalOpen}
+          onClose={() => { setEarningsModalOpen(false); setSelectedShift(null); }}
+          onSave={handleSaveEarning}
+          shift={selectedShift}
+          existingEarning={selectedShift ? getEarningForShift(selectedShift.id) || null : null}
+          globalSettings={globalSettings as any}
+          allUsers={allAccounts as any}
+          operatorInfo={{ id: account.id, name: account.first_name }}
+          isReadOnly={isReadOnly}
+          userRole={effectiveUserRole}
+          modelName={getAccountName(selectedShift.model_id)}
+          roomName={getRoomName(selectedShift.room_id)}
+        />
+      )}
     </div>
   );
 }
