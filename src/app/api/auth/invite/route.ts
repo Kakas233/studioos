@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendInviteEmail } from "@/lib/email";
 import { z } from "zod";
 import type { UserRole } from "@/lib/supabase/types";
 
@@ -9,11 +10,19 @@ const inviteSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().max(100).optional(),
   role: z.enum(["admin", "operator", "model", "accountant"]),
+  password: z.string().min(8).optional(),
   cutPercentage: z.number().min(0).max(100).optional(),
   operatorCutPercentage: z.number().min(0).max(100).optional(),
   weeklyGoalHours: z.number().min(0).max(168).optional(),
   worksAlone: z.boolean().optional(),
 });
+
+function generatePassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => chars.charAt(b % chars.length)).join("");
+}
 
 // Role hierarchy for permission checking
 const ROLE_LEVEL: Record<string, number> = {
@@ -100,17 +109,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create auth user with invite
-    const { data: authData, error: authError } = await admin.auth.admin.inviteUserByEmail(
-      parsed.email
-    );
+    // Generate password for the invited user
+    const password = parsed.password || generatePassword();
+
+    // Create auth user with credentials
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+      email: parsed.email,
+      password,
+      email_confirm: true, // Skip email verification for invited users
+    });
 
     if (authError || !authData.user) {
       return NextResponse.json(
-        { error: authError?.message || "Failed to invite user" },
+        { error: authError?.message || "Failed to create user" },
         { status: 400 }
       );
     }
+
+    // Get studio name for the email
+    const { data: studioData } = await admin
+      .from("studios")
+      .select("name")
+      .eq("id", inviter.studio_id)
+      .single();
+
+    const studioName = studioData?.name || "Your Studio";
 
     // Create account record
     const { error: accountError } = await admin.from("accounts").insert({
@@ -143,6 +166,18 @@ export async function POST(request: NextRequest) {
     // Update model count if applicable
     if (parsed.role === "model") {
       await admin.rpc("increment_model_count", { p_studio_id: inviter.studio_id });
+    }
+
+    // Send styled invite email with credentials
+    const emailResult = await sendInviteEmail(
+      parsed.email,
+      password,
+      parsed.role,
+      studioName
+    );
+
+    if (!emailResult.success) {
+      console.error("Invite email failed:", emailResult.error);
     }
 
     return NextResponse.json({

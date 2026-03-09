@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendVerificationEmail } from "@/lib/email";
 import { z } from "zod";
 
 const signupSchema = z.object({
@@ -143,12 +144,37 @@ export async function POST(request: NextRequest) {
       channel_type: "general",
     });
 
-    // Send verification email
-    await admin.auth.admin.generateLink({
+    // Generate verification link via Supabase
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "signup",
       email: parsed.email,
       password: parsed.password,
     });
+
+    if (linkError) {
+      console.error("Failed to generate verification link:", linkError);
+    }
+
+    // Send styled verification email via Resend
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://getstudioos.com";
+    // Extract the token from Supabase's link and build our own verify URL
+    let verifyUrl = `${appUrl}/verify-email`;
+    if (linkData?.properties?.hashed_token) {
+      verifyUrl = `${appUrl}/auth/callback?token_hash=${linkData.properties.hashed_token}&type=signup`;
+    } else if (linkData?.properties?.action_link) {
+      verifyUrl = linkData.properties.action_link;
+    }
+
+    const emailResult = await sendVerificationEmail(
+      parsed.email,
+      nameParts[0],
+      parsed.studioName,
+      verifyUrl
+    );
+
+    if (!emailResult.success) {
+      console.error("Verification email failed:", emailResult.error);
+    }
 
     return NextResponse.json({
       success: true,

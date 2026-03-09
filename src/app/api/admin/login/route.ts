@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import bcrypt from "bcryptjs";
-import { Resend } from "resend";
+import { sendAdmin2FAEmail } from "@/lib/email";
 import crypto from "crypto";
-
-function getResend() {
-  return new Resend(process.env.RESEND_API_KEY);
-}
 
 // Simple in-memory rate limiter
 const loginAttempts = new Map<string, number[]>();
@@ -123,22 +119,8 @@ export async function POST(request: Request) {
         expires_at: expiresAt,
       });
 
-      // Send 2FA email via Resend
-      await getResend().emails.send({
-        from: "StudioOS <noreply@studioos.live>",
-        to: SUPER_ADMIN_EMAIL,
-        subject: "StudioOS Super Admin - 2FA Code",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #AA0608;">StudioOS Super Admin Login</h2>
-            <p>Your 2FA verification code is:</p>
-            <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-              <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #AA0608;">${code}</span>
-            </div>
-            <p style="color: #666; font-size: 12px;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
-          </div>
-        `,
-      });
+      // Send styled 2FA email
+      await sendAdmin2FAEmail(SUPER_ADMIN_EMAIL, code);
 
       console.log("Super admin 2FA code sent");
       return NextResponse.json({

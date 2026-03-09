@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MODEL_LIMITS } from "@/lib/pricing";
+import { sendPaymentFailedEmail } from "@/lib/email";
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -104,15 +105,43 @@ export async function POST(request: NextRequest) {
           const subIdStr = typeof subscriptionId === "string" ? subscriptionId : subscriptionId.id;
           const { data: studio } = await admin
             .from("studios")
-            .select("id")
+            .select("id, name, grace_period_ends_at")
             .eq("stripe_subscription_id", subIdStr)
             .single();
 
           if (studio) {
+            // Set grace period (5 days) and mark as past_due
+            const gracePeriodEnds = new Date();
+            gracePeriodEnds.setDate(gracePeriodEnds.getDate() + 5);
+
             await admin
               .from("studios")
-              .update({ subscription_status: "past_due" })
+              .update({
+                subscription_status: "past_due",
+                grace_period_ends_at: gracePeriodEnds.toISOString(),
+              })
               .eq("id", studio.id);
+
+            // Send payment failed email to owner
+            try {
+              const { data: owners } = await admin
+                .from("accounts")
+                .select("email")
+                .eq("studio_id", studio.id)
+                .eq("role", "owner")
+                .eq("is_active", true)
+                .limit(1);
+
+              if (owners?.[0]?.email) {
+                await sendPaymentFailedEmail(
+                  owners[0].email,
+                  studio.name || "Your Studio",
+                  5
+                );
+              }
+            } catch (emailErr) {
+              console.error("Payment failed email error:", emailErr);
+            }
           }
         }
         break;

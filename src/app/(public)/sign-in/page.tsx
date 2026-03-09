@@ -73,7 +73,7 @@ export default function SignInPage() {
     setForgotLoading(true);
     setForgotError("");
     try {
-      await fetch("/api/auth/reset-password", {
+      await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail }),
@@ -209,10 +209,10 @@ export default function SignInPage() {
               {forgotSent ? (
                 <div className="space-y-4 text-center">
                   <p className="text-sm text-gray-400">
-                    If an admin/owner account exists for <strong className="text-[#C9A84C]">{forgotEmail}</strong>, we&apos;ve sent a password reset link.
+                    If an admin/owner account exists for <strong className="text-[#C9A84C]">{forgotEmail}</strong>, we&apos;ve sent a temporary password.
                   </p>
                   <p className="text-xs text-gray-500">
-                    Check your inbox and use the link to reset your password.
+                    Check your inbox and use the temporary password to sign in, then change it in Settings.
                   </p>
                   <Button
                     onClick={() => {
