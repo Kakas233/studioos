@@ -61,6 +61,14 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
+/** Race a promise against a timeout. Returns undefined on timeout. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  return Promise.race([
+    promise,
+    new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms)),
+  ]);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
@@ -73,35 +81,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchAccountAndStudio = useCallback(
     async (authUser: User) => {
       try {
-        // Fetch the account record linked to this auth user
-        const { data: accountData, error: accountError } = await supabase
-          .from("accounts")
-          .select("*")
-          .eq("auth_user_id", authUser.id)
-          .eq("is_active", true)
-          .single();
+        // Fetch account with 8s timeout
+        const accountResult = await withTimeout(
+          supabase
+            .from("accounts")
+            .select("*")
+            .eq("auth_user_id", authUser.id)
+            .eq("is_active", true)
+            .single(),
+          8000
+        );
+
+        if (!accountResult) {
+          console.error("Timeout fetching account");
+          return;
+        }
+
+        const { data: accountData, error: accountError } = accountResult;
 
         if (accountError) {
           console.error("Failed to fetch account:", accountError.message, accountError.details, accountError.hint);
           return;
         }
 
-        if (accountData) {
-          setAccount(accountData);
+        if (!accountData) return;
 
-          // Fetch the studio
-          if (accountData.studio_id) {
-            const { data: studioData, error: studioError } = await supabase
+        setAccount(accountData);
+
+        // Fetch studio with 8s timeout
+        if (accountData.studio_id) {
+          const studioResult = await withTimeout(
+            supabase
               .from("studios")
               .select("*")
               .eq("id", accountData.studio_id)
-              .single();
+              .single(),
+            8000
+          );
 
-            if (studioError) {
-              console.error("Failed to fetch studio:", studioError.message, studioError.details, studioError.hint);
-            }
-            setStudio(studioData);
+          if (!studioResult) {
+            console.error("Timeout fetching studio");
+            return;
           }
+
+          const { data: studioData, error: studioError } = studioResult;
+
+          if (studioError) {
+            console.error("Failed to fetch studio:", studioError.message, studioError.details, studioError.hint);
+          }
+          if (studioData) setStudio(studioData);
         }
       } catch (error) {
         console.error("Error fetching account/studio:", error);
@@ -111,13 +139,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    // Check initial auth state
+    let mounted = true;
+
     const initAuth = async () => {
       try {
-        const {
-          data: { user: authUser },
-          error: userError,
-        } = await supabase.auth.getUser();
+        // Get the authenticated user with 8s timeout
+        const userResult = await withTimeout(
+          supabase.auth.getUser(),
+          8000
+        );
+
+        if (!mounted) return;
+
+        if (!userResult) {
+          console.error("Timeout getting auth user");
+          setLoading(false);
+          return;
+        }
+
+        const { data: { user: authUser }, error: userError } = userResult;
 
         if (userError) {
           console.error("Auth getUser error:", userError.message);
@@ -126,25 +166,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (authUser) {
           setUser(authUser);
           await fetchAccountAndStudio(authUser);
-        } else {
-          console.log("No authenticated user found");
         }
       } catch (error) {
         console.error("Auth init error:", error);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     initAuth();
 
-    // Listen for auth state changes
+    // Safety net: force loading=false after 12 seconds no matter what
+    const safetyTimer = setTimeout(() => {
+      if (mounted) {
+        setLoading((prev) => {
+          if (prev) console.error("Auth safety timeout — forcing loading=false");
+          return false;
+        });
+      }
+    }, 12000);
+
+    // Listen for auth state changes (don't block on fetchAccountAndStudio here)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
         setUser(session.user);
-        await fetchAccountAndStudio(session.user);
+        // Fire and forget — don't await to avoid blocking
+        fetchAccountAndStudio(session.user).catch(console.error);
       } else if (event === "SIGNED_OUT") {
         setUser(null);
         setAccount(null);
@@ -152,14 +201,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, [supabase, fetchAccountAndStudio]);
 
   const signOut = useCallback(async () => {
     try {
-      // Sign out on the client
       await supabase.auth.signOut();
-      // Also sign out on the server to clear httpOnly cookies
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {
       // Ignore errors — we're logging out anyway
@@ -167,7 +218,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setAccount(null);
     setStudio(null);
-    // Hard redirect to ensure middleware sees the cleared session
     window.location.href = "/sign-in";
   }, [supabase]);
 
@@ -203,9 +253,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: error?.message || "Login failed" };
       }
 
-      // Don't query accounts/studios here — the hard redirect will trigger
-      // a full page load where initAuth will handle fetching account & studio.
-      // This avoids RLS race conditions during login.
       return { success: true };
     },
     [supabase]
@@ -249,7 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isModel: role === "model",
     isAccountant: role === "accountant",
     isSuperAdmin: account?.is_super_admin ?? false,
-    isReadOnly: false, // Will be set by impersonation logic
+    isReadOnly: false,
     isSupportSession,
     login,
     logout: signOut,

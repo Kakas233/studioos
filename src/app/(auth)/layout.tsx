@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
@@ -40,13 +40,20 @@ export default function AuthLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hasSuperAdminReturn, setHasSuperAdminReturn] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
-  const { account, studio, loading, isAuthenticated } = useAuth();
+  const { user, account, studio, loading, isAuthenticated } = useAuth();
 
   useEffect(() => {
     setHasSuperAdminReturn(!!localStorage.getItem("studioos_superadmin_return"));
   }, []);
 
+  // Redirect to sign-in if not authenticated (after loading completes)
+  useEffect(() => {
+    if (!loading && !user) {
+      window.location.href = "/sign-in";
+    }
+  }, [loading, user]);
+
+  // Show spinner while auth is loading
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
@@ -55,16 +62,27 @@ export default function AuthLayout({
     );
   }
 
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push("/sign-in");
-    }
-  }, [loading, isAuthenticated, router]);
-
-  if (!isAuthenticated) {
+  // No user at all — redirect is happening via useEffect above
+  if (!user) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // User exists but account not loaded yet — show a helpful message instead of infinite spinner
+  if (!account) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[#A8A49A]/50 text-sm">Loading your account...</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-xs text-[#C9A84C] hover:underline mt-2"
+        >
+          Taking too long? Click to reload
+        </button>
       </div>
     );
   }
