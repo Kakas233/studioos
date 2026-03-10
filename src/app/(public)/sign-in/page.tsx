@@ -130,7 +130,7 @@ export default function SignInPage() {
                             setResendVerificationSent(true);
                           }
                         } catch {
-                          // silently fail
+                          setError("Failed to resend verification email. Please try again.");
                         } finally {
                           setResendingVerification(false);
                         }

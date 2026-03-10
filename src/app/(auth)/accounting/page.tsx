@@ -133,9 +133,10 @@ export default function AccountingPage() {
 
   const allEarnings = earnings.filter((e) => {
     if (isAdmin) return true;
+    if (isAccountant) return true;
     if (userRole === "model") return e.model_id === account.id;
     if (userRole === "operator") return e.operator_id === account.id;
-    return true;
+    return false; // Unknown roles see nothing by default
   });
 
   const totalGrossUsd = allEarnings.reduce((sum, e) => sum + (e.total_gross_usd || 0), 0);

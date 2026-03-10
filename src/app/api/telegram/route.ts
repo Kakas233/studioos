@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 
-function getSupabase() {
-  return createClient(
+function getAdminSupabase() {
+  return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
@@ -27,30 +28,6 @@ async function sendTelegramMessage(
   return await res.json();
 }
 
-async function verifySession(sessionToken: string) {
-  if (!sessionToken) return null;
-
-  const { data: sessions } = await (getSupabase()
-    .from("sessions") as any)
-    .select("*")
-    .eq("token", sessionToken);
-
-  if (
-    !sessions ||
-    sessions.length === 0 ||
-    new Date(sessions[0].expires_at) < new Date()
-  ) {
-    return null;
-  }
-
-  const { data: accounts } = await getSupabase()
-    .from("accounts")
-    .select("*")
-    .eq("id", sessions[0].account_id);
-
-  return accounts && accounts.length > 0 ? accounts[0] : null;
-}
-
 export async function POST(request: Request) {
   try {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -61,50 +38,70 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json().catch(() => ({}));
-    const { action, account_id, studio_id, caller_session_token } = body;
+    // Authenticate the user via Supabase
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    // The component doesn't send caller_session_token, so we accept requests
-    // with just account_id for the actions the component uses.
-    // For security, we try to verify session if provided.
-    if (caller_session_token) {
-      const user = await verifySession(caller_session_token);
-      if (!user) {
-        return NextResponse.json(
-          { error: "Unauthorized" },
-          { status: 401 }
-        );
+    const { data: callerAccount } = await supabase
+      .from("accounts")
+      .select("id, studio_id, role")
+      .eq("auth_user_id", user.id)
+      .eq("is_active", true)
+      .single();
+
+    if (!callerAccount) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const { action, account_id, studio_id } = body;
+
+    // Verify account_id belongs to same studio
+    const targetAccountId = account_id || callerAccount.id;
+    if (targetAccountId !== callerAccount.id) {
+      // Only owner/admin can manage other accounts' telegram
+      if (!["owner", "admin"].includes(callerAccount.role)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      // Verify target account is in same studio
+      const { data: targetAccount } = await supabase
+        .from("accounts")
+        .select("studio_id")
+        .eq("id", targetAccountId)
+        .single();
+
+      if (!targetAccount || targetAccount.studio_id !== callerAccount.studio_id) {
+        return NextResponse.json({ error: "Account not found" }, { status: 404 });
       }
     }
 
+    const adminDb = getAdminSupabase();
+    const studioId = studio_id || callerAccount.studio_id;
+
     // GENERATE LINK
     if (action === "generate_link") {
-      if (!account_id) {
-        return NextResponse.json(
-          { error: "account_id required" },
-          { status: 400 }
-        );
-      }
-
       const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
 
-      const { data: existing } = await (getSupabase()
+      const { data: existing } = await (adminDb
         .from("telegram_links") as any)
         .select("*")
-        .eq("account_id", account_id);
+        .eq("account_id", targetAccountId);
 
       if (existing && existing.length > 0) {
-        await (getSupabase()
+        await (adminDb
           .from("telegram_links") as any)
           .update({
             link_token: token,
-            studio_id: studio_id || existing[0].studio_id,
+            studio_id: studioId,
           })
           .eq("id", existing[0].id);
       } else {
-        await (getSupabase().from("telegram_links") as any).insert({
-          account_id,
-          studio_id: studio_id || "",
+        await (adminDb.from("telegram_links") as any).insert({
+          account_id: targetAccountId,
+          studio_id: studioId,
           link_token: token,
           is_active: true,
         });
@@ -125,17 +122,10 @@ export async function POST(request: Request) {
 
     // CHECK STATUS
     if (action === "check_status") {
-      if (!account_id) {
-        return NextResponse.json(
-          { error: "account_id required" },
-          { status: 400 }
-        );
-      }
-
-      const { data: links } = await (getSupabase()
+      const { data: links } = await (adminDb
         .from("telegram_links") as any)
         .select("*")
-        .eq("account_id", account_id);
+        .eq("account_id", targetAccountId);
 
       const link = (links || []).find(
         (l: { telegram_chat_id: string; is_active: boolean }) =>
@@ -151,20 +141,13 @@ export async function POST(request: Request) {
 
     // DISCONNECT
     if (action === "disconnect") {
-      if (!account_id) {
-        return NextResponse.json(
-          { error: "account_id required" },
-          { status: 400 }
-        );
-      }
-
-      const { data: links } = await (getSupabase()
+      const { data: links } = await (adminDb
         .from("telegram_links") as any)
         .select("*")
-        .eq("account_id", account_id);
+        .eq("account_id", targetAccountId);
 
       for (const link of links || []) {
-        await (getSupabase()
+        await (adminDb
           .from("telegram_links") as any)
           .update({
             telegram_chat_id: "",
@@ -178,17 +161,10 @@ export async function POST(request: Request) {
 
     // SEND TEST
     if (action === "send_test") {
-      if (!account_id) {
-        return NextResponse.json(
-          { error: "account_id required" },
-          { status: 400 }
-        );
-      }
-
-      const { data: links } = await (getSupabase()
+      const { data: links } = await (adminDb
         .from("telegram_links") as any)
         .select("*")
-        .eq("account_id", account_id);
+        .eq("account_id", targetAccountId);
 
       const link = (links || []).find(
         (l: { telegram_chat_id: string; is_active: boolean }) =>

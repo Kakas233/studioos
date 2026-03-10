@@ -14,10 +14,34 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { data: account } = await supabase
+      .from("accounts")
+      .select("studio_id")
+      .eq("auth_user_id", user.id)
+      .eq("is_active", true)
+      .single();
+
+    if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    // Verify the channel belongs to this studio
+    const { data: channel } = await supabase
+      .from("chat_channels")
+      .select("id")
+      .eq("id", channelId)
+      .eq("studio_id", account.studio_id)
+      .single();
+
+    if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 });
+
     let query = supabase
       .from("chat_messages")
       .select("*")
       .eq("channel_id", channelId)
+      .eq("studio_id", account.studio_id)
       .order("created_at", { ascending: false })
       .limit(limit);
 
