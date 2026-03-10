@@ -296,26 +296,17 @@ export default function RoomMemberAlerts({ accountId, studioId }: RoomMemberAler
               <div>
                 <Label className="text-xs text-[#A8A49A]/60 mb-2 block font-medium">Select Model Account</Label>
                 <Select value={selectedCamAccountId} onValueChange={(v) => v !== null && handleSelectCamAccount(v)}>
-                  <SelectTrigger className="h-10 bg-white/[0.03] border-white/[0.06] text-white rounded-xl text-sm hover:border-[#C9A84C]/20 transition-colors">
+                  <SelectTrigger className="w-full h-10 bg-white/[0.03] border-white/[0.06] text-white rounded-xl text-sm hover:border-[#C9A84C]/20 transition-colors">
                     <SelectValue placeholder="Choose a model's cam account..." />
                   </SelectTrigger>
                   <SelectContent className="bg-[#1A1A1A] border-white/[0.08] rounded-xl shadow-2xl shadow-black/50 backdrop-blur-xl">
                     {availableCamAccounts.map((ca) => {
                       const modelName = getModelName(ca);
                       const siteKey = platformToSiteKey[ca.platform];
-                      const siteInfo = SUPPORTED_SITES.find((s) => s.key === siteKey);
                       const isBeta = BETA_SITES.includes(siteKey);
                       return (
                         <SelectItem key={ca.id} value={ca.id} className="text-[#A8A49A] focus:bg-white/[0.05] focus:text-white rounded-lg mx-1 cursor-pointer">
-                          <span className="flex items-center gap-2">
-                            <span className="font-medium text-white/90">{modelName}</span>
-                            <span className="text-white/10">·</span>
-                            <span className={siteInfo?.color || "text-white/70"}>{ca.platform}</span>
-                            <span className="text-[#A8A49A]/40">({ca.username})</span>
-                            {isBeta && (
-                              <span className="text-[8px] font-bold text-amber-400 uppercase tracking-wider bg-amber-400/10 px-1.5 py-0.5 rounded">BETA</span>
-                            )}
-                          </span>
+                          {modelName} · {ca.platform} ({ca.username}){isBeta ? " [BETA]" : ""}
                         </SelectItem>
                       );
                     })}
