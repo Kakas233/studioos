@@ -20,7 +20,7 @@ export default function StreamSummaryCards({ stats }: StreamSummaryCardsProps) {
     let groupMins = 0;
 
     for (const s of stats) {
-      publicMins += s.free_chat_minutes || s.public_minutes || 0;
+      publicMins += s.free_chat_minutes || 0;
       privateMins +=
         (s.private_chat_minutes || 0) +
         (s.nude_chat_minutes || 0) +
@@ -28,8 +28,6 @@ export default function StreamSummaryCards({ stats }: StreamSummaryCardsProps) {
         (s.vip_chat_minutes || 0) +
         (s.true_private_minutes || 0) +
         (s.paid_chat_minutes || 0);
-      if (s.private_chat_minutes === undefined && s.private_minutes)
-        privateMins += s.private_minutes;
       groupMins +=
         (s.member_chat_minutes || 0) +
         (s.group_chat_minutes || 0) +
@@ -37,8 +35,6 @@ export default function StreamSummaryCards({ stats }: StreamSummaryCardsProps) {
         (s.party_chat_minutes || 0) +
         (s.pre_gold_show_minutes || 0) +
         (s.gold_show_minutes || 0);
-      if (s.member_chat_minutes === undefined && s.group_minutes)
-        groupMins += s.group_minutes;
     }
 
     const uniqueByModelDate: Record<string, number> = {};

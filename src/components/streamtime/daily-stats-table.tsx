@@ -112,7 +112,7 @@ export default function DailyStatsTable({
                   <TableHead className="text-xs text-center text-[#A8A49A]/40">
                     <div className="flex items-center justify-center gap-1">
                       <WifiOff className="w-3 h-3" />
-                      Offline
+                      Break
                     </div>
                   </TableHead>
                 </TableRow>
@@ -140,19 +140,32 @@ export default function DailyStatsTable({
                         {formatMinutes(stat.total_minutes)}
                       </TableCell>
                       <TableCell className="text-center text-sm text-emerald-400">
-                        {formatMinutes(stat.public_minutes)}
+                        {formatMinutes(stat.free_chat_minutes)}
                       </TableCell>
                       <TableCell className="text-center text-sm text-purple-400">
-                        {formatMinutes(stat.private_minutes)}
+                        {formatMinutes(
+                          (stat.private_chat_minutes || 0) +
+                          (stat.nude_chat_minutes || 0) +
+                          (stat.true_private_minutes || 0) +
+                          (stat.semiprivate_minutes || 0) +
+                          (stat.paid_chat_minutes || 0)
+                        )}
                       </TableCell>
                       <TableCell className="text-center text-sm text-blue-400">
-                        {formatMinutes(stat.group_minutes)}
+                        {formatMinutes(
+                          (stat.group_chat_minutes || 0) +
+                          (stat.member_chat_minutes || 0) +
+                          (stat.happy_hour_minutes || 0) +
+                          (stat.party_chat_minutes || 0) +
+                          (stat.pre_gold_show_minutes || 0) +
+                          (stat.gold_show_minutes || 0)
+                        )}
                       </TableCell>
                       <TableCell className="text-center text-sm text-yellow-400">
-                        {formatMinutes(stat.break_minutes)}
+                        {formatMinutes(stat.away_minutes)}
                       </TableCell>
                       <TableCell className="text-center text-sm text-[#A8A49A]/40">
-                        {formatMinutes(stat.offline_minutes)}
+                        {formatMinutes(stat.break_minutes)}
                       </TableCell>
                     </TableRow>
                   );

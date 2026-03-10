@@ -242,8 +242,8 @@ function JobCard({
                 {job.status === "pending"
                   ? "Preparing to fetch 30 days of historical data..."
                   : `Fetching 30 days of data \u2014 ${
-                      job.days_processed || 0
-                    } days processed`}
+                      job.pages_fetched || 0
+                    }/${job.total_pages || "?"} pages fetched`}
               </p>
             </>
           )}
@@ -268,8 +268,7 @@ function JobCard({
 
           {isCompleted && (
             <p className="text-[10px] text-emerald-400/70">
-              Completed &mdash; {job.days_processed || 0} days of
-              historical data fetched successfully
+              Completed &mdash; 30 days of historical data fetched successfully
             </p>
           )}
 

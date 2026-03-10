@@ -395,7 +395,7 @@ export async function POST(request: NextRequest) {
       const now = new Date();
       const isLive = ONLINE_SHOW_TYPES.has(latestShowType)
         && !!latestEndTime
-        && (now.getTime() - latestEndTime.getTime()) <= 2 * 60 * 1000;
+        && (now.getTime() - latestEndTime.getTime()) <= 20 * 60 * 1000;
 
       // Upsert streaming session
       const { data: existingSession } = await admin
