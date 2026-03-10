@@ -40,6 +40,8 @@ Be informal, use contractions and casual phrasing. Get to the point fast. Don't 
   },
 };
 
+const MAX_MESSAGE_LENGTH = 2000;
+const MAX_SUBJECT_LENGTH = 200;
 const ESCALATION_MESSAGE_THRESHOLD = 10;
 const ESCALATION_TIME_THRESHOLD_MS = 30 * 60 * 1000;
 const SUPERVISOR_EMAIL = "support@getstudioos.com";
@@ -226,18 +228,30 @@ function pickAgent(category: string): string {
   return agents[Math.floor(Math.random() * agents.length)];
 }
 
+/** Sanitize user input before embedding in LLM prompts to prevent injection */
+function sanitizeForPrompt(input: string): string {
+  return input
+    .replace(/[<>]/g, "") // strip angle brackets
+    .replace(/\n{3,}/g, "\n\n") // collapse excessive newlines
+    .trim();
+}
+
 function buildSystemPrompt(
   agent: { name: string; title: string; personality: string },
   ticket: Ticket,
   studio: Studio | null,
   referencedTicketContext: string | null
 ): string {
+  const safeSubject = sanitizeForPrompt(ticket.subject || "").slice(0, MAX_SUBJECT_LENGTH);
+  const safeName = sanitizeForPrompt(ticket.account_name || "User").slice(0, 100);
+  const safeCategory = sanitizeForPrompt(ticket.category || "general").slice(0, 50);
+
   let contextBlock = `CONTEXT:
-- Studio: ${studio?.name || "Unknown"}
+- Studio: ${sanitizeForPrompt(studio?.name || "Unknown")}
 - Plan: ${studio?.subscription_tier || "free"} (${studio?.subscription_status || "unknown"})
-- User: ${ticket.account_name || "User"}
-- Category: ${ticket.category}
-- Subject: ${ticket.subject}`;
+- User: ${safeName}
+- Category: ${safeCategory}
+- Subject: ${safeSubject}`;
 
   if (referencedTicketContext) {
     contextBlock += `\n\nREFERENCED PREVIOUS TICKET (you have this data from your system — act as if you just looked it up, say something like "let me check that" then use the details):\n${referencedTicketContext}`;
@@ -408,11 +422,17 @@ export async function POST(request: Request) {
 
     // CREATE
     if (action === "create") {
-      if (!subject) {
+      if (!subject || typeof subject !== "string") {
         return NextResponse.json({
           success: false,
           error: "Message is required",
         });
+      }
+      if (subject.length > MAX_SUBJECT_LENGTH) {
+        return NextResponse.json({
+          success: false,
+          error: `Subject must be under ${MAX_SUBJECT_LENGTH} characters`,
+        }, { status: 400 });
       }
 
       const agentKey = pickAgent(category || "general");
@@ -506,8 +526,9 @@ export async function POST(request: Request) {
           extraInstruction = `\n\nIMPORTANT: The customer referenced a previous support ticket. The FULL conversation from that ticket is included above. Start by saying something like "let me pull up that ticket" or "one sec, checking that". Then summarize what was discussed and continue helping based on that context. Be specific about the previous conversation details.`;
         }
 
+        const safeSubject = sanitizeForPrompt(ticket.subject || "").slice(0, MAX_SUBJECT_LENGTH);
         const aiResponse = await invokeLLM(
-          `${systemPrompt}\n\nThe customer just opened a support chat with this message: "${ticket.subject}"${extraInstruction}\n\nRespond to their question/issue directly. Don't introduce yourself (that's already been done). Don't start with a greeting. Just address what they said. Keep it short and natural.`
+          `${systemPrompt}\n\n<user_message>\n${safeSubject}\n</user_message>${extraInstruction}\n\nThe customer just opened a support chat with the message above. Respond to their question/issue directly. Don't introduce yourself (that's already been done). Don't start with a greeting. Just address what they said. Keep it short and natural.`
         );
 
         currentMessages.push({
@@ -535,11 +556,17 @@ export async function POST(request: Request) {
 
     // MESSAGE
     if (action === "message") {
-      if (!ticket_id || !message) {
+      if (!ticket_id || !message || typeof message !== "string") {
         return NextResponse.json({
           success: false,
           error: "ticket_id and message are required",
         });
+      }
+      if (message.length > MAX_MESSAGE_LENGTH) {
+        return NextResponse.json({
+          success: false,
+          error: `Message must be under ${MAX_MESSAGE_LENGTH} characters`,
+        }, { status: 400 });
       }
 
       const { data: tickets } = await (getSupabase()
@@ -580,7 +607,7 @@ export async function POST(request: Request) {
       const conversationHistory = currentMessages
         .map((m) =>
           m.role === "user"
-            ? `Customer: ${m.content}`
+            ? `Customer: ${sanitizeForPrompt(m.content).slice(0, MAX_MESSAGE_LENGTH)}`
             : `${agent.name}: ${m.content}`
         )
         .join("\n\n");
@@ -598,7 +625,7 @@ export async function POST(request: Request) {
       }
 
       const aiResponse = await invokeLLM(
-        `${systemPrompt}\n\nConversation so far:\n${conversationHistory}${extraInstruction}\n\nRespond naturally. Keep it short and real.`
+        `${systemPrompt}\n\n<conversation>\n${conversationHistory}\n</conversation>${extraInstruction}\n\nRespond naturally to the latest customer message. Keep it short and real.`
       );
 
       currentMessages.push({

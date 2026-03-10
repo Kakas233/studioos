@@ -5,8 +5,20 @@
  * used in blog content: bold (**text**), lists (- item), and paragraphs.
  * This avoids needing the react-markdown dependency.
  */
+
+/** Escape HTML entities to prevent XSS */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function SimpleMarkdown({ children }: { children: string }) {
-  const html = children
+  // Escape HTML first, then apply markdown transforms on the safe string
+  const html = escapeHtml(children)
     // Bold
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     // Split into paragraphs by double newline

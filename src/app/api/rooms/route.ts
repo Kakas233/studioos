@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { roomSchema } from "@/lib/schemas";
+import { ZodError } from "zod";
 
 export async function GET() {
   try {
@@ -46,11 +48,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Validate input
+    const validated = roomSchema.parse({ name: body.name });
+
     const { data, error } = await supabase
       .from("rooms")
       .insert({
         studio_id: account.studio_id,
-        name: body.name,
+        name: validated.name,
         is_active: true,
       })
       .select()
@@ -58,7 +63,10 @@ export async function POST(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return NextResponse.json({ error: "Invalid input", details: err.issues }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -68,6 +76,9 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, ...updateData } = body;
     if (!id) return NextResponse.json({ error: "Room ID required" }, { status: 400 });
+
+    // Validate input
+    const validated = roomSchema.parse(updateData);
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -86,7 +97,7 @@ export async function PUT(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("rooms")
-      .update(updateData)
+      .update(validated)
       .eq("id", id)
       .eq("studio_id", account.studio_id)
       .select()
@@ -94,7 +105,10 @@ export async function PUT(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return NextResponse.json({ error: "Invalid input", details: err.issues }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

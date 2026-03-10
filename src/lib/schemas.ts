@@ -80,3 +80,36 @@ export const earningsSchema = z.object({
   modelNetUsd: z.number().min(0),
   isEstimated: z.boolean().optional(),
 });
+
+export const globalSettingsSchema = z.object({
+  secondary_currency: z.string().max(10).optional(),
+  exchange_rate: z.number().min(0).max(100000).optional(),
+  exchange_rate_mode: z.enum(["manual", "auto"]).optional(),
+  payout_frequency: z.enum(["weekly", "biweekly", "monthly"]).optional(),
+  mfc_token_rate: z.number().min(0).max(1).optional(),
+  cb_token_rate: z.number().min(0).max(1).optional(),
+  sc_token_rate: z.number().min(0).max(1).optional(),
+  bc_token_rate: z.number().min(0).max(1).optional(),
+  c4_token_rate: z.number().min(0).max(1).optional(),
+  cs_token_rate: z.number().min(0).max(1).optional(),
+  f4f_token_rate: z.number().min(0).max(1).optional(),
+  lj_token_rate: z.number().min(0).max(1).optional(),
+}).strict();
+
+export const roomSchema = z.object({
+  name: z.string().min(1, "Room name is required").max(100),
+  is_active: z.boolean().optional(),
+}).strict();
+
+export const accountUpdateSchema = z.object({
+  first_name: z.string().min(1).max(100).optional(),
+  last_name: z.string().max(100).optional(),
+  role: z.enum(["owner", "admin", "operator", "model", "accountant"]).optional(),
+  is_active: z.boolean().optional(),
+  cut_percentage: z.number().min(0).max(100).optional(),
+  weekly_goal_hours: z.number().min(0).max(168).optional(),
+  weekly_goal_enabled: z.boolean().optional(),
+  works_alone: z.boolean().optional(),
+  onboarding_dismissed: z.boolean().optional(),
+  onboarding_completed_steps: z.array(z.string()).optional(),
+}).strict();

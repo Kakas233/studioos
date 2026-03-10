@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { accountUpdateSchema } from "@/lib/schemas";
+import { ZodError } from "zod";
 
 /** GET /api/users — list studio accounts */
 export async function GET() {
@@ -37,6 +39,9 @@ export async function PUT(request: NextRequest) {
 
     if (!id) return NextResponse.json({ error: "Account ID required" }, { status: 400 });
 
+    // Validate input against allowed fields
+    const validated = accountUpdateSchema.parse(updateData);
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -53,13 +58,13 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (updateData.role === "owner" && currentUser.role !== "owner") {
+    if (validated.role === "owner" && currentUser.role !== "owner") {
       return NextResponse.json({ error: "Only owners can assign the owner role" }, { status: 403 });
     }
 
     const { data, error } = await supabase
       .from("accounts")
-      .update(updateData)
+      .update(validated)
       .eq("id", id)
       .eq("studio_id", currentUser.studio_id)
       .select()
@@ -67,7 +72,10 @@ export async function PUT(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return NextResponse.json({ error: "Invalid input", details: err.issues }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

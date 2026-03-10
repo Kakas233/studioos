@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { timingSafeEqual } from "crypto";
 import {
   sendTrial3DayEmail,
   sendTrial1DayEmail,
@@ -16,10 +17,18 @@ function daysUntil(dateStr: string): number | null {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify cron secret to prevent unauthorized calls
-    const authHeader = request.headers.get("authorization");
+    // Verify cron secret — mandatory, timing-safe comparison
     const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret) {
+      console.error("CRON_SECRET environment variable is not set");
+      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+    }
+    const authHeader = request.headers.get("authorization") ?? "";
+    const expected = `Bearer ${cronSecret}`;
+    const isValid =
+      authHeader.length === expected.length &&
+      timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected));
+    if (!isValid) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

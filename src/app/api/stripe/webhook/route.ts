@@ -26,6 +26,25 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient();
 
+  // Idempotency: skip already-processed events
+  const { data: existing } = await admin
+    .from("error_logs")
+    .select("id")
+    .eq("error_type", "stripe_webhook_processed")
+    .eq("message", event.id)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    return NextResponse.json({ received: true, deduplicated: true });
+  }
+
+  // Mark event as processing
+  await admin.from("error_logs").insert({
+    error_type: "stripe_webhook_processed",
+    message: event.id,
+    metadata: { event_type: event.type },
+  });
+
   try {
     switch (event.type) {
       case "checkout.session.completed": {

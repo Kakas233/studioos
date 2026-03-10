@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { globalSettingsSchema } from "@/lib/schemas";
+import { ZodError } from "zod";
 
 export async function PUT(request: NextRequest) {
   try {
@@ -20,16 +22,22 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Validate input against allowed fields
+    const validated = globalSettingsSchema.parse(body);
+
     const { data, error } = await supabase
       .from("global_settings")
-      .update(body)
+      .update(validated)
       .eq("studio_id", account.studio_id)
       .select()
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return NextResponse.json({ error: "Invalid input", details: err.issues }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
