@@ -104,7 +104,7 @@ export async function PUT(request: NextRequest) {
 
     const { data: account } = await supabase
       .from("accounts")
-      .select("id, first_name, last_name, role")
+      .select("id, studio_id, first_name, last_name, role")
       .eq("auth_user_id", user.id)
       .eq("is_active", true)
       .single();
@@ -117,6 +117,7 @@ export async function PUT(request: NextRequest) {
         .from("support_tickets")
         .select("messages")
         .eq("id", id)
+        .eq("studio_id", account.studio_id)
         .single();
 
       const existingMessages = (ticket?.messages as Array<Record<string, unknown>>) || [];
@@ -135,6 +136,7 @@ export async function PUT(request: NextRequest) {
       .from("support_tickets")
       .update({ ...updateData, updated_at: new Date().toISOString() })
       .eq("id", id)
+      .eq("studio_id", account.studio_id)
       .select()
       .single();
 

@@ -123,10 +123,9 @@ export default function PayoutsPage() {
   const { data: allAccounts = [] } = useStudioAccounts();
   const { formatUsd, formatSecondary, secondaryCurrencyCode } = useCurrency();
 
-  // Helper to get secondary currency values from earnings (backward compat with _huf fields)
-  const getSecondaryGross = (e: any) => e.total_gross_secondary || e.total_gross_huf || 0;
-  const getSecondaryModelPay = (e: any) => e.model_pay_secondary || e.model_pay_huf || 0;
-  const getSecondaryOperatorPay = (e: any) => e.operator_pay_secondary || e.operator_pay_huf || 0;
+  const getSecondaryGross = (e: any) => e.total_gross_secondary || 0;
+  const getSecondaryModelPay = (e: any) => e.model_pay_secondary || 0;
+  const getSecondaryOperatorPay = (e: any) => e.operator_pay_secondary || 0;
 
   if (authLoading) {
     return (

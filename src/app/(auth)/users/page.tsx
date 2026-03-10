@@ -25,8 +25,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import {
   Users, UserPlus, Edit2, Link2, Banknote, CreditCard, Percent, Trash2,
-  Video, UserCheck, Loader2, Shuffle, Copy, Eye, EyeOff,
+  Video, UserCheck, Loader2, Shuffle, Copy, Eye, EyeOff, HelpCircle,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import CamAccountsTab from "@/components/users/cam-accounts-tab";
 import FeatureGate from "@/components/shared/feature-gate";
@@ -237,14 +238,28 @@ export default function UsersManagementPage() {
                         <TableCell className="text-white/70">{u.email}</TableCell>
                         <TableCell>
                           <Badge className={roleColors[u.role] || "bg-gray-500 text-white"}>
-                            {u.role}
+                            {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           {(u.role === "model" || u.role === "operator") && (
                             <Badge variant="outline" className="bg-white/[0.03] text-white/70 border-white/[0.08]">
-                              {u.cut_percentage || 33}%
+                              {u.cut_percentage ?? 33}%
                             </Badge>
+                          )}
+                          {(u.role === "admin" || u.role === "owner") && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="bg-[#C9A84C]/10 text-[#C9A84C] border-[#C9A84C]/20 cursor-help">
+                                    {u.cut_percentage ?? 33}% Studio
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[220px] bg-[#1A1A1A] border-white/10 text-xs">
+                                  <p>This is the studio&apos;s cut percentage applied per shift earnings.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </TableCell>
                         <TableCell>
@@ -519,12 +534,14 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
       toast.error("Cannot assign the owner role");
       return;
     }
-    const clampedCut = Math.max(0, Math.min(100, Number(cutPercentage) || 0));
-    const data: Record<string, unknown> = {
-      role,
-      cut_percentage: clampedCut,
-      payout_method: payoutMethod,
-    };
+    const data: Record<string, unknown> = { role };
+    if (role !== "accountant") {
+      const clampedCut = Math.max(0, Math.min(100, Number(cutPercentage) || 0));
+      data.cut_percentage = clampedCut;
+      data.payout_method = payoutMethod;
+    } else {
+      data.cut_percentage = 0;
+    }
     if (role === "model") {
       data.works_alone = worksAlone;
     }
@@ -568,24 +585,44 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label className="text-gray-100 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Cut Percentage</Label>
-        <div className="flex items-center gap-2">
-          <Input type="number" min="0" max="100" value={cutPercentage}
-            onChange={(e) => setCutPercentage(Number(e.target.value))} className="bg-white/[0.04] border-white/[0.06] text-white" />
-          <Percent className="w-4 h-4 text-white/50" />
+      {role !== "accountant" && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            <Label className="text-gray-100 text-sm font-medium leading-none">
+              {(role === "admin" || role === "owner") ? "Studio Cut %" : "Cut Percentage"}
+            </Label>
+            {(role === "admin" || role === "owner") && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3.5 h-3.5 text-white/30 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs">
+                    <p>The studio&apos;s percentage from each shift&apos;s earnings. Per shift: model gets their cut, operator gets their cut, and the studio keeps this percentage.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Input type="number" min="0" max="100" value={cutPercentage}
+              onChange={(e) => setCutPercentage(Number(e.target.value))} className="bg-white/[0.04] border-white/[0.06] text-white" />
+            <Percent className="w-4 h-4 text-white/50" />
+          </div>
         </div>
-      </div>
-      <div className="space-y-2">
-        <Label className="text-gray-100 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Payout Method</Label>
-        <Select value={payoutMethod} onValueChange={(v) => v !== null && setPayoutMethod(v)}>
-          <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Bank">Bank Transfer</SelectItem>
-            <SelectItem value="Cash">Cash</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      )}
+      {role !== "accountant" && (
+        <div className="space-y-2">
+          <Label className="text-gray-100 text-sm font-medium leading-none">Payout Method</Label>
+          <Select value={payoutMethod} onValueChange={(v) => v !== null && setPayoutMethod(v)}>
+            <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Bank">Bank Transfer</SelectItem>
+              <SelectItem value="Cash">Cash</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Password Reset Section */}
       <div className="border-t border-white/[0.06] pt-3">
@@ -695,18 +732,23 @@ function CreateUserForm({ studioId, onClose }: { studioId: string; onClose: () =
     setInviting(true);
 
     try {
+      const payload: Record<string, unknown> = {
+        email,
+        password,
+        first_name: firstName,
+        role,
+      };
+
+      // Only include financials for non-accountant roles
+      if (role !== "accountant") {
+        payload.cut_percentage = cutPercentage;
+        payload.payout_method = payoutMethod;
+      }
+
       const res = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          password,
-          first_name: firstName,
-          role,
-          studio_id: studioId,
-          cut_percentage: cutPercentage,
-          payout_method: payoutMethod,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -718,7 +760,7 @@ function CreateUserForm({ studioId, onClose }: { studioId: string; onClose: () =
 
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       onClose();
-      toast.success(`Invitation sent to ${email}`);
+      toast.success(data.message || `Invitation sent to ${email}`);
     } catch {
       toast.error("Failed to invite user");
     } finally {
@@ -801,27 +843,45 @@ function CreateUserForm({ studioId, onClose }: { studioId: string; onClose: () =
           </Select>
         </div>
       </div>
-      <div className="space-y-4 p-4 bg-white/[0.03] rounded-lg border border-white/[0.06]">
-        <p className="text-sm font-medium text-white">Financials</p>
-        <div className="space-y-2">
-          <Label className="text-white/70">Cut %</Label>
-          <div className="flex items-center gap-2">
-            <Input type="number" min="0" max="100" value={cutPercentage}
-              onChange={(e) => setCutPercentage(Number(e.target.value))} className="bg-white/[0.04] border-white/[0.06] text-white" />
-            <Percent className="w-4 h-4 text-white/50" />
+      {role !== "accountant" && (
+        <div className="space-y-4 p-4 bg-white/[0.03] rounded-lg border border-white/[0.06]">
+          <p className="text-sm font-medium text-white">Financials</p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Label className="text-white/70">
+                {(role === "admin") ? "Studio Cut %" : "Cut %"}
+              </Label>
+              {role === "admin" && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-3.5 h-3.5 text-white/30 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs">
+                      <p>The studio&apos;s percentage from each shift&apos;s earnings. Per shift: model gets their cut, operator gets their cut, and the studio keeps this percentage.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Input type="number" min="0" max="100" value={cutPercentage}
+                onChange={(e) => setCutPercentage(Number(e.target.value))} className="bg-white/[0.04] border-white/[0.06] text-white" />
+              <Percent className="w-4 h-4 text-white/50" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-white/70">Payout Method</Label>
+            <Select value={payoutMethod} onValueChange={(v) => v !== null && setPayoutMethod(v)}>
+              <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Bank">Bank Transfer</SelectItem>
+                <SelectItem value="Cash">Cash</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
-        <div className="space-y-2">
-          <Label className="text-white/70">Payout Method</Label>
-          <Select value={payoutMethod} onValueChange={(v) => v !== null && setPayoutMethod(v)}>
-            <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Bank">Bank Transfer</SelectItem>
-              <SelectItem value="Cash">Cash</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      )}
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button onClick={handleSubmit} disabled={inviting} className="bg-[#C9A84C] hover:bg-[#B8973B] text-black">

@@ -68,6 +68,8 @@ type StudioRow = {
   onboarding_completed: boolean;
   logo_url: string | null;
   payout_frequency: string | null;
+  exchange_rate_mode: string | null;
+  manual_exchange_rate: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

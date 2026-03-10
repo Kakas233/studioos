@@ -78,7 +78,6 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
   const handleLogout = async () => {
     await signOut();
-    router.push("/sign-in");
   };
 
   const handleNavClick = () => {

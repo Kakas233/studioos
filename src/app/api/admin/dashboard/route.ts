@@ -284,13 +284,11 @@ export async function POST(request: Request) {
 
       const { data: allSettings } = await adminClient
         .from("global_settings")
-        .select("*");
+        .select("id");
 
-      for (const setting of allSettings || []) {
-        await adminClient
-          .from("global_settings")
-          .update(settingsData)
-          .eq("id", setting.id);
+      const settingIds = (allSettings || []).map((s: { id: string }) => s.id);
+      if (settingIds.length > 0) {
+        await adminClient.from("global_settings").update(settingsData).in("id", settingIds);
       }
 
       return NextResponse.json({
@@ -699,11 +697,9 @@ export async function POST(request: Request) {
         .select("id")
         .eq("studio_id", studioId);
 
-      for (const acc of studioAccounts || []) {
-        await adminClient
-          .from("accounts")
-          .update({ is_active: false })
-          .eq("id", acc.id);
+      const accountIds = (studioAccounts || []).map((a: { id: string }) => a.id);
+      if (accountIds.length > 0) {
+        await adminClient.from("accounts").update({ is_active: false }).in("id", accountIds);
       }
 
       // Deactivate all MemberAlerts
@@ -713,11 +709,9 @@ export async function POST(request: Request) {
         .eq("studio_id", studioId)
         .eq("is_active", true);
 
-      for (const alert of studioAlerts || []) {
-        await adminClient
-          .from("member_alerts")
-          .update({ is_active: false })
-          .eq("id", alert.id);
+      const alertIds = (studioAlerts || []).map((a: { id: string }) => a.id);
+      if (alertIds.length > 0) {
+        await adminClient.from("member_alerts").update({ is_active: false }).in("id", alertIds);
       }
 
       // Deactivate CamAccounts
@@ -727,11 +721,9 @@ export async function POST(request: Request) {
         .eq("studio_id", studioId)
         .eq("is_active", true);
 
-      for (const cam of studioCams || []) {
-        await adminClient
-          .from("cam_accounts")
-          .update({ is_active: false })
-          .eq("id", cam.id);
+      const camIds = (studioCams || []).map((a: { id: string }) => a.id);
+      if (camIds.length > 0) {
+        await adminClient.from("cam_accounts").update({ is_active: false }).in("id", camIds);
       }
 
       // Delete the studio

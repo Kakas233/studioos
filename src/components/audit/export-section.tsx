@@ -70,11 +70,11 @@ export default function ExportSection({
         "model_name",
         "operator_name",
         "total_gross_usd",
-        "total_gross_huf",
+        "total_gross_secondary",
         "model_pay_usd",
-        "model_pay_huf",
+        "model_pay_secondary",
         "operator_pay_usd",
-        "operator_pay_huf",
+        "operator_pay_secondary",
         "created_at",
       ];
       const accountHeaders = [

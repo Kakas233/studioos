@@ -74,7 +74,10 @@ export default function BillingPage() {
     retry: 1,
   });
 
-  if (authLoading || isLoading) {
+  if (authLoading || !account) return null;
+  if (account.role !== "owner" && account.role !== "admin") return null;
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 text-[#C9A84C] animate-spin" />

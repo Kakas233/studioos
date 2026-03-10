@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Fetch the account record linked to this auth user
         const { data: accountData } = await supabase
           .from("accounts")
-          .select("*")
+          .select("id, auth_user_id, studio_id, email, first_name, last_name, role, is_active, is_super_admin, cut_percentage, operator_cut_percentage, weekly_goal_hours, weekly_goal_enabled, works_alone, onboarding_completed_steps, onboarding_dismissed, payout_method, created_at, updated_at")
           .eq("auth_user_id", authUser.id)
           .eq("is_active", true)
           .single();
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (accountData.studio_id) {
             const { data: studioData } = await supabase
               .from("studios")
-              .select("*")
+              .select("id, name, subdomain, timezone, primary_currency, secondary_currency, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, grace_period_ends_at, trial_ends_at, onboarding_completed, logo_url, payout_frequency, exchange_rate_mode, manual_exchange_rate, created_by, created_at, updated_at")
               .eq("id", accountData.studio_id)
               .single();
 
@@ -141,17 +141,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase, fetchAccountAndStudio]);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    try {
+      // Sign out on the client
+      await supabase.auth.signOut();
+      // Also sign out on the server to clear httpOnly cookies
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Ignore errors — we're logging out anyway
+    }
     setUser(null);
     setAccount(null);
     setStudio(null);
+    // Hard redirect to ensure middleware sees the cleared session
+    window.location.href = "/sign-in";
   }, [supabase]);
 
   const refreshStudio = useCallback(async () => {
     if (!account?.studio_id) return;
     const { data } = await supabase
       .from("studios")
-      .select("*")
+      .select("id, name, subdomain, timezone, primary_currency, secondary_currency, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, grace_period_ends_at, trial_ends_at, onboarding_completed, logo_url, payout_frequency, exchange_rate_mode, manual_exchange_rate, created_by, created_at, updated_at")
       .eq("id", account.studio_id)
       .single();
     if (data) setStudio(data);
@@ -161,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const { data } = await supabase
       .from("accounts")
-      .select("*")
+      .select("id, auth_user_id, studio_id, email, first_name, last_name, role, is_active, is_super_admin, cut_percentage, operator_cut_percentage, weekly_goal_hours, weekly_goal_enabled, works_alone, onboarding_completed_steps, onboarding_dismissed, payout_method, created_at, updated_at")
       .eq("auth_user_id", user.id)
       .eq("is_active", true)
       .single();

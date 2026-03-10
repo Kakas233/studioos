@@ -73,11 +73,23 @@ export async function PUT(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const { data: account } = await supabase
+      .from("accounts")
+      .select("studio_id, role")
+      .eq("auth_user_id", user.id)
+      .eq("is_active", true)
+      .single();
+
+    if (!account || !["owner", "admin"].includes(account.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Fix #15: Immutable update — no state mutation
     const { data, error } = await supabase
       .from("shifts")
       .update(updateData)
       .eq("id", id)
+      .eq("studio_id", account.studio_id)
       .select()
       .single();
 
@@ -95,7 +107,21 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ error: "Shift ID required" }, { status: 400 });
 
     const supabase = await createClient();
-    const { error } = await supabase.from("shifts").delete().eq("id", id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { data: account } = await supabase
+      .from("accounts")
+      .select("studio_id, role")
+      .eq("auth_user_id", user.id)
+      .eq("is_active", true)
+      .single();
+
+    if (!account || !["owner", "admin"].includes(account.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { error } = await supabase.from("shifts").delete().eq("id", id).eq("studio_id", account.studio_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ success: true });
   } catch {

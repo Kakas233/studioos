@@ -127,10 +127,9 @@ export default function AccountingPage() {
     toast.success("Earnings saved and shift marked as completed");
   };
 
-  // Helper to read secondary currency values (backward compat with _huf fields)
-  const getSecondaryGross = (e: any) => e.total_gross_secondary || e.total_gross_huf || 0;
-  const getSecondaryModelPay = (e: any) => e.model_pay_secondary || e.model_pay_huf || 0;
-  const getSecondaryOperatorPay = (e: any) => e.operator_pay_secondary || e.operator_pay_huf || 0;
+  const getSecondaryGross = (e: any) => e.total_gross_secondary || 0;
+  const getSecondaryModelPay = (e: any) => e.model_pay_secondary || 0;
+  const getSecondaryOperatorPay = (e: any) => e.operator_pay_secondary || 0;
 
   const allEarnings = earnings.filter((e) => {
     if (isAdmin) return true;
@@ -222,7 +221,7 @@ export default function AccountingPage() {
               <SelectTrigger className="w-32 sm:w-40 bg-white/[0.04] border-white/[0.06] text-white text-xs sm:text-sm"><SelectValue placeholder="Filter by status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="scheduled">Pending</SelectItem>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="no_show">No Show</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>

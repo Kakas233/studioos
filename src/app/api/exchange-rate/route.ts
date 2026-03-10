@@ -1,97 +1,43 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
-
-export async function POST(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { target_currency, session_token } = body;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Verify caller is authenticated
-    if (session_token) {
-      const { data: sessions } = await (getSupabase()
-        .from("sessions") as any)
-        .select("*")
-        .eq("token", session_token);
+    const { searchParams } = new URL(request.url);
+    const targetCurrency = searchParams.get("target_currency")?.toLowerCase();
 
-      if (
-        !sessions ||
-        sessions.length === 0 ||
-        new Date(sessions[0].expires_at) < new Date()
-      ) {
-        return NextResponse.json(
-          { error: "Invalid session" },
-          { status: 401 }
-        );
-      }
-    } else {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    if (!targetCurrency) {
+      return NextResponse.json({ error: "target_currency parameter required" }, { status: 400 });
     }
 
-    if (!target_currency) {
-      return NextResponse.json(
-        { error: "target_currency is required" },
-        { status: 400 }
-      );
-    }
-
-    // If target is USD, rate is 1
-    if (target_currency === "USD") {
-      return NextResponse.json({
-        rate: 1,
-        source: "static",
-        currency: "USD",
-      });
-    }
-
-    // Use a free exchange rate API
     const response = await fetch(
-      "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json"
+      "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
+      { next: { revalidate: 3600 } } // Cache for 1 hour
     );
 
     if (!response.ok) {
-      console.error("Exchange rate API failed:", response.status);
-      return NextResponse.json(
-        { error: "Failed to fetch exchange rate" },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "Failed to fetch exchange rates" }, { status: 502 });
     }
 
     const data = await response.json();
-    const lowerCode = target_currency.toLowerCase();
-    const rate = data?.usd?.[lowerCode];
+    const rate = data?.usd?.[targetCurrency];
 
     if (!rate) {
-      console.error(
-        `Currency ${target_currency} not found in API response`
-      );
-      return NextResponse.json(
-        { error: `Currency ${target_currency} not found` },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: `Exchange rate not found for ${targetCurrency.toUpperCase()}` }, { status: 404 });
     }
 
-    console.log(`Exchange rate: 1 USD = ${rate} ${target_currency}`);
-
     return NextResponse.json({
+      success: true,
       rate,
-      source: "api",
-      currency: target_currency,
-      fetched_at: new Date().toISOString(),
+      currency: targetCurrency.toUpperCase(),
+      source: "fawazahmed0/currency-api",
+      timestamp: new Date().toISOString(),
     });
-  } catch (error: unknown) {
-    console.error("fetchExchangeRate error:", error);
-    const message =
-      error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

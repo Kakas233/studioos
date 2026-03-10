@@ -96,7 +96,7 @@ export default function ShiftCalendar({
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={selectedRoom} onValueChange={(v) => v !== null && setSelectedRoom(v)}>
               <SelectTrigger className="w-32 sm:w-40 bg-white/[0.04] border-white/[0.06] text-white text-xs sm:text-sm">
-                <SelectValue placeholder="Room filter" />
+                <SelectValue placeholder="Filter by Room" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Rooms</SelectItem>

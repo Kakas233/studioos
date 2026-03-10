@@ -128,6 +128,20 @@ CREATE POLICY "Service role full access on telegram_links"
   USING (auth.role() = 'service_role');
 
 -- ============================================
+-- 5b. Add missing columns to studios table
+-- ============================================
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'studios' AND column_name = 'exchange_rate_mode') THEN
+    ALTER TABLE studios ADD COLUMN exchange_rate_mode TEXT DEFAULT 'manual';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'studios' AND column_name = 'manual_exchange_rate') THEN
+    ALTER TABLE studios ADD COLUMN manual_exchange_rate NUMERIC DEFAULT 0;
+  END IF;
+END $$;
+
+-- ============================================
 -- 5. Add missing columns to accounts table
 -- ============================================
 DO $$
@@ -145,11 +159,6 @@ BEGIN
   -- onboarding_completed
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'accounts' AND column_name = 'onboarding_completed') THEN
     ALTER TABLE accounts ADD COLUMN onboarding_completed BOOLEAN DEFAULT false;
-  END IF;
-
-  -- onboarding_steps
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'accounts' AND column_name = 'onboarding_steps') THEN
-    ALTER TABLE accounts ADD COLUMN onboarding_steps JSONB DEFAULT '{}'::jsonb;
   END IF;
 
   -- weekly_goal_enabled

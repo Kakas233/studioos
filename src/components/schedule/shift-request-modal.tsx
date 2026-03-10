@@ -153,9 +153,9 @@ export default function ShiftRequestModal({ open, onClose, onSubmit, rooms = [] 
                 <div className="space-y-2">
                   <Label>Preferred Room (optional)</Label>
                   <Select value={req.room_id} onValueChange={(v) => v !== null && updateRequest(index, "room_id", v)}>
-                    <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue placeholder="Any room" /></SelectTrigger>
+                    <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue placeholder="Any Room" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Any room</SelectItem>
+                      <SelectItem value="none">Any Room</SelectItem>
                       {rooms.filter((r) => r.is_active !== false).map((room) => (
                         <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
                       ))}

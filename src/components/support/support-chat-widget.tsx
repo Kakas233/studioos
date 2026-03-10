@@ -6,7 +6,9 @@ import { ChevronDown } from "lucide-react";
 import SupportChatPanel from "@/components/support/support-chat-panel";
 import { useAuth } from "@/lib/auth/auth-context";
 
-const AGENT_IMAGES = {
+// TODO: Migrate agent images to own Supabase storage bucket (studio-assets)
+// These currently reference the original Base44 storage
+const AGENT_IMAGES: Record<string, string> = {
   luke: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6963df2bdfca920e5f5d8cfe/1b865c1f2_8fc796920cad7587fa016ad1fb423d45.jpg",
   maria: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6963df2bdfca920e5f5d8cfe/45e99d839_b35448d5b83dfc039a1b55d27d2f41a3.jpg",
   peter: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6963df2bdfca920e5f5d8cfe/cd4039c40_f61f3a929d54fee54679551a728bb7d7.jpg",

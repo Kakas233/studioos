@@ -48,12 +48,12 @@ export default function PendingApprovals({ changeRequests = [], onApprove, onRej
                 <div>
                   <p className="text-[#A8A49A]/40 text-xs mb-1">Old Value</p>
                   <p className="font-medium text-white">{formatUsd(oldData?.total_gross_usd || 0)}</p>
-                  <p className="text-[#A8A49A]/30 text-xs">{formatSecondary(oldData?.total_gross_secondary || oldData?.total_gross_huf || 0)}</p>
+                  <p className="text-[#A8A49A]/30 text-xs">{formatSecondary(oldData?.total_gross_secondary || 0)}</p>
                 </div>
                 <div>
                   <p className="text-[#A8A49A]/40 text-xs mb-1">New Value</p>
                   <p className="font-medium text-emerald-400">{formatUsd(newData?.total_gross_usd || 0)}</p>
-                  <p className="text-emerald-400/60 text-xs">{formatSecondary(newData?.total_gross_secondary || newData?.total_gross_huf || 0)}</p>
+                  <p className="text-emerald-400/60 text-xs">{formatSecondary(newData?.total_gross_secondary || 0)}</p>
                 </div>
               </div>
               <div className="flex gap-2 pt-2">

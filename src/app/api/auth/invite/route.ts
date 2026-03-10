@@ -7,14 +7,15 @@ import type { UserRole } from "@/lib/supabase/types";
 
 const inviteSchema = z.object({
   email: z.string().email(),
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().max(100).optional(),
+  first_name: z.string().min(1).max(100),
+  last_name: z.string().max(100).optional(),
   role: z.enum(["admin", "operator", "model", "accountant"]),
   password: z.string().min(8).optional(),
-  cutPercentage: z.number().min(0).max(100).optional(),
-  operatorCutPercentage: z.number().min(0).max(100).optional(),
-  weeklyGoalHours: z.number().min(0).max(168).optional(),
-  worksAlone: z.boolean().optional(),
+  cut_percentage: z.number().min(0).max(100).optional(),
+  operator_cut_percentage: z.number().min(0).max(100).optional(),
+  weekly_goal_hours: z.number().min(0).max(168).optional(),
+  works_alone: z.boolean().optional(),
+  payout_method: z.enum(["Bank", "Cash"]).optional(),
 });
 
 function generatePassword(): string {
@@ -135,22 +136,25 @@ export async function POST(request: NextRequest) {
 
     const studioName = studioData?.name || "Your Studio";
 
+    // Determine cut percentage defaults based on role
+    const defaultCut = parsed.role === "accountant" ? 0 : 33;
+
     // Create account record
     const { error: accountError } = await admin.from("accounts").insert({
       auth_user_id: authData.user.id,
       studio_id: inviter.studio_id,
       email: parsed.email,
-      first_name: parsed.firstName,
-      last_name: parsed.lastName || null,
+      first_name: parsed.first_name,
+      last_name: parsed.last_name || null,
       role: parsed.role as UserRole,
       is_active: true,
       is_super_admin: false,
-      works_alone: parsed.worksAlone ?? false,
-      cut_percentage: parsed.cutPercentage ?? 50,
-      operator_cut_percentage: parsed.operatorCutPercentage ?? 0,
-      weekly_goal_hours: parsed.weeklyGoalHours ?? null,
-      weekly_goal_enabled: !!parsed.weeklyGoalHours,
-      payout_method: "cash",
+      works_alone: parsed.works_alone ?? false,
+      cut_percentage: parsed.cut_percentage ?? defaultCut,
+      operator_cut_percentage: parsed.operator_cut_percentage ?? 0,
+      weekly_goal_hours: parsed.weekly_goal_hours ?? null,
+      weekly_goal_enabled: !!parsed.weekly_goal_hours,
+      payout_method: parsed.payout_method ?? "Bank",
       onboarding_dismissed: false,
       onboarding_completed_steps: [],
     });
@@ -182,7 +186,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Invitation sent to ${parsed.email}`,
+      message: `${parsed.first_name} has been invited to ${studioName}`,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

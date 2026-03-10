@@ -13,10 +13,10 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- 2. CUSTOM ENUMS
 -- =============================================
 CREATE TYPE user_role AS ENUM ('owner', 'admin', 'operator', 'model', 'accountant');
-CREATE TYPE shift_status AS ENUM ('scheduled', 'completed', 'no_show', 'cancelled', 'pending_approval');
+CREATE TYPE shift_status AS ENUM ('scheduled', 'in_progress', 'completed', 'no_show', 'cancelled', 'pending_approval');
 CREATE TYPE request_status AS ENUM ('pending', 'approved', 'rejected');
 CREATE TYPE subscription_tier AS ENUM ('free', 'starter', 'pro', 'elite');
-CREATE TYPE subscription_status AS ENUM ('trialing', 'active', 'cancelled', 'past_due', 'suspended');
+CREATE TYPE subscription_status AS ENUM ('trialing', 'active', 'cancelled', 'past_due', 'suspended', 'grace_period');
 CREATE TYPE fetch_job_status AS ENUM ('pending', 'in_progress', 'completed', 'failed');
 CREATE TYPE exchange_rate_mode AS ENUM ('manual', 'auto');
 CREATE TYPE channel_type AS ENUM ('general', 'models_only', 'operators_only', 'custom');
@@ -589,6 +589,19 @@ AS $$
   );
 $$;
 
+-- Increment model count for a studio
+CREATE OR REPLACE FUNCTION increment_model_count(p_studio_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE studios
+  SET current_model_count = current_model_count + 1
+  WHERE id = p_studio_id;
+END;
+$$;
+
 -- =============================================
 -- 5. AUTOMATIC updated_at TRIGGER
 -- =============================================
@@ -620,6 +633,13 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+-- Composite indexes for common query patterns
+CREATE INDEX idx_earnings_studio_model_date ON earnings(studio_id, model_id, shift_date);
+CREATE INDEX idx_shifts_studio_start ON shifts(studio_id, start_time);
+CREATE INDEX idx_chat_messages_channel_created ON chat_messages(channel_id, created_at);
+CREATE INDEX idx_support_tickets_studio_status ON support_tickets(studio_id, status);
+CREATE INDEX idx_daily_stream_stats_studio_date ON daily_stream_stats(studio_id, date);
 
 -- =============================================
 -- 6. ROW LEVEL SECURITY (RLS)

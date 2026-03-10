@@ -45,13 +45,10 @@ interface Earning {
   onlyfans_gross_usd?: number;
   total_gross_usd?: number;
   total_gross_secondary?: number;
-  total_gross_huf?: number;
   model_pay_usd?: number;
   model_pay_secondary?: number;
-  model_pay_huf?: number;
   operator_pay_usd?: number;
   operator_pay_secondary?: number;
-  operator_pay_huf?: number;
 }
 
 interface GlobalSettings {

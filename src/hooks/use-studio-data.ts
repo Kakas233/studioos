@@ -9,34 +9,44 @@ type Tables = Database["public"]["Tables"];
 
 const supabase = createClient();
 
-export function useShifts() {
+export function useShifts(options?: { dateFrom?: string; dateTo?: string }) {
   const { studio } = useAuth();
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+  const effectiveDateFrom = options?.dateFrom ?? sixtyDaysAgo;
   return useQuery<Tables["shifts"]["Row"][]>({
-    queryKey: ["shifts", studio?.id],
+    queryKey: ["shifts", studio?.id, effectiveDateFrom, options?.dateTo],
     queryFn: async () => {
       if (!studio?.id) return [];
-      const { data } = await supabase
+      let query = supabase
         .from("shifts")
         .select("*")
         .eq("studio_id", studio.id)
+        .gte("start_time", effectiveDateFrom)
         .order("start_time", { ascending: false });
+      if (options?.dateTo) query = query.lte("start_time", options.dateTo);
+      const { data } = await query;
       return data || [];
     },
     enabled: !!studio?.id,
   });
 }
 
-export function useEarnings() {
+export function useEarnings(options?: { dateFrom?: string; dateTo?: string }) {
   const { studio } = useAuth();
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const effectiveDateFrom = options?.dateFrom ?? ninetyDaysAgo;
   return useQuery<Tables["earnings"]["Row"][]>({
-    queryKey: ["earnings", studio?.id],
+    queryKey: ["earnings", studio?.id, effectiveDateFrom, options?.dateTo],
     queryFn: async () => {
       if (!studio?.id) return [];
-      const { data } = await supabase
+      let query = supabase
         .from("earnings")
         .select("*")
         .eq("studio_id", studio.id)
+        .gte("shift_date", effectiveDateFrom)
         .order("shift_date", { ascending: false });
+      if (options?.dateTo) query = query.lte("shift_date", options.dateTo);
+      const { data } = await query;
       return data || [];
     },
     enabled: !!studio?.id,
@@ -96,8 +106,9 @@ export function useCamAccounts() {
 
 export function useStudioDailyStats(camAccountIds: string[]) {
   const { studio } = useAuth();
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   return useQuery<Tables["daily_stream_stats"]["Row"][]>({
-    queryKey: ["dailyStreamStats", studio?.id, camAccountIds],
+    queryKey: ["dailyStreamStats", studio?.id, camAccountIds, ninetyDaysAgo],
     queryFn: async () => {
       if (!studio?.id || !camAccountIds.length) return [];
       const { data } = await supabase
@@ -105,6 +116,7 @@ export function useStudioDailyStats(camAccountIds: string[]) {
         .select("*")
         .eq("studio_id", studio.id)
         .in("cam_account_id", camAccountIds)
+        .gte("date", ninetyDaysAgo)
         .order("date", { ascending: false });
       return data || [];
     },
@@ -274,8 +286,9 @@ export function useStreamSegments(
   dateTo?: string
 ) {
   const { studio } = useAuth();
+  const effectiveDateFrom = dateFrom || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   return useQuery<Tables["stream_segments"]["Row"][]>({
-    queryKey: ["streamSegments", studio?.id, camAccountIds, dateFrom, dateTo],
+    queryKey: ["streamSegments", studio?.id, camAccountIds, effectiveDateFrom, dateTo],
     queryFn: async () => {
       if (!studio?.id || !camAccountIds.length) return [];
       let query = supabase
@@ -283,8 +296,8 @@ export function useStreamSegments(
         .select("*")
         .eq("studio_id", studio.id)
         .in("cam_account_id", camAccountIds)
+        .gte("date", effectiveDateFrom)
         .order("start_time", { ascending: false });
-      if (dateFrom) query = query.gte("date", dateFrom);
       if (dateTo) query = query.lte("date", dateTo);
       const { data } = await query;
       return data || [];

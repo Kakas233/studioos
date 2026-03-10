@@ -183,6 +183,14 @@ export default function AdminSettings() {
     }
   };
 
+  // Auto-fetch exchange rate on page load when mode is "auto"
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (exchangeRateMode === "auto" && secondaryCurrency && secondaryCurrency !== "USD") {
+      fetchLiveExchangeRate();
+    }
+  }, [exchangeRateMode, secondaryCurrency]);
+
   const resetAll = () => {
     if (settings) {
       const s = settings;
