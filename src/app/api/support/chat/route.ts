@@ -304,6 +304,20 @@ async function verifySession(sessionToken: string) {
   return accounts[0];
 }
 
+async function verifySupabaseToken(token: string) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) return null;
+
+  const { data: accounts } = await supabase
+    .from("accounts")
+    .select("*")
+    .eq("auth_user_id", data.user.id);
+
+  if (!accounts || accounts.length === 0) return null;
+  return accounts[0];
+}
+
 async function getStudio(studioId: string): Promise<Studio | null> {
   const { data: studios } = await getSupabase()
     .from("studios")
@@ -366,17 +380,23 @@ export async function POST(request: Request) {
       escalation_reason,
     } = body;
 
-    if (!session_token) {
-      return NextResponse.json(
-        { success: false, error: "Authentication required" },
-        { status: 401 }
-      );
+    // Try Supabase Bearer token first, then fall back to legacy session_token
+    const authHeader = request.headers.get("authorization");
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
+
+    let account = null;
+    if (bearerToken) {
+      account = await verifySupabaseToken(bearerToken);
+    }
+    if (!account && session_token) {
+      account = await verifySession(session_token);
     }
 
-    const account = await verifySession(session_token);
     if (!account) {
       return NextResponse.json(
-        { success: false, error: "Invalid session" },
+        { success: false, error: "Authentication required" },
         { status: 401 }
       );
     }

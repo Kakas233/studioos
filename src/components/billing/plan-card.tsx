@@ -111,20 +111,40 @@ export default function PlanCard({
           <span className="text-[#A8A49A]/50">/month</span>
         </div>
 
-        {isTrialing && trialEndsAt && (
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="w-4 h-4 text-blue-400" />
-              <p className="text-blue-400 text-sm font-medium">Free Trial</p>
+        {isTrialing && trialEndsAt && (() => {
+          const now = new Date();
+          const totalTrialMs = 7 * 24 * 60 * 60 * 1000;
+          const remainingMs = Math.max(0, trialEndsAt.getTime() - now.getTime());
+          const progressPct = Math.min(100, Math.max(0, ((totalTrialMs - remainingMs) / totalTrialMs) * 100));
+          const daysLeft = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+
+          return (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="w-4 h-4 text-blue-400" />
+                <p className="text-blue-400 text-sm font-medium">Free Trial</p>
+              </div>
+              <p className="text-blue-400/70 text-xs">
+                Your trial ends{" "}
+                {formatDistanceToNow(trialEndsAt, { addSuffix: true })} (
+                {format(trialEndsAt, "MMM d, yyyy")}). Subscribe to keep using
+                StudioOS.
+              </p>
+              <div className="mt-2">
+                <div className="flex justify-between text-xs text-blue-400/60 mb-1">
+                  <span>{daysLeft} day{daysLeft !== 1 ? "s" : ""} remaining</span>
+                  <span>7-day trial</span>
+                </div>
+                <div className="w-full h-1.5 bg-blue-500/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-400 rounded-full transition-all"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+              </div>
             </div>
-            <p className="text-blue-400/70 text-xs">
-              Your trial ends{" "}
-              {formatDistanceToNow(trialEndsAt, { addSuffix: true })} (
-              {format(trialEndsAt, "MMM d, yyyy")}). Subscribe to keep using
-              StudioOS.
-            </p>
-          </div>
-        )}
+          );
+        })()}
 
         {isGrace && graceEndsAt && (
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
   Loader2,
@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import SupportHome from "./support-home";
 import NewTicketForm from "./new-ticket-form";
 import TicketConversation from "./ticket-conversation";
@@ -48,22 +49,35 @@ export default function SupportChatPanel({
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
   const [isNewTicket, setIsNewTicket] = useState(false);
   const [initialMessage, setInitialMessage] = useState("");
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
-  const sessionToken =
-    typeof window !== "undefined"
-      ? localStorage.getItem("studioos_session")
-      : null;
+  // Get Supabase access token
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token || null;
+      setAccessToken(token);
+      return token;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const loadTickets = async () => {
-    if (!sessionToken) return;
+    if (!account) return;
+    const token = await getAccessToken();
+    if (!token) return;
     setLoading(true);
     try {
       const res = await fetch("/api/support/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           action: "list",
-          session_token: sessionToken,
         }),
       });
       const data = await res.json();
@@ -78,9 +92,11 @@ export default function SupportChatPanel({
   };
 
   useEffect(() => {
-    if (sessionToken) loadTickets();
+    if (account) {
+      getAccessToken().then(() => loadTickets());
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [account]);
 
   const handleTicketCreated = (ticketId: string, message: string) => {
     setActiveTicketId(ticketId);
@@ -114,10 +130,10 @@ export default function SupportChatPanel({
   );
 
   // If not authenticated, show a simple contact form
-  if (!sessionToken) {
+  if (!account) {
     return (
       <NewTicketForm
-        sessionToken={null}
+        accessToken={null}
         onCreated={() => {}}
         onCancel={onClose}
         onClose={onClose}
@@ -145,7 +161,7 @@ export default function SupportChatPanel({
   if (view === "new") {
     return (
       <NewTicketForm
-        sessionToken={sessionToken}
+        accessToken={accessToken}
         onCreated={handleTicketCreated}
         onCancel={handleBack}
         onClose={onClose}
@@ -158,7 +174,7 @@ export default function SupportChatPanel({
     return (
       <TicketConversation
         ticketId={activeTicketId}
-        sessionToken={sessionToken}
+        accessToken={accessToken}
         agents={AGENTS}
         agentImages={agentImages}
         onBack={handleBack}

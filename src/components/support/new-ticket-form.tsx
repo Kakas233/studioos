@@ -5,7 +5,7 @@ import { ArrowLeft, X, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface NewTicketFormProps {
-  sessionToken: string | null;
+  accessToken: string | null;
   onCreated: (ticketId: string, message: string) => void;
   onCancel: () => void;
   onClose: () => void;
@@ -14,7 +14,7 @@ interface NewTicketFormProps {
 }
 
 export default function NewTicketForm({
-  sessionToken,
+  accessToken,
   onCreated,
   onCancel,
   onClose,
@@ -67,13 +67,15 @@ export default function NewTicketForm({
     try {
       const res = await fetch("/api/support/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           action: "create",
           subject: message.trim(),
           category: "general",
           email: email.trim() || undefined,
-          session_token: sessionToken,
         }),
       });
       const data = await res.json();

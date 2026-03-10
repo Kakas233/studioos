@@ -32,7 +32,7 @@ interface TicketData {
 
 interface TicketConversationProps {
   ticketId: string;
-  sessionToken: string;
+  accessToken: string | null;
   agents: Record<string, { name: string; title: string }>;
   agentImages?: Record<string, string>;
   onBack: () => void;
@@ -43,7 +43,7 @@ interface TicketConversationProps {
 
 export default function TicketConversation({
   ticketId,
-  sessionToken,
+  accessToken,
   agents,
   agentImages,
   onBack,
@@ -120,11 +120,13 @@ export default function TicketConversation({
         if (ticketId) {
           fetch("/api/support/chat", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
             body: JSON.stringify({
               action: "close",
               ticket_id: ticketId,
-              session_token: sessionToken,
             }),
           }).catch(() => {});
         }
@@ -158,7 +160,7 @@ export default function TicketConversation({
     isNewTicket,
     onboardingStep,
     ticketId,
-    sessionToken,
+    accessToken,
   ]);
 
   useEffect(() => {
@@ -258,11 +260,13 @@ export default function TicketConversation({
     try {
       const res = await fetch("/api/support/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           action: "get",
           ticket_id: ticketId,
-          session_token: sessionToken,
         }),
       });
       const data = await res.json();
@@ -306,11 +310,13 @@ export default function TicketConversation({
     try {
       const res = await fetch("/api/support/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           action: "get",
           ticket_id: ticketId,
-          session_token: sessionToken,
         }),
       });
       const data = await res.json();
@@ -370,12 +376,14 @@ export default function TicketConversation({
     try {
       const res = await fetch("/api/support/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           action: "message",
           ticket_id: ticketId,
           message: userMessage,
-          session_token: sessionToken,
         }),
       });
 
@@ -448,12 +456,14 @@ export default function TicketConversation({
     try {
       await fetch("/api/support/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           action: "rate",
           ticket_id: ticketId,
           rating: stars,
-          session_token: sessionToken,
         }),
       });
     } catch {
@@ -467,12 +477,14 @@ export default function TicketConversation({
     try {
       const res = await fetch("/api/support/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           action: "escalate",
           ticket_id: ticketId,
           escalation_reason: "user_request",
-          session_token: sessionToken,
         }),
       });
       const data = await res.json();
@@ -501,11 +513,13 @@ export default function TicketConversation({
     try {
       const res = await fetch("/api/support/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           action: "reopen",
           ticket_id: ticketId,
-          session_token: sessionToken,
         }),
       });
       const data = await res.json();
@@ -719,11 +733,11 @@ export default function TicketConversation({
                         method: "POST",
                         headers: {
                           "Content-Type": "application/json",
+                          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
                         },
                         body: JSON.stringify({
                           action: "close",
                           ticket_id: ticketId,
-                          session_token: sessionToken,
                         }),
                       }).catch(() => {});
                     }}
@@ -785,11 +799,11 @@ export default function TicketConversation({
                             method: "POST",
                             headers: {
                               "Content-Type": "application/json",
+                              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
                             },
                             body: JSON.stringify({
                               action: "reopen",
                               ticket_id: ticketId,
-                              session_token: sessionToken,
                             }),
                           }).catch(() => {});
                           setTicket((prev) =>

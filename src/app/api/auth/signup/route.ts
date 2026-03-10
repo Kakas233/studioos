@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendVerificationEmail } from "@/lib/email";
 import { z } from "zod";
+import { MODEL_LIMITS } from "@/lib/pricing";
 
 const signupSchema = z.object({
   studioName: z.string().min(2).max(100),
@@ -9,10 +10,7 @@ const signupSchema = z.object({
   email: z.string().email(),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Must contain an uppercase letter")
-    .regex(/[0-9]/, "Must contain a number")
-    .regex(/[^A-Za-z0-9]/, "Must contain a special character"),
+    .min(8, "Password must be at least 8 characters"),
   subdomain: z
     .string()
     .min(3)
@@ -60,16 +58,19 @@ export async function POST(request: NextRequest) {
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
+    const selectedTier = parsed.tier || "starter";
+
     // Create studio
     const { data: studio, error: studioError } = await admin
       .from("studios")
       .insert({
         name: parsed.studioName,
         subdomain: parsed.subdomain,
-        subscription_tier: "free",
+        subscription_tier: selectedTier,
         subscription_status: "trialing",
         trial_ends_at: trialEndsAt.toISOString(),
-        model_limit: 1,
+        grace_period_ends_at: trialEndsAt.toISOString(),
+        model_limit: MODEL_LIMITS[selectedTier] || 1,
         current_model_count: 0,
         onboarding_completed: false,
         created_by: authData.user.id,
