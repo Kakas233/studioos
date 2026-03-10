@@ -44,19 +44,21 @@ export default function StreamTimePage() {
   const { data: camAccounts = [], isLoading: loadingCam } = useCamAccounts();
   const { data: studioAccounts = [] } = useStudioAccounts();
 
-  const models = studioAccounts.filter(
-    (a) => a.role === "model" && a.is_active !== false
+  const models = useMemo(
+    () => studioAccounts.filter((a) => a.role === "model" && a.is_active !== false),
+    [studioAccounts]
   );
-  const modelIds = new Set(models.map((m) => m.id));
+  const modelIds = useMemo(() => new Set(models.map((m) => m.id)), [models]);
 
-  const studioCamAccounts = camAccounts.filter((ca) =>
-    modelIds.has(ca.model_id)
+  const studioCamAccounts = useMemo(
+    () => camAccounts.filter((ca) => modelIds.has(ca.model_id)),
+    [camAccounts, modelIds]
   );
   const studioCamAccountIds = useMemo(
     () => studioCamAccounts.map((ca) => ca.id),
     [studioCamAccounts]
   );
-  const studioCamIds = new Set(studioCamAccountIds);
+  const studioCamIds = useMemo(() => new Set(studioCamAccountIds), [studioCamAccountIds]);
 
   const { data: rawSessions = [], isLoading: loadingSessions } =
     useStreamingSessions(studioCamAccountIds);

@@ -103,8 +103,9 @@ export default function ModelInsightsPage() {
   const { data: camAccounts = [] } = useCamAccounts();
   const { data: studioAccounts = [] } = useStudioAccounts();
 
-  const models = studioAccounts.filter(
-    (a: any) => a.role === "model" && a.is_active !== false
+  const models = useMemo(
+    () => studioAccounts.filter((a: any) => a.role === "model" && a.is_active !== false),
+    [studioAccounts]
   );
   const modelIds = useMemo(
     () => new Set(models.map((m: any) => m.id)),
