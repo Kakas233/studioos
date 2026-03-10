@@ -29,6 +29,7 @@ import StreamTimeChart from "@/components/streamtime/stream-time-chart";
 import StreamLog from "@/components/streamtime/stream-log";
 import EnhancedSessionBreakdown from "@/components/streamtime/enhanced-session-breakdown";
 import FeatureGate from "@/components/shared/feature-gate";
+import DataFetchProgress from "@/components/shared/data-fetch-progress";
 
 export default function StreamTimePage() {
   const { account, loading } = useAuth();
@@ -126,6 +127,7 @@ export default function StreamTimePage() {
   return (
     <FeatureGate requiredTier="starter">
       <div className="space-y-6">
+        <DataFetchProgress />
         {/* Filters */}
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-3 sm:gap-4">
           <div className="space-y-1">

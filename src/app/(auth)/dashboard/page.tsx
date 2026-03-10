@@ -26,6 +26,7 @@ import LiveStatus from "@/components/streamtime/live-status";
 import OperatorAgenda from "@/components/dashboard/operator-agenda";
 import WeeklyGoal from "@/components/dashboard/weekly-goal";
 import OnboardingGuide from "@/components/onboarding/onboarding-guide";
+import DataFetchProgress from "@/components/shared/data-fetch-progress";
 import type { Database } from "@/lib/supabase/types";
 
 type Earning = Database["public"]["Tables"]["earnings"]["Row"];
@@ -231,6 +232,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-5">
         <OnboardingGuide />
+        <DataFetchProgress />
         <StudioHeader studio={studio} accounts={accounts} />
         <DateRangeSelector dateRange={dateRange} setDateRange={setDateRange} />
 
