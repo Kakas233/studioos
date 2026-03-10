@@ -26,6 +26,7 @@ export default function Header({ title, onMobileMenuToggle }: HeaderProps) {
             variant="ghost"
             size="icon"
             onClick={onMobileMenuToggle}
+            aria-label="Toggle navigation menu"
             className="md:hidden text-[#A8A49A]/60 hover:text-white hover:bg-white/[0.06] h-9 w-9"
           >
             <Menu className="w-5 h-5" />

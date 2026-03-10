@@ -114,8 +114,9 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
         console.error("Failed to trigger historical fetch:", err);
       }
     },
-    onError: () => {
+    onError: (error: Error) => {
       setAddingInProgress(false);
+      toast.error(error.message || "Failed to add cam account");
     },
   });
 
@@ -273,6 +274,7 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
             variant="ghost"
             size="icon"
             onClick={() => handleDelete(ca.id)}
+            aria-label={`Remove ${ca.platform} account`}
             className="text-red-400 hover:text-red-300 hover:bg-red-500/10 shrink-0 h-8 w-8"
           >
             <Trash2 className="w-4 h-4" />

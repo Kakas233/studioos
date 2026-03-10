@@ -101,7 +101,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           )}
         </div>
         {isMobile && (
-          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)} className="text-[#A8A49A]/60 hover:text-white shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)} aria-label="Close navigation menu" className="text-[#A8A49A]/60 hover:text-white shrink-0">
             <X className="w-5 h-5" />
           </Button>
         )}
@@ -165,6 +165,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           variant="ghost"
           size={!isMobile && collapsed ? "icon" : "default"}
           onClick={handleLogout}
+          aria-label="Sign out"
           className={cn(
             "w-full text-[#A8A49A]/40 hover:text-[#e8e6e3] hover:bg-white/[0.04]",
             !isMobile && collapsed && "justify-center"
@@ -195,6 +196,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           variant="ghost"
           size="icon"
           onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-[#111111] border border-white/[0.08] hover:bg-[#1a1a1a] text-[#A8A49A]/60 hover:text-[#e8e6e3]"
         >
           {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}

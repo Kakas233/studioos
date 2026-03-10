@@ -34,6 +34,7 @@ import FeatureGate from "@/components/shared/feature-gate";
 import { useConfirmDialog } from "@/components/shared/confirm-dialog";
 import WeeklyGoalSettings from "@/components/users/weekly-goal-settings";
 import { createClient } from "@/lib/supabase/client";
+import { ROLE_COLORS } from "@/lib/config";
 
 export default function UsersManagementPage() {
   const router = useRouter();
@@ -143,14 +144,6 @@ export default function UsersManagementPage() {
     setSelectedUser(null);
   };
 
-  const roleColors: Record<string, string> = {
-    owner: "bg-[#C9A84C]/20 text-[#C9A84C]",
-    admin: "bg-[#C9A84C]/20 text-[#C9A84C]",
-    operator: "bg-amber-500/20 text-amber-400",
-    model: "bg-emerald-500/20 text-emerald-400",
-    accountant: "bg-blue-500/20 text-blue-400",
-  };
-
   const deleteAccountMutation = useMutation({
     mutationFn: async (accountId: string) => {
       const { error } = await supabase
@@ -241,7 +234,7 @@ export default function UsersManagementPage() {
                         <TableCell className="font-medium text-white">{u.first_name}</TableCell>
                         <TableCell className="text-white/70">{u.email}</TableCell>
                         <TableCell>
-                          <Badge className={roleColors[u.role] || "bg-gray-500 text-white"}>
+                          <Badge className={ROLE_COLORS[u.role] || "bg-gray-500 text-white"}>
                             {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
                           </Badge>
                         </TableCell>
@@ -298,6 +291,7 @@ export default function UsersManagementPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditUser(u)}
+                              aria-label={`Edit ${u.first_name}`}
                               className="text-white/60 hover:text-[#e8e6e3]"
                             >
                               <Edit2 className="w-4 h-4" />
@@ -307,6 +301,7 @@ export default function UsersManagementPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleAssignments(u)}
+                                aria-label={`Manage assignments for ${u.first_name}`}
                                 className="text-white/60 hover:text-[#e8e6e3]"
                               >
                                 <Link2 className="w-4 h-4" />
@@ -317,6 +312,7 @@ export default function UsersManagementPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDeleteUser(u)}
+                                aria-label={`Deactivate ${u.first_name}`}
                                 className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -327,6 +323,15 @@ export default function UsersManagementPage() {
                       </TableRow>
                     );
                   })}
+                  {allAccounts.filter((a) => a.is_active !== false).length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <Users className="w-8 h-8 mx-auto mb-2 text-[#A8A49A]/20" />
+                        <p className="text-sm text-[#A8A49A]/40">No team members yet</p>
+                        <p className="text-xs text-[#A8A49A]/30 mt-1">Add your first team member using the button above</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>
