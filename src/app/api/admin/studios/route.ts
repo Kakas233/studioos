@@ -39,7 +39,7 @@ export async function GET() {
     // Fetch all studios
     const { data: studios, error: studiosError } = await adminClient
       .from("studios")
-      .select("*")
+      .select("id, name, subdomain, subscription_tier, subscription_status, model_limit, current_model_count, onboarding_completed, created_at, updated_at")
       .order("created_at", { ascending: false });
 
     if (studiosError) {

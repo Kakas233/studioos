@@ -1,4 +1,19 @@
+import type { Metadata } from "next";
 import LegalPageLayout from "@/components/legal/legal-page-layout";
+
+export const metadata: Metadata = {
+  title: "Modern Slavery Statement",
+  description:
+    "StudioOS voluntary Modern Slavery and Human Trafficking Statement. Our commitment to ethical business practices and human rights.",
+  openGraph: {
+    title: "Modern Slavery Statement | StudioOS",
+    description:
+      "StudioOS voluntary Modern Slavery and Human Trafficking Statement. Our commitment to ethical business practices and human rights.",
+    url: "https://getstudioos.com/modern-slavery",
+    siteName: "StudioOS",
+    type: "website",
+  },
+};
 
 export default function ModernSlaveryStatement() {
   return (

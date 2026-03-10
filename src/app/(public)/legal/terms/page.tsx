@@ -3,6 +3,13 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Terms of Service",
   description: "StudioOS terms of service — the rules and guidelines for using our platform.",
+  openGraph: {
+    title: "Terms of Service | StudioOS",
+    description: "StudioOS terms of service — the rules and guidelines for using our platform.",
+    url: "https://getstudioos.com/legal/terms",
+    siteName: "StudioOS",
+    type: "website",
+  },
 };
 
 export default function TermsOfServicePage() {

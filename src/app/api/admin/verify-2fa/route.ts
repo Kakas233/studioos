@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     // Find the 2FA verification record
     const { data: verifications } = await (adminClient
       .from("email_verifications") as any)
-      .select("*")
+      .select("id, email, token, expires_at, verified")
       .eq("email", SUPER_ADMIN_EMAIL.toLowerCase())
       .eq("token", code)
       .eq("studio_id", "super_admin_2fa")
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     // Get the super admin account
     const { data: accounts } = await adminClient
       .from("accounts")
-      .select("*")
+      .select("id, email, first_name, role, studio_id, is_super_admin")
       .eq("email", SUPER_ADMIN_EMAIL.toLowerCase())
       .limit(1);
 

@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 
       const { data: existing } = await (adminDb
         .from("telegram_links") as any)
-        .select("*")
+        .select("id, account_id, studio_id, link_token, telegram_chat_id, telegram_username, is_active")
         .eq("account_id", targetAccountId);
 
       if (existing && existing.length > 0) {
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
     if (action === "check_status") {
       const { data: links } = await (adminDb
         .from("telegram_links") as any)
-        .select("*")
+        .select("id, account_id, studio_id, link_token, telegram_chat_id, telegram_username, is_active")
         .eq("account_id", targetAccountId);
 
       const link = (links || []).find(
@@ -143,7 +143,7 @@ export async function POST(request: Request) {
     if (action === "disconnect") {
       const { data: links } = await (adminDb
         .from("telegram_links") as any)
-        .select("*")
+        .select("id, account_id, studio_id, link_token, telegram_chat_id, telegram_username, is_active")
         .eq("account_id", targetAccountId);
 
       for (const link of links || []) {
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
     if (action === "send_test") {
       const { data: links } = await (adminDb
         .from("telegram_links") as any)
-        .select("*")
+        .select("id, account_id, studio_id, link_token, telegram_chat_id, telegram_username, is_active")
         .eq("account_id", targetAccountId);
 
       const link = (links || []).find(

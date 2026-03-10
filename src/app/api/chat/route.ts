@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("chat_messages")
-      .select("*")
+      .select("id, channel_id, studio_id, user_id, user_name, user_role, message_text, created_at")
       .eq("channel_id", channelId)
       .eq("studio_id", account.studio_id)
       .order("created_at", { ascending: false })

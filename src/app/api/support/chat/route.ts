@@ -298,7 +298,7 @@ async function invokeLLM(prompt: string): Promise<string> {
 async function verifySession(sessionToken: string) {
   const { data: sessions } = await (getSupabase()
     .from("sessions") as any)
-    .select("*")
+    .select("id, account_id, token, expires_at")
     .eq("token", sessionToken);
 
   if (
@@ -311,7 +311,7 @@ async function verifySession(sessionToken: string) {
 
   const { data: accounts } = await getSupabase()
     .from("accounts")
-    .select("*")
+    .select("id, studio_id, first_name, last_name, email, role, is_active, is_super_admin")
     .eq("id", sessions[0].account_id);
 
   if (!accounts || accounts.length === 0) return null;
@@ -325,7 +325,7 @@ async function verifySupabaseToken(token: string) {
 
   const { data: accounts } = await supabase
     .from("accounts")
-    .select("*")
+    .select("id, studio_id, first_name, last_name, email, role, is_active, is_super_admin")
     .eq("auth_user_id", data.user.id);
 
   if (!accounts || accounts.length === 0) return null;
@@ -335,7 +335,7 @@ async function verifySupabaseToken(token: string) {
 async function getStudio(studioId: string): Promise<Studio | null> {
   const { data: studios } = await getSupabase()
     .from("studios")
-    .select("*")
+    .select("id, name, subscription_tier, subscription_status")
     .eq("id", studioId);
 
   return studios && studios.length > 0 ? studios[0] : null;
@@ -352,7 +352,7 @@ async function findReferencedTicket(
   const refId = ticketRefMatch[1].toUpperCase();
   const { data: allUserTickets } = await (getSupabase()
     .from("support_tickets") as any)
-    .select("*")
+    .select("id, studio_id, account_id, account_name, account_email, subject, category, priority, status, assigned_agent, messages, is_escalated, escalated_at, escalation_reason, created_date, updated_date, resolved_at")
     .eq("account_id", accountId);
 
   if (!allUserTickets) return null;
@@ -483,7 +483,7 @@ export async function POST(request: Request) {
 
       const { data: tickets } = await (getSupabase()
         .from("support_tickets") as any)
-        .select("*")
+        .select("id, studio_id, account_id, account_name, account_email, subject, category, priority, status, assigned_agent, messages, is_escalated, escalated_at, escalation_reason, created_date, updated_date, resolved_at")
         .eq("id", ticket_id);
 
       if (!tickets || tickets.length === 0) {
@@ -571,7 +571,7 @@ export async function POST(request: Request) {
 
       const { data: tickets } = await (getSupabase()
         .from("support_tickets") as any)
-        .select("*")
+        .select("id, studio_id, account_id, account_name, account_email, subject, category, priority, status, assigned_agent, messages, is_escalated, escalated_at, escalation_reason, created_date, updated_date, resolved_at")
         .eq("id", ticket_id);
 
       if (!tickets || tickets.length === 0) {
@@ -659,7 +659,7 @@ export async function POST(request: Request) {
     if (action === "list") {
       const { data: tickets } = await (getSupabase()
         .from("support_tickets") as any)
-        .select("*")
+        .select("id, subject, category, status, assigned_agent, messages, created_date, updated_date")
         .eq("account_id", account.id);
 
       const enriched = (tickets || []).map((t: Ticket) => ({
@@ -690,7 +690,7 @@ export async function POST(request: Request) {
 
       const { data: tickets } = await (getSupabase()
         .from("support_tickets") as any)
-        .select("*")
+        .select("id, studio_id, account_id, account_name, account_email, subject, category, priority, status, assigned_agent, messages, is_escalated, escalated_at, escalation_reason, created_date, updated_date, resolved_at")
         .eq("id", ticket_id);
 
       if (!tickets || tickets.length === 0) {
@@ -741,7 +741,7 @@ export async function POST(request: Request) {
 
       const { data: tickets } = await (getSupabase()
         .from("support_tickets") as any)
-        .select("*")
+        .select("id, studio_id, account_id, account_name, account_email, subject, category, priority, status, assigned_agent, messages, is_escalated, escalated_at, escalation_reason, created_date, updated_date, resolved_at")
         .eq("id", ticket_id);
 
       if (!tickets || tickets.length === 0) {
@@ -790,7 +790,7 @@ export async function POST(request: Request) {
 
       const { data: tickets } = await (getSupabase()
         .from("support_tickets") as any)
-        .select("*")
+        .select("id, studio_id, account_id, account_name, account_email, subject, category, priority, status, assigned_agent, messages, is_escalated, escalated_at, escalation_reason, created_date, updated_date, resolved_at")
         .eq("id", ticket_id);
 
       if (!tickets || tickets.length === 0) {

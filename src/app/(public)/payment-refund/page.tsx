@@ -1,4 +1,19 @@
+import type { Metadata } from "next";
 import LegalPageLayout from "@/components/legal/legal-page-layout";
+
+export const metadata: Metadata = {
+  title: "Payment & Refund Policy",
+  description:
+    "StudioOS payment processing, subscription billing, and refund policy. Learn about pricing, automatic renewals, and refund eligibility.",
+  openGraph: {
+    title: "Payment & Refund Policy | StudioOS",
+    description:
+      "StudioOS payment processing, subscription billing, and refund policy. Learn about pricing, automatic renewals, and refund eligibility.",
+    url: "https://getstudioos.com/payment-refund",
+    siteName: "StudioOS",
+    type: "website",
+  },
+};
 
 export default function PaymentRefundPolicy() {
   return (

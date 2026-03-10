@@ -1,4 +1,19 @@
+import type { Metadata } from "next";
 import LegalPageLayout from "@/components/legal/legal-page-layout";
+
+export const metadata: Metadata = {
+  title: "Cookie Policy",
+  description:
+    "How StudioOS uses cookies and similar tracking technologies. Learn about cookie types, your choices, and how to manage preferences.",
+  openGraph: {
+    title: "Cookie Policy | StudioOS",
+    description:
+      "How StudioOS uses cookies and similar tracking technologies. Learn about cookie types, your choices, and how to manage preferences.",
+    url: "https://getstudioos.com/cookies",
+    siteName: "StudioOS",
+    type: "website",
+  },
+};
 
 export default function CookiesPolicy() {
   return (

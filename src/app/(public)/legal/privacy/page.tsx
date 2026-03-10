@@ -3,6 +3,13 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "StudioOS privacy policy — how we collect, use, and protect your data.",
+  openGraph: {
+    title: "Privacy Policy | StudioOS",
+    description: "StudioOS privacy policy — how we collect, use, and protect your data.",
+    url: "https://getstudioos.com/legal/privacy",
+    siteName: "StudioOS",
+    type: "website",
+  },
 };
 
 export default function PrivacyPolicyPage() {

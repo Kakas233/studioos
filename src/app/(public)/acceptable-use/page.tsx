@@ -1,4 +1,19 @@
+import type { Metadata } from "next";
 import LegalPageLayout from "@/components/legal/legal-page-layout";
+
+export const metadata: Metadata = {
+  title: "Acceptable Use Policy",
+  description:
+    "StudioOS Acceptable Use Policy — rules governing acceptable and prohibited use of our webcam studio management platform.",
+  openGraph: {
+    title: "Acceptable Use Policy | StudioOS",
+    description:
+      "StudioOS Acceptable Use Policy — rules governing acceptable and prohibited use of our webcam studio management platform.",
+    url: "https://getstudioos.com/acceptable-use",
+    siteName: "StudioOS",
+    type: "website",
+  },
+};
 
 export default function AcceptableUsePolicy() {
   return (

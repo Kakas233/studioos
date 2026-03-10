@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
       const { data: accounts } = await adminClient
         .from("accounts")
-        .select("*")
+        .select("id, email, password_hash, is_super_admin")
         .eq("email", SUPER_ADMIN_EMAIL.toLowerCase())
         .limit(1);
 

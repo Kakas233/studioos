@@ -28,7 +28,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("member_alerts")
-      .select("*")
+      .select("id, studio_id, account_id, cam_account_id, model_username, model_name, sites, spending_threshold, is_active, created_at, updated_at")
       .eq("studio_id", account.studio_id)
       .order("created_at", { ascending: false });
 

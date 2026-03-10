@@ -24,7 +24,7 @@ async function validateSuperAdminSession(sessionToken: string) {
 
   const { data: sessions } = await (adminClient
     .from("sessions") as any)
-    .select("*")
+    .select("id, account_id, token, expires_at")
     .eq("token", sessionToken)
     .limit(1);
 
@@ -39,7 +39,7 @@ async function validateSuperAdminSession(sessionToken: string) {
 
   const { data: accounts } = await adminClient
     .from("accounts")
-    .select("*")
+    .select("id, email, first_name, role, studio_id, is_super_admin")
     .eq("id", session.account_id)
     .limit(1);
 
@@ -86,21 +86,21 @@ export async function POST(request: Request) {
         { data: allShifts },
         { data: allActiveAlerts },
       ] = await Promise.all([
-        adminClient.from("studios").select("*"),
-        adminClient.from("accounts").select("*").eq("is_active", true),
+        adminClient.from("studios").select("id, name, subdomain, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, created_at, last_payment_date, next_payment_date, grace_period_ends_at"),
+        adminClient.from("accounts").select("id, studio_id, role").eq("is_active", true),
         adminClient
           .from("earnings")
-          .select("*")
+          .select("id, studio_id, total_gross_usd, created_at")
           .order("created_at", { ascending: false })
           .limit(500),
         adminClient
           .from("shifts")
-          .select("*")
+          .select("id, created_at")
           .order("created_at", { ascending: false })
           .limit(500),
         adminClient
           .from("member_alerts")
-          .select("*")
+          .select("id, studio_id, alert_type")
           .eq("is_active", true),
       ]);
 
@@ -198,7 +198,7 @@ export async function POST(request: Request) {
 
       let query = adminClient
         .from("audit_logs")
-        .select("*")
+        .select("id, studio_id, studio_name, event_type, entity_type, entity_id, actor_id, actor_email, actor_name, summary, created_at, created_date")
         .order("created_at", { ascending: false })
         .limit(200);
 
@@ -249,7 +249,7 @@ export async function POST(request: Request) {
 
       const { data: studioData } = await adminClient
         .from("studios")
-        .select("*")
+        .select("id, name, subdomain, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, onboarding_completed, created_at, updated_at, last_payment_date, next_payment_date, grace_period_ends_at")
         .eq("id", studioId)
         .limit(1);
 
@@ -267,19 +267,19 @@ export async function POST(request: Request) {
       ] = await Promise.all([
         adminClient
           .from("accounts")
-          .select("*")
+          .select("id, studio_id, first_name, last_name, email, role, is_active, created_at, updated_at")
           .eq("studio_id", studioId),
         adminClient
           .from("earnings")
-          .select("*")
+          .select("id, studio_id, account_id, total_gross_usd, total_net_usd, total_tokens, site, date, created_at")
           .eq("studio_id", studioId),
         adminClient
           .from("shifts")
-          .select("*")
+          .select("id, studio_id, account_id, room_id, start_time, end_time, status, created_at")
           .eq("studio_id", studioId),
         adminClient
           .from("rooms")
-          .select("*")
+          .select("id, studio_id, name, is_active, created_at")
           .eq("studio_id", studioId),
       ]);
 
@@ -331,7 +331,7 @@ export async function POST(request: Request) {
 
       const { data: studioData } = await adminClient
         .from("studios")
-        .select("*")
+        .select("id, name, subdomain, subscription_tier, subscription_status, model_limit, current_model_count, created_at")
         .eq("id", studioId)
         .limit(1);
 
@@ -345,7 +345,7 @@ export async function POST(request: Request) {
 
       const { data: studioAccounts } = await adminClient
         .from("accounts")
-        .select("*")
+        .select("id, studio_id, first_name, last_name, email, role, is_active")
         .eq("studio_id", studioId)
         .eq("is_active", true);
 
@@ -411,7 +411,7 @@ export async function POST(request: Request) {
     if (action === "getTelegramStatus") {
       const { data: telegramLinks } = await (adminClient
         .from("telegram_links") as any)
-        .select("*")
+        .select("id, account_id, telegram_chat_id, telegram_username, is_active")
         .eq("account_id", superAdminAccount.id);
 
       const links = telegramLinks || [];
@@ -447,7 +447,7 @@ export async function POST(request: Request) {
 
       const { data: existing } = await (adminClient
         .from("telegram_links") as any)
-        .select("*")
+        .select("id, account_id, telegram_chat_id, telegram_username, is_active")
         .eq("account_id", superAdminAccount.id);
 
       if (existing && existing.length > 0) {
@@ -492,7 +492,7 @@ export async function POST(request: Request) {
 
       const { data: telegramLinks } = await (adminClient
         .from("telegram_links") as any)
-        .select("*")
+        .select("id, account_id, telegram_chat_id, is_active")
         .eq("account_id", superAdminAccount.id)
         .eq("is_active", true);
 
@@ -530,11 +530,11 @@ export async function POST(request: Request) {
         { data: allAccounts },
         { data: allActiveAlerts },
       ] = await Promise.all([
-        adminClient.from("studios").select("*"),
-        adminClient.from("accounts").select("*"),
+        adminClient.from("studios").select("id, name, subdomain, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, created_at, created_date, last_payment_date, next_payment_date, grace_period_ends_at"),
+        adminClient.from("accounts").select("id, studio_id, role, is_active"),
         adminClient
           .from("member_alerts")
-          .select("*")
+          .select("id, studio_id, alert_type")
           .eq("is_active", true),
       ]);
 

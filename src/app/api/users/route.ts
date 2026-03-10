@@ -21,7 +21,7 @@ export async function GET() {
 
     const { data: accounts } = await supabase
       .from("accounts")
-      .select("*")
+      .select("id, studio_id, first_name, last_name, email, role, is_active, created_at, updated_at")
       .eq("studio_id", account.studio_id)
       .order("first_name");
 

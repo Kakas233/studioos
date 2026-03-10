@@ -1,4 +1,19 @@
+import type { Metadata } from "next";
 import LegalPageLayout from "@/components/legal/legal-page-layout";
+
+export const metadata: Metadata = {
+  title: "Terms of Service",
+  description:
+    "Read the StudioOS Terms of Service governing your use of our webcam studio management platform.",
+  openGraph: {
+    title: "Terms of Service | StudioOS",
+    description:
+      "Read the StudioOS Terms of Service governing your use of our webcam studio management platform.",
+    url: "https://getstudioos.com/terms",
+    siteName: "StudioOS",
+    type: "website",
+  },
+};
 
 export default function TermsAndConditions() {
   return (

@@ -34,7 +34,7 @@ export async function GET() {
     // Admin/owner see all tickets, others see only their own
     let query = supabase
       .from("support_tickets")
-      .select("*")
+      .select("id, studio_id, account_id, subject, status, priority, is_escalated, rating, messages, created_at, updated_at")
       .eq("studio_id", account.studio_id)
       .order("updated_at", { ascending: false });
 

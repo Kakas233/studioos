@@ -20,7 +20,7 @@ export async function GET() {
 
     const { data } = await supabase
       .from("rooms")
-      .select("*")
+      .select("id, studio_id, name, is_active, created_at, updated_at")
       .eq("studio_id", account.studio_id)
       .order("name");
     return NextResponse.json(data || []);

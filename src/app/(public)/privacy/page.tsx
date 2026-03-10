@@ -1,4 +1,19 @@
+import type { Metadata } from "next";
 import LegalPageLayout from "@/components/legal/legal-page-layout";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description:
+    "Learn how StudioOS collects, uses, stores, and protects your personal data. GDPR and UK GDPR compliant.",
+  openGraph: {
+    title: "Privacy Policy | StudioOS",
+    description:
+      "Learn how StudioOS collects, uses, stores, and protects your personal data. GDPR and UK GDPR compliant.",
+    url: "https://getstudioos.com/privacy",
+    siteName: "StudioOS",
+    type: "website",
+  },
+};
 
 export default function PrivacyPolicy() {
   return (
