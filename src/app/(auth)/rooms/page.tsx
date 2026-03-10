@@ -56,6 +56,7 @@ export default function RoomsPage() {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       toast.success("Model assigned to room");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to assign model"),
   });
 
   const updateAssignmentMutation = useMutation({
@@ -67,6 +68,7 @@ export default function RoomsPage() {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       toast.success("Assignment updated");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to update assignment"),
   });
 
   const removeAssignmentMutation = useMutation({
@@ -78,6 +80,7 @@ export default function RoomsPage() {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       toast.success("Model unassigned");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to remove assignment"),
   });
 
   const createRoomMutation = useMutation({
@@ -91,6 +94,7 @@ export default function RoomsPage() {
       setSelectedRoom(null);
       toast.success("Room created");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to create room"),
   });
 
   const updateRoomMutation = useMutation({
@@ -104,6 +108,7 @@ export default function RoomsPage() {
       setSelectedRoom(null);
       toast.success("Room updated");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to update room"),
   });
 
   const deleteRoomMutation = useMutation({
@@ -115,6 +120,7 @@ export default function RoomsPage() {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       toast.success("Room deleted");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to delete room"),
   });
 
   if (authLoading) {

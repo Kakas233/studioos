@@ -131,6 +131,7 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
       setEditUsername("");
       toast.success("Cam account updated");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to update cam account"),
   });
 
   const deleteMutation = useMutation({
@@ -145,6 +146,7 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
       queryClient.invalidateQueries({ queryKey: ["camAccounts", user.id] });
       toast.success("Cam account removed");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to remove cam account"),
   });
 
   // Elite trial restriction: only 1 cam account per model

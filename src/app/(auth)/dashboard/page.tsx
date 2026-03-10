@@ -84,24 +84,28 @@ export default function DashboardPage() {
       await supabase.from("earnings").update(data).eq("id", id);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["earnings"] }),
+    onError: (error: Error) => toast.error(error.message || "Failed to update earnings"),
   });
   const createEarningMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
       await supabase.from("earnings").insert(data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["earnings"] }),
+    onError: (error: Error) => toast.error(error.message || "Failed to create earnings"),
   });
   const updateShiftMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
       await supabase.from("shifts").update(data).eq("id", id);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["shifts"] }),
+    onError: (error: Error) => toast.error(error.message || "Failed to update shift"),
   });
   const updateChangeRequestMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
       await supabase.from("shift_change_requests").update(data).eq("id", id);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["shiftChangeRequests"] }),
+    onError: (error: Error) => toast.error(error.message || "Failed to update change request"),
   });
 
   const handleApproveChange = async (request: Database["public"]["Tables"]["shift_change_requests"]["Row"]) => {

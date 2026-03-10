@@ -68,6 +68,7 @@ export function useStudioAccounts() {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes — accounts change rarely
   });
 }
 
@@ -102,6 +103,7 @@ export function useCamAccounts() {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -139,7 +141,8 @@ export function useStreamingSessions(camAccountIds: string[]) {
       return data || [];
     },
     enabled: !!studio?.id && camAccountIds.length > 0,
-    refetchInterval: 30000,
+    refetchInterval: 60000, // 60 seconds — reduces API load
+    staleTime: 30 * 1000,
   });
 }
 
@@ -157,6 +160,7 @@ export function useRooms() {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes — rooms change rarely
   });
 }
 
@@ -174,6 +178,7 @@ export function useGlobalSettings() {
       return data;
     },
     enabled: !!studio?.id,
+    staleTime: 10 * 60 * 1000, // 10 minutes — settings change very rarely
   });
 }
 
@@ -338,6 +343,6 @@ export function useDataFetchJobs() {
       return data || [];
     },
     enabled: !!studio?.id,
-    refetchInterval: 5000,
+    refetchInterval: 10000, // 10 seconds — enough for progress updates
   });
 }

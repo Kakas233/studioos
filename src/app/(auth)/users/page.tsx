@@ -61,6 +61,7 @@ export default function UsersManagementPage() {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       toast.success("Assignment created");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to create assignment"),
   });
 
   const updateAssignmentMutation = useMutation({
@@ -72,6 +73,7 @@ export default function UsersManagementPage() {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       toast.success("Assignment updated");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to update assignment"),
   });
 
   const deleteAssignmentMutation = useMutation({
@@ -82,6 +84,7 @@ export default function UsersManagementPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to delete assignment"),
   });
 
   useEffect(() => {
@@ -493,6 +496,7 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
       toast.success("User updated successfully");
       onClose();
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to update user"),
   });
 
   const handleResetPassword = async () => {

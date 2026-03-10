@@ -54,6 +54,7 @@ export default function SchedulePage() {
       setSelectedShift(null);
       toast.success("Shift created successfully");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to create shift"),
   });
 
   const updateShiftMutation = useMutation({
@@ -67,6 +68,7 @@ export default function SchedulePage() {
       setSelectedShift(null);
       toast.success("Shift updated successfully");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to update shift"),
   });
 
   const deleteShiftMutation = useMutation({
@@ -80,6 +82,7 @@ export default function SchedulePage() {
       setSelectedShift(null);
       toast.success("Shift deleted");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to delete shift"),
   });
 
   if (authLoading) {
@@ -129,6 +132,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["shiftRequests"] });
       toast.success("Shift request submitted");
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to submit shift request"),
   });
 
   const updateShiftRequestMutation = useMutation({
@@ -139,6 +143,7 @@ export default function SchedulePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shiftRequests"] });
     },
+    onError: (error: Error) => toast.error(error.message || "Failed to update shift request"),
   });
 
   const handleSubmitRequests = (requestsList: Array<{ date: string; start_time: string; end_time: string; room_id: string }>) => {
