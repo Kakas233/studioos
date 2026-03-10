@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
@@ -40,6 +40,7 @@ export default function AuthLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hasSuperAdminReturn, setHasSuperAdminReturn] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { account, studio, loading, isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -54,12 +55,16 @@ export default function AuthLayout({
     );
   }
 
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push("/sign-in");
+    }
+  }, [loading, isAuthenticated, router]);
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-[#A8A49A]/50">Redirecting to sign in...</p>
-        </div>
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }

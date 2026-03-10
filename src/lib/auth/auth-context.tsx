@@ -74,24 +74,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (authUser: User) => {
       try {
         // Fetch the account record linked to this auth user
-        const { data: accountData } = await supabase
+        const { data: accountData, error: accountError } = await supabase
           .from("accounts")
-          .select("id, auth_user_id, studio_id, email, first_name, last_name, role, is_active, is_super_admin, cut_percentage, operator_cut_percentage, weekly_goal_hours, weekly_goal_enabled, works_alone, onboarding_completed_steps, onboarding_dismissed, payout_method, created_at, updated_at")
+          .select("*")
           .eq("auth_user_id", authUser.id)
           .eq("is_active", true)
           .single();
+
+        if (accountError) {
+          console.error("Failed to fetch account:", accountError.message, accountError.details, accountError.hint);
+          return;
+        }
 
         if (accountData) {
           setAccount(accountData);
 
           // Fetch the studio
           if (accountData.studio_id) {
-            const { data: studioData } = await supabase
+            const { data: studioData, error: studioError } = await supabase
               .from("studios")
-              .select("id, name, subdomain, timezone, primary_currency, secondary_currency, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, grace_period_ends_at, trial_ends_at, onboarding_completed, logo_url, payout_frequency, exchange_rate_mode, manual_exchange_rate, created_by, created_at, updated_at")
+              .select("*")
               .eq("id", accountData.studio_id)
               .single();
 
+            if (studioError) {
+              console.error("Failed to fetch studio:", studioError.message, studioError.details, studioError.hint);
+            }
             setStudio(studioData);
           }
         }
@@ -108,11 +116,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const {
           data: { user: authUser },
+          error: userError,
         } = await supabase.auth.getUser();
+
+        if (userError) {
+          console.error("Auth getUser error:", userError.message);
+        }
 
         if (authUser) {
           setUser(authUser);
           await fetchAccountAndStudio(authUser);
+        } else {
+          console.log("No authenticated user found");
         }
       } catch (error) {
         console.error("Auth init error:", error);
@@ -160,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!account?.studio_id) return;
     const { data } = await supabase
       .from("studios")
-      .select("id, name, subdomain, timezone, primary_currency, secondary_currency, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, grace_period_ends_at, trial_ends_at, onboarding_completed, logo_url, payout_frequency, exchange_rate_mode, manual_exchange_rate, created_by, created_at, updated_at")
+      .select("*")
       .eq("id", account.studio_id)
       .single();
     if (data) setStudio(data);
@@ -170,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const { data } = await supabase
       .from("accounts")
-      .select("id, auth_user_id, studio_id, email, first_name, last_name, role, is_active, is_super_admin, cut_percentage, operator_cut_percentage, weekly_goal_hours, weekly_goal_enabled, works_alone, onboarding_completed_steps, onboarding_dismissed, payout_method, created_at, updated_at")
+      .select("*")
       .eq("auth_user_id", user.id)
       .eq("is_active", true)
       .single();
@@ -188,30 +203,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: error?.message || "Login failed" };
       }
 
-      setUser(data.user);
-      await fetchAccountAndStudio(data.user);
-
-      // Check if the user has an active account
-      const { data: accountData } = await supabase
-        .from("accounts")
-        .select("*, studios(*)")
-        .eq("auth_user_id", data.user.id)
-        .eq("is_active", true)
-        .single();
-
-      if (!accountData) {
-        // No active account — sign out and return error
-        await supabase.auth.signOut();
-        setUser(null);
-        setAccount(null);
-        setStudio(null);
-        return { success: false, error: "No active account found for this user" };
-      }
-
-      const studioData = accountData?.studios as unknown as Studio | null;
-      return { success: true, studio: studioData ?? null };
+      // Don't query accounts/studios here — the hard redirect will trigger
+      // a full page load where initAuth will handle fetching account & studio.
+      // This avoids RLS race conditions during login.
+      return { success: true };
     },
-    [supabase, fetchAccountAndStudio]
+    [supabase]
   );
 
   const checkSession = useCallback(async () => {
