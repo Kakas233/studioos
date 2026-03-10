@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { STRIPE_EXTRA_MODEL_PRICES } from "@/lib/pricing";
 import Stripe from "stripe";
 
 function getStripe() {
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     const { data: studio } = await supabase
       .from("studios")
-      .select("stripe_customer_id, subscription_tier, model_limit")
+      .select("stripe_customer_id, subscription_tier, subscription_status, model_limit")
       .eq("id", account.studio_id)
       .single();
 
@@ -43,7 +44,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No billing account. Subscribe to a plan first." }, { status: 400 });
     }
 
-    const extraModelPriceId = process.env.STRIPE_EXTRA_MODEL_PRICE_ID;
+    // Block suspended studios
+    if (studio.subscription_status === "suspended" || studio.subscription_status === "cancelled") {
+      return NextResponse.json({ error: "Your subscription is not active. Please renew first." }, { status: 403 });
+    }
+
+    // Use tier-specific Stripe price ID
+    const tier = studio.subscription_tier || "starter";
+    const extraModelPriceId = STRIPE_EXTRA_MODEL_PRICES[tier] || process.env.STRIPE_EXTRA_MODEL_PRICE_ID;
     if (!extraModelPriceId) {
       return NextResponse.json({ error: "Extra model pricing not configured" }, { status: 500 });
     }
@@ -58,6 +66,7 @@ export async function POST(request: NextRequest) {
         studio_id: account.studio_id,
         type: "extra_models",
         quantity: String(quantity),
+        tier,
       },
     });
 

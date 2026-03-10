@@ -31,11 +31,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Fix #16: Proper time validation (handles cross-midnight)
+    // Time validation
     const start = new Date(parsed.start_time);
     const end = new Date(parsed.end_time);
     if (end <= start) {
       return NextResponse.json({ error: "End time must be after start time" }, { status: 400 });
+    }
+
+    // Server-side overlap detection: check for existing shifts that overlap
+    const { data: overlapping } = await supabase
+      .from("shifts")
+      .select("id")
+      .eq("studio_id", account.studio_id)
+      .eq("model_id", parsed.model_id)
+      .in("status", ["scheduled", "completed", "pending_approval"])
+      .lt("start_time", parsed.end_time)
+      .gt("end_time", parsed.start_time)
+      .limit(1);
+
+    if (overlapping && overlapping.length > 0) {
+      return NextResponse.json(
+        { error: "This model already has a shift during this time period" },
+        { status: 409 }
+      );
     }
 
     const { data, error } = await supabase
@@ -84,7 +102,36 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Fix #15: Immutable update — no state mutation
+    // If updating time, check for overlaps (exclude current shift)
+    if (updateData.start_time && updateData.end_time) {
+      const { data: existingShift } = await supabase
+        .from("shifts")
+        .select("model_id")
+        .eq("id", id)
+        .eq("studio_id", account.studio_id)
+        .single();
+
+      if (existingShift) {
+        const { data: overlapping } = await supabase
+          .from("shifts")
+          .select("id")
+          .eq("studio_id", account.studio_id)
+          .eq("model_id", existingShift.model_id)
+          .neq("id", id)
+          .in("status", ["scheduled", "completed", "pending_approval"])
+          .lt("start_time", updateData.end_time)
+          .gt("end_time", updateData.start_time)
+          .limit(1);
+
+        if (overlapping && overlapping.length > 0) {
+          return NextResponse.json(
+            { error: "This model already has a shift during this time period" },
+            { status: 409 }
+          );
+        }
+      }
+    }
+
     const { data, error } = await supabase
       .from("shifts")
       .update(updateData)
