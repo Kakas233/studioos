@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+
+const ticketCreateSchema = z.object({
+  subject: z.string().min(1, "Subject required").max(200),
+  message: z.string().max(5000).optional(),
+  priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
+}).strict();
+
+const ticketUpdateSchema = z.object({
+  status: z.enum(["open", "in_progress", "resolved", "closed"]).optional(),
+  priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
+  is_escalated: z.boolean().optional(),
+  rating: z.number().min(1).max(5).optional(),
+}).strict();
 
 /** GET /api/support — Get support tickets */
 export async function GET() {
@@ -54,11 +68,9 @@ export async function POST(request: NextRequest) {
 
     if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    if (!body.subject?.trim()) {
-      return NextResponse.json({ error: "Subject required" }, { status: 400 });
-    }
+    const parsed = ticketCreateSchema.parse(body);
 
-    const initialMessage = body.message?.trim() || "";
+    const initialMessage = parsed.message?.trim() || "";
     const messages = initialMessage
       ? [
           {
@@ -75,9 +87,9 @@ export async function POST(request: NextRequest) {
       .insert({
         studio_id: account.studio_id,
         account_id: account.id,
-        subject: body.subject.trim(),
+        subject: parsed.subject.trim(),
         status: "open",
-        priority: body.priority || "normal",
+        priority: parsed.priority || "normal",
         messages,
       })
       .select()
@@ -85,7 +97,10 @@ export async function POST(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -94,7 +109,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, message, ...updateData } = body;
+    const { id, message, ...rawUpdateData } = body;
     if (!id) return NextResponse.json({ error: "Ticket ID required" }, { status: 400 });
 
     const supabase = await createClient();
@@ -111,8 +126,11 @@ export async function PUT(request: NextRequest) {
 
     if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+    const validatedUpdate: Record<string, unknown> = ticketUpdateSchema.parse(rawUpdateData);
+
     // If adding a message, append to existing messages
-    if (message?.trim()) {
+    if (message && typeof message === "string" && message.trim()) {
+      const trimmedMessage = message.trim().slice(0, 5000);
       const { data: ticket } = await supabase
         .from("support_tickets")
         .select("messages")
@@ -121,12 +139,12 @@ export async function PUT(request: NextRequest) {
         .single();
 
       const existingMessages = (ticket?.messages as Array<Record<string, unknown>>) || [];
-      updateData.messages = [
+      validatedUpdate.messages = [
         ...existingMessages,
         {
           sender: `${account.first_name || ""} ${account.last_name || ""}`.trim(),
           role: account.role,
-          text: message.trim(),
+          text: trimmedMessage,
           timestamp: new Date().toISOString(),
         },
       ];
@@ -134,7 +152,7 @@ export async function PUT(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("support_tickets")
-      .update({ ...updateData, updated_at: new Date().toISOString() })
+      .update(validatedUpdate as Record<string, unknown>)
       .eq("id", id)
       .eq("studio_id", account.studio_id)
       .select()
@@ -142,7 +160,10 @@ export async function PUT(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

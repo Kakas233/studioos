@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import crypto from "crypto";
+import { z } from "zod";
+
+const adminSettingsSchema = z.object({
+  secondary_currency: z.string().max(10).optional(),
+  exchange_rate: z.number().min(0).max(100000).optional(),
+  exchange_rate_mode: z.enum(["manual", "auto"]).optional(),
+  payout_frequency: z.enum(["weekly", "biweekly", "monthly"]).optional(),
+  mfc_token_rate: z.number().min(0).max(1).optional(),
+  cb_token_rate: z.number().min(0).max(1).optional(),
+  sc_token_rate: z.number().min(0).max(1).optional(),
+  bc_token_rate: z.number().min(0).max(1).optional(),
+  c4_token_rate: z.number().min(0).max(1).optional(),
+  cs_token_rate: z.number().min(0).max(1).optional(),
+  f4f_token_rate: z.number().min(0).max(1).optional(),
+  lj_token_rate: z.number().min(0).max(1).optional(),
+}).strict();
 
 async function validateSuperAdminSession(sessionToken: string) {
   const adminClient = createAdminClient();
@@ -282,13 +298,15 @@ export async function POST(request: Request) {
           error: "settings required",
         });
 
+      const validatedSettings = adminSettingsSchema.parse(settingsData);
+
       const { data: allSettings } = await adminClient
         .from("global_settings")
         .select("id");
 
       const settingIds = (allSettings || []).map((s: { id: string }) => s.id);
       if (settingIds.length > 0) {
-        await adminClient.from("global_settings").update(settingsData).in("id", settingIds);
+        await adminClient.from("global_settings").update(validatedSettings).in("id", settingIds);
       }
 
       return NextResponse.json({

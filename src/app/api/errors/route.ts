@@ -36,15 +36,21 @@ export async function POST(request: NextRequest) {
     const { createAdminClient } = await import("@/lib/supabase/admin");
     const adminClient = createAdminClient();
 
+    const errorType = typeof body.error_type === "string" ? body.error_type.slice(0, 100) : "unknown";
+    const message = typeof body.message === "string" ? body.message.slice(0, 2000) : "No message";
+    const stackTrace = typeof body.stack_trace === "string" ? body.stack_trace.slice(0, 10000) : null;
+    const url = typeof body.url === "string" ? body.url.slice(0, 2000) : null;
+    const userAgent = typeof body.user_agent === "string" ? body.user_agent.slice(0, 500) : null;
+
     await adminClient.from("error_logs").insert({
       studio_id: studioId,
-      error_type: body.error_type || "unknown",
-      message: body.message || "No message",
-      stack_trace: body.stack_trace || null,
-      url: body.url || null,
-      user_agent: body.user_agent || null,
+      error_type: errorType,
+      message,
+      stack_trace: stackTrace,
+      url,
+      user_agent: userAgent,
       account_id: accountId,
-      metadata: body.metadata || null,
+      metadata: body.metadata && typeof body.metadata === "object" ? body.metadata : null,
     });
 
     return NextResponse.json({ success: true });
