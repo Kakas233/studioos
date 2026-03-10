@@ -28,6 +28,7 @@ export function useShifts(options?: { dateFrom?: string; dateTo?: string }) {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
@@ -50,6 +51,7 @@ export function useEarnings(options?: { dateFrom?: string; dateTo?: string }) {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
@@ -86,6 +88,7 @@ export function useChangeRequests() {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
@@ -196,6 +199,7 @@ export function usePayouts() {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
@@ -251,6 +255,7 @@ export function useChatChannels() {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes — channels change rarely
   });
 }
 
@@ -267,6 +272,7 @@ export function useAssignments() {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes — assignments change rarely
   });
 }
 
@@ -284,6 +290,7 @@ export function useShiftRequests() {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
@@ -310,6 +317,7 @@ export function useStreamSegments(
       return data || [];
     },
     enabled: !!studio?.id && camAccountIds.length > 0,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
@@ -327,6 +335,7 @@ export function useShiftAnalysis() {
       return data || [];
     },
     enabled: !!studio?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes — historical data
   });
 }
 
@@ -343,6 +352,7 @@ export function useDataFetchJobs() {
       return data || [];
     },
     enabled: !!studio?.id,
-    refetchInterval: 10000, // 10 seconds — enough for progress updates
+    staleTime: 5 * 1000, // 5 seconds
+    refetchInterval: 15000, // 15 seconds — enough for progress updates
   });
 }

@@ -209,6 +209,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing cam_account_id or job_id" }, { status: 400 });
     }
 
+    // Race condition guard: check if another job is already in_progress for this cam account
+    const { data: existingJobs } = await admin
+      .from("data_fetch_jobs")
+      .select("id, status")
+      .eq("cam_account_id", cam_account_id)
+      .eq("status", "in_progress");
+
+    if (existingJobs && existingJobs.length > 0 && !existingJobs.some(j => j.id === job_id)) {
+      return NextResponse.json({ error: "Another fetch is already in progress for this account" }, { status: 409 });
+    }
+
     // Fetch cam account using admin client (bypasses RLS)
     const { data: ca, error: caError } = await admin
       .from("cam_accounts")

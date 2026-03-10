@@ -20,6 +20,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Check subscription status for write operations
+    const { data: studioPost } = await supabase
+      .from("studios")
+      .select("subscription_status")
+      .eq("id", account.studio_id)
+      .single();
+    if (studioPost?.subscription_status === "suspended" || studioPost?.subscription_status === "cancelled") {
+      return NextResponse.json({ error: "Your subscription is not active. Please renew to continue." }, { status: 403 });
+    }
+
     const { data, error } = await supabase
       .from("payouts")
       .insert({ studio_id: account.studio_id, ...body })

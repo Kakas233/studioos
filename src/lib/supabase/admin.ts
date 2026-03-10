@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
+import "@/lib/env"; // Validate env vars on first import
 
 /**
  * Supabase admin client with service_role key.
