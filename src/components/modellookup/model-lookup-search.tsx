@@ -38,10 +38,7 @@ export default function ModelLookupSearch({ onSelect }: ModelLookupSearchProps) 
           <SelectContent>
             {SITES.map((s) => (
               <SelectItem key={s.value} value={s.value}>
-                <span className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                  {s.label}
-                </span>
+                {s.label}
               </SelectItem>
             ))}
           </SelectContent>

@@ -82,10 +82,9 @@ export default function BillingCycleCard({ billing }: { billing: BillingData }) 
   const periodEnd = parseISO(sub.current_period_end);
   const daysLeft = differenceInDays(periodEnd, new Date());
   const totalDays = differenceInDays(periodEnd, periodStart);
-  const progressPct = Math.max(
-    0,
-    Math.min(100, ((totalDays - daysLeft) / totalDays) * 100)
-  );
+  const progressPct = totalDays > 0
+    ? Math.max(0, Math.min(100, ((totalDays - daysLeft) / totalDays) * 100))
+    : 0;
 
   return (
     <Card className="bg-[#111111] border-white/[0.06]">

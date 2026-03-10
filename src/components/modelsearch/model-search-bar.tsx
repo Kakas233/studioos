@@ -66,10 +66,7 @@ export default function ModelSearchBar({ onResults, onLoading }: ModelSearchBarP
         <SelectContent>
           {PLATFORMS.map((p) => (
             <SelectItem key={p.value} value={p.value}>
-              <span className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
-                {p.label}
-              </span>
+              {p.label}
             </SelectItem>
           ))}
         </SelectContent>

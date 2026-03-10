@@ -15,14 +15,6 @@ const SITES = [
   { value: "livejasmin", label: "LiveJasmin", color: "bg-[#BA0000]/15 text-[#BA0000]" },
 ];
 
-const SITE_DOT_COLORS: Record<string, string> = {
-  chaturbate: "#F47421",
-  stripchat: "#A2242D",
-  bongacams: "#A02239",
-  camsoda: "#01B0FA",
-  mfc: "#006E00",
-  livejasmin: "#BA0000",
-};
 
 interface MemberSearchBarProps {
   onSelect: (member: any) => void;
@@ -73,13 +65,7 @@ export default function MemberSearchBar({ onSelect }: MemberSearchBarProps) {
         <SelectContent>
           {SITES.map((s) => (
             <SelectItem key={s.value} value={s.value}>
-              <span className="flex items-center gap-2">
-                <span
-                  className="inline-block w-2 h-2 rounded-full"
-                  style={{ backgroundColor: SITE_DOT_COLORS[s.value] }}
-                />
-                {s.label}
-              </span>
+              {s.label}
             </SelectItem>
           ))}
         </SelectContent>

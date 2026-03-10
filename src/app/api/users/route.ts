@@ -62,6 +62,15 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Only owners can assign the owner role" }, { status: 403 });
     }
 
+    const { data: studio } = await supabase
+      .from("studios")
+      .select("subscription_status")
+      .eq("id", currentUser.studio_id)
+      .single();
+    if (studio?.subscription_status === "suspended" || studio?.subscription_status === "cancelled") {
+      return NextResponse.json({ error: "Your subscription is not active. Please renew to continue." }, { status: 403 });
+    }
+
     const { data, error } = await supabase
       .from("accounts")
       .update(validated)

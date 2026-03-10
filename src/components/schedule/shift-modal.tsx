@@ -274,8 +274,7 @@ export function ShiftModal({
                   <SelectContent>
                     {availableModels.map((model) => (
                       <SelectItem key={model.id} value={model.id}>
-                        {model.first_name || ""}
-                        {model.works_alone ? " (solo)" : ""}
+                        {`${model.first_name || ""}${model.works_alone ? " (solo)" : ""}`}
                       </SelectItem>
                     ))}
                   </SelectContent>

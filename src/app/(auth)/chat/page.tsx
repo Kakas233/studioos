@@ -132,7 +132,7 @@ export default function ChatPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe().then(() => supabase.removeChannel(channel));
     };
   }, [selectedChannelId, studio?.id]);
 

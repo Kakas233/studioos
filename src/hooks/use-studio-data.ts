@@ -66,7 +66,7 @@ export function useStudioAccounts() {
         .select("*")
         .eq("studio_id", studio.id)
         .order("first_name");
-      if (error) console.error("useStudioAccounts error:", error.message, error.details);
+      if (error) throw new Error(`useStudioAccounts: ${error.message}`);
       return data || [];
     },
     enabled: !!studio?.id,
@@ -256,7 +256,7 @@ export function useChatChannels() {
         .select("*")
         .eq("studio_id", studio.id)
         .order("name");
-      if (error) console.error("useChatChannels error:", error.message, error.details);
+      if (error) throw new Error(`useChatChannels: ${error.message}`);
       return data || [];
     },
     enabled: !!studio?.id,

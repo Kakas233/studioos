@@ -291,7 +291,7 @@ export default function PayoutsPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-2"><Calendar className="w-4 h-4 text-[#A8A49A]/60" /><p className="text-sm text-[#A8A49A]/60">Pay Date</p></div>
-                <p className="text-2xl font-bold">{format(currentPeriod.payDate, "MMM d")}</p>
+                <p className="text-2xl font-bold">{currentPeriod ? format(currentPeriod.payDate, "MMM d") : "—"}</p>
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-2">
