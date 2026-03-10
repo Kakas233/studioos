@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -90,7 +91,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       <div className="h-16 flex items-center justify-between border-b border-white/[0.04] px-4">
         <div className="flex items-center gap-3 min-w-0">
           {studio?.logo_url ? (
-            <img src={studio.logo_url} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+            <Image src={studio.logo_url} alt="Studio logo" width={32} height={32} className="rounded-lg object-cover shrink-0" />
           ) : (
             <div className="w-8 h-8 bg-[#C9A84C] rounded-lg flex items-center justify-center shrink-0">
               <span className="text-black font-semibold text-sm">{studio?.name?.charAt(0) || "S"}</span>

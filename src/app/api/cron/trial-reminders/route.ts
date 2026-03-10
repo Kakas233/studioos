@@ -42,6 +42,24 @@ export async function POST(request: NextRequest) {
       .select("id, name, subdomain, trial_ends_at, grace_period_ends_at")
       .eq("subscription_status", "trialing");
 
+    // Batch fetch all owners for trial studios in one query
+    const trialStudioIds = (trialStudios || []).map((s) => s.id);
+    const { data: trialOwners } = trialStudioIds.length > 0
+      ? await admin
+          .from("accounts")
+          .select("studio_id, email")
+          .in("studio_id", trialStudioIds)
+          .eq("role", "owner")
+          .eq("is_active", true)
+      : { data: [] };
+
+    const ownerEmailMap = new Map<string, string>();
+    for (const owner of trialOwners || []) {
+      if (!ownerEmailMap.has(owner.studio_id)) {
+        ownerEmailMap.set(owner.studio_id, owner.email);
+      }
+    }
+
     for (const studio of trialStudios || []) {
       const trialEnd = studio.trial_ends_at || studio.grace_period_ends_at;
       if (!trialEnd) continue;
@@ -49,16 +67,7 @@ export async function POST(request: NextRequest) {
       const daysLeft = daysUntil(trialEnd);
       if (daysLeft === null) continue;
 
-      // Get owner account for email
-      const { data: owners } = await admin
-        .from("accounts")
-        .select("email")
-        .eq("studio_id", studio.id)
-        .eq("role", "owner")
-        .eq("is_active", true)
-        .limit(1);
-
-      const ownerEmail = owners?.[0]?.email;
+      const ownerEmail = ownerEmailMap.get(studio.id);
       if (!ownerEmail) continue;
 
       const studioName = studio.name || "Your Studio";
@@ -98,6 +107,24 @@ export async function POST(request: NextRequest) {
       .select("id, name, subdomain, grace_period_ends_at")
       .eq("subscription_status", "grace_period");
 
+    // Batch fetch all owners for grace period studios
+    const graceStudioIds = (graceStudios || []).map((s) => s.id);
+    const { data: graceOwners } = graceStudioIds.length > 0
+      ? await admin
+          .from("accounts")
+          .select("studio_id, email")
+          .in("studio_id", graceStudioIds)
+          .eq("role", "owner")
+          .eq("is_active", true)
+      : { data: [] };
+
+    const graceOwnerMap = new Map<string, string>();
+    for (const owner of graceOwners || []) {
+      if (!graceOwnerMap.has(owner.studio_id)) {
+        graceOwnerMap.set(owner.studio_id, owner.email);
+      }
+    }
+
     const now = new Date();
     for (const studio of graceStudios || []) {
       if (
@@ -112,16 +139,9 @@ export async function POST(request: NextRequest) {
           })
           .eq("id", studio.id);
 
-        const { data: owners } = await admin
-          .from("accounts")
-          .select("email")
-          .eq("studio_id", studio.id)
-          .eq("role", "owner")
-          .eq("is_active", true)
-          .limit(1);
-
-        if (owners?.[0]?.email) {
-          await sendSuspendedEmail(owners[0].email, studio.name || "Your Studio");
+        const graceEmail = graceOwnerMap.get(studio.id);
+        if (graceEmail) {
+          await sendSuspendedEmail(graceEmail, studio.name || "Your Studio");
         }
         graceExpired++;
       }

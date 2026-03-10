@@ -84,7 +84,8 @@ export function useChangeRequests() {
         .from("shift_change_requests")
         .select("*")
         .eq("studio_id", studio.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
       return data || [];
     },
     enabled: !!studio?.id,
@@ -123,7 +124,8 @@ export function useStudioDailyStats(camAccountIds: string[]) {
         .eq("studio_id", studio.id)
         .in("cam_account_id", camAccountIds)
         .gte("date", ninetyDaysAgo)
-        .order("date", { ascending: false });
+        .order("date", { ascending: false })
+        .limit(1000);
       return data || [];
     },
     enabled: !!studio?.id && camAccountIds.length > 0,
@@ -140,7 +142,8 @@ export function useStreamingSessions(camAccountIds: string[]) {
         .from("streaming_sessions")
         .select("*")
         .eq("studio_id", studio.id)
-        .in("cam_account_id", camAccountIds);
+        .in("cam_account_id", camAccountIds)
+        .limit(200);
       return data || [];
     },
     enabled: !!studio?.id && camAccountIds.length > 0,
@@ -195,7 +198,8 @@ export function usePayouts() {
         .from("payouts")
         .select("*")
         .eq("studio_id", studio.id)
-        .order("period_end", { ascending: false });
+        .order("period_end", { ascending: false })
+        .limit(500);
       return data || [];
     },
     enabled: !!studio?.id,
@@ -213,7 +217,8 @@ export function useSupportTickets() {
         .from("support_tickets")
         .select("*")
         .eq("studio_id", studio.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(100);
       return data || [];
     },
     enabled: !!studio?.id,
@@ -286,7 +291,8 @@ export function useShiftRequests() {
         .from("shift_requests")
         .select("*")
         .eq("studio_id", studio.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
       return data || [];
     },
     enabled: !!studio?.id,
@@ -313,6 +319,7 @@ export function useStreamSegments(
         .gte("date", effectiveDateFrom)
         .order("start_time", { ascending: false });
       if (dateTo) query = query.lte("date", dateTo);
+      query = query.limit(2000);
       const { data } = await query;
       return data || [];
     },
@@ -331,7 +338,8 @@ export function useShiftAnalysis() {
         .from("shift_analyses")
         .select("*")
         .eq("studio_id", studio.id)
-        .order("shift_date", { ascending: false });
+        .order("shift_date", { ascending: false })
+        .limit(500);
       return data || [];
     },
     enabled: !!studio?.id,
@@ -348,7 +356,9 @@ export function useDataFetchJobs() {
       const { data } = await supabase
         .from("data_fetch_jobs")
         .select("*")
-        .eq("studio_id", studio.id);
+        .eq("studio_id", studio.id)
+        .order("created_at", { ascending: false })
+        .limit(100);
       return data || [];
     },
     enabled: !!studio?.id,

@@ -49,10 +49,14 @@ export async function GET() {
       );
     }
 
-    // Fetch all accounts to compute per-studio counts
-    const { data: accounts } = await adminClient
-      .from("accounts")
-      .select("id, studio_id, role, is_active");
+    // Fetch accounts to compute per-studio counts (only needed columns)
+    const studioIds = (studios || []).map((s) => s.id);
+    const { data: accounts } = studioIds.length > 0
+      ? await adminClient
+          .from("accounts")
+          .select("studio_id, role, is_active")
+          .in("studio_id", studioIds)
+      : { data: [] };
 
     // Build per-studio account counts
     const studioAccountMap: Record<
