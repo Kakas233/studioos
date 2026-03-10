@@ -20,7 +20,7 @@ import {
 
 export default function SignInPage() {
   const router = useRouter();
-  const { account, studio, loading: authLoading } = useAuth();
+  const { account, studio, loading: authLoading, login: authLogin } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -47,26 +47,19 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      // Use client-side login so the auth context picks up the session immediately
+      const result = await authLogin(email, password);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errMsg = data.error || "Login failed";
+      if (!result.success) {
+        const errMsg = result.error || "Login failed";
         setError(errMsg);
         // Detect unverified email error
         const lower = errMsg.toLowerCase();
         if (lower.includes("not confirmed") || lower.includes("not verified") || lower.includes("email_not_confirmed")) {
           setShowResendVerification(true);
         }
-      } else {
-        router.push("/dashboard");
-        router.refresh();
       }
+      // Redirect is handled by the useEffect when account & studio are set
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

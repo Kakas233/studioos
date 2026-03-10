@@ -191,13 +191,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       await fetchAccountAndStudio(data.user);
 
-      // Re-fetch the studio to return it
+      // Check if the user has an active account
       const { data: accountData } = await supabase
         .from("accounts")
         .select("*, studios(*)")
         .eq("auth_user_id", data.user.id)
         .eq("is_active", true)
         .single();
+
+      if (!accountData) {
+        // No active account — sign out and return error
+        await supabase.auth.signOut();
+        setUser(null);
+        setAccount(null);
+        setStudio(null);
+        return { success: false, error: "No active account found for this user" };
+      }
 
       const studioData = accountData?.studios as unknown as Studio | null;
       return { success: true, studio: studioData ?? null };
