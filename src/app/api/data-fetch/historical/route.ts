@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+// Allow up to 5 minutes for long-running historical data fetches
+export const maxDuration = 300;
+
 // Activity Status ID -> exact show type name (from mycamgirl.net API)
 const ACTIVITY_TO_SHOW_TYPE: Record<number, string> = {
   0: "unknown", 1: "free_chat", 2: "private_chat", 3: "nude_chat",
@@ -138,7 +141,7 @@ function buildStreamSegments(
 
 async function fetchModelActivities(platform: string, username: string, page = 1) {
   const platformKey = PLATFORM_API_MAP[platform] || platform;
-  const url = `https://api.mycamgirl.net/stats/${platformKey}/${username}/model-activities?page=${page}`;
+  const url = `https://api.mycamgirl.net/stats/${platformKey}/${username}/model-activities?page=${page}&per_page=100`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
@@ -244,7 +247,9 @@ export async function POST(request: NextRequest) {
     cutoffDate.setDate(cutoffDate.getDate() - 30);
     const cutoffStr = toDateStr(cutoffDate);
 
-    const pagesToFetch = Math.min(lastPageNum, 50);
+    // With per_page=100, each page has 100 activities (vs 10 default)
+    // 30 pages = ~3000 activities, plenty for 30 days of data
+    const pagesToFetch = Math.min(lastPageNum, 30);
     await admin.from("data_fetch_jobs").update({
       total_pages: pagesToFetch,
     }).eq("id", job_id);
@@ -259,7 +264,7 @@ export async function POST(request: NextRequest) {
       if (p === 1 && lastPageNum >= 1) {
         pageData = firstPageData;
       } else {
-        await randomDelay(1500, 4000);
+        await randomDelay(800, 2000);
         pageData = await fetchModelActivities(ca.platform, ca.username, p);
       }
 
