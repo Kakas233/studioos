@@ -29,7 +29,7 @@ const PLATFORM_API_MAP: Record<string, string> = {
 
 interface Activity {
   created_at: string;
-  seconds?: number;
+  seconds?: number | null;
   activity_status_id: number;
 }
 
@@ -52,7 +52,8 @@ function toDateStr(date: Date): string {
 function parseInterval(activity: Activity): Interval | null {
   const endTime = parseDate(activity.created_at);
   if (!endTime) return null;
-  const durationSec = activity.seconds || 0;
+  const durationSec = activity.seconds ?? 0;
+  if (durationSec <= 0) return null; // Skip zero/null duration entries
   const startTime = new Date(endTime.getTime() - durationSec * 1000);
   const showType = ACTIVITY_TO_SHOW_TYPE[activity.activity_status_id] ?? "unknown";
   return { start: startTime, end: endTime, showType, isOnline: ONLINE_SHOW_TYPES.has(showType) };
@@ -116,6 +117,8 @@ function buildStreamSegments(
   for (const act of activities) {
     const iv = parseInterval(act);
     if (!iv) continue;
+    // Skip offline entries — they don't represent real stream segments
+    if (!iv.isOnline) continue;
     const clipped = clipToDay(iv, dayStr);
     if (!clipped) continue;
     const durationMins = (clipped.end.getTime() - clipped.start.getTime()) / 60000;
@@ -139,30 +142,47 @@ function buildStreamSegments(
   return segments;
 }
 
-async function fetchModelActivities(platform: string, username: string, page = 1) {
+async function fetchModelActivities(platform: string, username: string, page = 1, retries = 2): Promise<Record<string, unknown> | null> {
   const platformKey = PLATFORM_API_MAP[platform] || platform;
   const url = `https://api.mycamgirl.net/stats/${platformKey}/${username}/model-activities?page=${page}&per_page=100`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        Accept: "application/json",
-      },
-    });
-    if (!response.ok) {
-      console.error(`API ${response.status} for ${platform}/${username} page ${page}`);
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          Accept: "application/json",
+        },
+      });
+      clearTimeout(timeout);
+      if (response.status === 404) {
+        // Model not found on this platform — not retryable
+        console.error(`Model not found: ${platform}/${username}`);
+        return null;
+      }
+      if (!response.ok) {
+        console.error(`API ${response.status} for ${platform}/${username} page ${page} (attempt ${attempt + 1})`);
+        if (attempt < retries) {
+          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+          continue;
+        }
+        return null;
+      }
+      return await response.json();
+    } catch (err) {
+      clearTimeout(timeout);
+      console.error(`Fetch error ${platform}/${username} page ${page} (attempt ${attempt + 1}):`, err);
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+        continue;
+      }
       return null;
     }
-    return await response.json();
-  } catch (err) {
-    console.error(`Fetch error ${platform}/${username}:`, err);
-    return null;
-  } finally {
-    clearTimeout(timeout);
   }
+  return null;
 }
 
 function randomDelay(minMs: number, maxMs: number) {
@@ -239,9 +259,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`Starting 30-day historical fetch for ${ca.platform}/${ca.username}`);
 
-    // Fetch first page to get total pages
+    // Fetch first page to discover total pages
     const firstPageData = await fetchModelActivities(ca.platform, ca.username, 1);
-    if (!firstPageData?.data?.length) {
+    if (!firstPageData || !Array.isArray((firstPageData as Record<string, unknown>).data) || ((firstPageData as Record<string, unknown>).data as Activity[]).length === 0) {
       await admin.from("data_fetch_jobs").update({
         status: "completed",
         completed_at: new Date().toISOString(),
@@ -251,16 +271,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: "No data available for this account" });
     }
 
-    const lastPageNum = firstPageData.last_page || 1;
-    console.log(`${ca.platform}/${ca.username}: ${lastPageNum} pages, ${firstPageData.total} activities`);
+    const lastPageNum = (firstPageData.last_page as number) || 1;
+    const totalActivities = (firstPageData.total as number) || 0;
+    console.log(`${ca.platform}/${ca.username}: ${lastPageNum} pages, ${totalActivities} activities`);
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - 30);
     const cutoffStr = toDateStr(cutoffDate);
 
-    // With per_page=100, each page has 100 activities (vs 10 default)
-    // 30 pages = ~3000 activities, plenty for 30 days of data
-    const pagesToFetch = Math.min(lastPageNum, 30);
+    // Calculate how many pages to fetch — start from the last (newest) page going backwards
+    // Cap at 50 pages (5000 activities) to stay within Vercel timeout
+    const pagesToFetch = Math.min(lastPageNum, 50);
     await admin.from("data_fetch_jobs").update({
       total_pages: pagesToFetch,
     }).eq("id", job_id);
@@ -269,40 +290,68 @@ export async function POST(request: NextRequest) {
     let allActivities: Activity[] = [];
     let pagesFetched = 0;
     let reachedCutoff = false;
+    let consecutiveFailures = 0;
 
     for (let p = lastPageNum; p >= Math.max(1, lastPageNum - pagesToFetch + 1) && !reachedCutoff; p--) {
-      let pageData;
-      if (p === 1 && lastPageNum >= 1) {
-        pageData = firstPageData;
-      } else {
-        await randomDelay(800, 2000);
-        pageData = await fetchModelActivities(ca.platform, ca.username, p);
+      await randomDelay(600, 1500);
+      const pageData = await fetchModelActivities(ca.platform, ca.username, p);
+
+      if (!pageData || !Array.isArray(pageData.data)) {
+        consecutiveFailures++;
+        if (consecutiveFailures >= 3) {
+          console.error(`3 consecutive failures for ${ca.platform}/${ca.username}, stopping`);
+          break;
+        }
+        pagesFetched++;
+        continue;
       }
 
-      if (pageData?.data) {
-        allActivities.push(...pageData.data);
-        for (const act of pageData.data) {
-          const endTime = parseDate(act.created_at);
-          if (endTime && endTime < cutoffDate) { reachedCutoff = true; break; }
+      consecutiveFailures = 0;
+      const activities = pageData.data as Activity[];
+      allActivities.push(...activities);
+
+      // Check if we've gone past the 30-day window
+      // Activities on a page can be in any order, so check all of them
+      // and stop only if ALL activities on this page are before cutoff
+      let allBeforeCutoff = true;
+      for (const act of activities) {
+        const endTime = parseDate(act.created_at);
+        if (endTime && endTime >= cutoffDate) {
+          allBeforeCutoff = false;
+          break;
         }
       }
+      if (allBeforeCutoff && activities.length > 0) {
+        reachedCutoff = true;
+      }
+
       pagesFetched++;
 
-      // Update progress every 3 pages
-      if (pagesFetched % 3 === 0 || reachedCutoff) {
+      // Update progress every 2 pages
+      if (pagesFetched % 2 === 0 || reachedCutoff) {
         await admin.from("data_fetch_jobs").update({
           pages_fetched: pagesFetched,
         }).eq("id", job_id);
       }
     }
 
-    // Filter to only activities within 30-day window
+    // Filter to only activities within 30-day window with valid durations
     allActivities = allActivities.filter((act) => {
       const endTime = parseDate(act.created_at);
-      return endTime && endTime >= cutoffDate;
+      return endTime && endTime >= cutoffDate && (act.seconds ?? 0) > 0;
     });
 
-    console.log(`${allActivities.length} activities within 30-day window`);
+    console.log(`${allActivities.length} valid activities within 30-day window (fetched ${pagesFetched} pages)`);
+
+    if (allActivities.length === 0) {
+      await admin.from("data_fetch_jobs").update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        pages_fetched: pagesFetched,
+        total_pages: pagesToFetch,
+      }).eq("id", job_id);
+      return NextResponse.json({ success: true, message: "No recent data within 30-day window", pages_fetched: pagesFetched });
+    }
 
     // Group activities by day
     const dayActivities: Record<string, Activity[]> = {};
@@ -350,13 +399,14 @@ export async function POST(request: NextRequest) {
         break_minutes: (stats.granular.away || 0) + (stats.granular.on_break || 0),
       };
 
-      // Upsert: check if stats already exist for this cam + date
+      // Upsert daily stats using onConflict if supported, otherwise check-then-write
       const { data: existing } = await admin
         .from("daily_stream_stats")
         .select("id")
         .eq("cam_account_id", ca.id)
         .eq("date", dayStr)
-        .single();
+        .eq("platform", ca.platform)
+        .maybeSingle();
 
       if (existing) {
         await admin.from("daily_stream_stats").update(statsData).eq("id", existing.id);
@@ -386,34 +436,30 @@ export async function POST(request: NextRequest) {
       }
 
       daysProcessed++;
-
-      // Update progress every 5 days
-      if (daysProcessed % 5 === 0) {
-        await admin.from("data_fetch_jobs").update({
-          pages_fetched: pagesFetched,
-        }).eq("id", job_id);
-      }
     }
 
     // Update live status from latest activity
-    if (allActivities.length > 0) {
-      const sortedByTime = [...allActivities].sort((a, b) =>
+    const onlineActivities = allActivities.filter(
+      (act) => ONLINE_SHOW_TYPES.has(ACTIVITY_TO_SHOW_TYPE[act.activity_status_id] ?? "offline")
+    );
+    if (onlineActivities.length > 0) {
+      const sortedByTime = [...onlineActivities].sort((a, b) =>
         (b.created_at || "").localeCompare(a.created_at || "")
       );
       const latest = sortedByTime[0];
       const latestShowType = ACTIVITY_TO_SHOW_TYPE[latest.activity_status_id] ?? "offline";
       const latestEndTime = parseDate(latest.created_at);
       const now = new Date();
-      const isLive = ONLINE_SHOW_TYPES.has(latestShowType)
-        && !!latestEndTime
-        && (now.getTime() - latestEndTime.getTime()) <= 20 * 60 * 1000;
+      // Consider live if last online activity was within 25 minutes (allows for scrape interval gaps)
+      const isLive = !!latestEndTime
+        && (now.getTime() - latestEndTime.getTime()) <= 25 * 60 * 1000;
 
       // Upsert streaming session
       const { data: existingSession } = await admin
         .from("streaming_sessions")
         .select("id")
         .eq("cam_account_id", ca.id)
-        .single();
+        .maybeSingle();
 
       const sessionData = {
         studio_id: ca.studio_id,
@@ -438,12 +484,13 @@ export async function POST(request: NextRequest) {
       total_pages: pagesToFetch,
     }).eq("id", job_id);
 
-    console.log(`Completed 30-day historical fetch for ${ca.platform}/${ca.username}: ${daysProcessed} days processed`);
+    console.log(`Completed historical fetch for ${ca.platform}/${ca.username}: ${daysProcessed} days, ${pagesFetched} pages, ${allActivities.length} activities`);
 
     return NextResponse.json({
       success: true,
       pages_fetched: pagesFetched,
       days_processed: daysProcessed,
+      activities_processed: allActivities.length,
     });
   } catch (error) {
     console.error("fetchHistoricalData error:", error);
@@ -452,6 +499,7 @@ export async function POST(request: NextRequest) {
         await admin.from("data_fetch_jobs").update({
           status: "failed",
           error_message: error instanceof Error ? error.message : "Unknown error",
+          completed_at: new Date().toISOString(),
         }).eq("id", jobId);
       } catch (e) {
         console.error("Failed to update job status:", e);

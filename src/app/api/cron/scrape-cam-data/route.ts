@@ -28,7 +28,7 @@ const PLATFORM_API_MAP: Record<string, string> = {
 
 interface Activity {
   created_at: string;
-  seconds?: number;
+  seconds?: number | null;
   activity_status_id: number;
 }
 
@@ -43,48 +43,77 @@ function toDateStr(date: Date): string {
 
 async function fetchRecentActivities(platform: string, username: string): Promise<Activity[] | null> {
   const platformKey = PLATFORM_API_MAP[platform] || platform;
-  // Fetch last page (most recent data) with 100 items
-  const url = `https://api.mycamgirl.net/stats/${platformKey}/${username}/model-activities?per_page=100`;
+  const baseUrl = `https://api.mycamgirl.net/stats/${platformKey}/${username}/model-activities?per_page=100`;
+
+  // Fetch page 1 to get last_page
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), 20000);
   try {
-    // First get total pages
-    const firstRes = await fetch(`${url}&page=1`, {
+    const firstRes = await fetch(`${baseUrl}&page=1`, {
       signal: controller.signal,
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         Accept: "application/json",
       },
     });
+    clearTimeout(timeout);
+    if (firstRes.status === 404) return null; // Model not found
     if (!firstRes.ok) return null;
     const firstData = await firstRes.json();
     const lastPage = firstData.last_page || 1;
-    clearTimeout(timeout);
 
-    // Now fetch the last page (most recent activities)
+    // If only 1 page, return it directly
     if (lastPage === 1) return firstData.data || [];
 
+    // Fetch the last page (most recent activities)
     const controller2 = new AbortController();
-    const timeout2 = setTimeout(() => controller2.abort(), 15000);
+    const timeout2 = setTimeout(() => controller2.abort(), 20000);
     try {
-      const lastRes = await fetch(`${url}&page=${lastPage}`, {
+      const lastRes = await fetch(`${baseUrl}&page=${lastPage}`, {
         signal: controller2.signal,
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
           Accept: "application/json",
         },
       });
+      clearTimeout(timeout2);
       if (!lastRes.ok) return null;
       const lastData = await lastRes.json();
-      return lastData.data || [];
-    } finally {
-      clearTimeout(timeout2);
+
+      // Also fetch second-to-last page for better coverage
+      // (last page may have very few items)
+      const activities = lastData.data || [];
+      if (lastPage >= 2 && activities.length < 50) {
+        const controller3 = new AbortController();
+        const timeout3 = setTimeout(() => controller3.abort(), 20000);
+        try {
+          const prevRes = await fetch(`${baseUrl}&page=${lastPage - 1}`, {
+            signal: controller3.signal,
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              Accept: "application/json",
+            },
+          });
+          clearTimeout(timeout3);
+          if (prevRes.ok) {
+            const prevData = await prevRes.json();
+            if (prevData.data) {
+              activities.unshift(...prevData.data);
+            }
+          }
+        } catch {
+          // Non-critical, continue with what we have
+        }
+      }
+
+      return activities;
+    } catch {
+      return null;
     }
   } catch (err) {
+    clearTimeout(timeout);
     console.error(`Scrape error ${platform}/${username}:`, err);
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -98,7 +127,7 @@ function randomDelay(minMs: number, maxMs: number) {
  * GET /api/cron/scrape-cam-data
  * Periodic scraper: fetches most recent streaming data for all active cam accounts.
  * Updates streaming_sessions (live status) and adds new stream_segments + daily_stream_stats.
- * Should be called every 15 minutes via Vercel Cron or external scheduler.
+ * Called every 15 minutes via Vercel Cron.
  */
 export async function GET(request: NextRequest) {
   // Verify cron secret — mandatory, timing-safe comparison
@@ -145,23 +174,39 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // Determine live status from most recent activity
-        const sorted = [...activities].sort((a, b) =>
+        // Filter to activities with valid durations
+        const validActivities = activities.filter((a) => (a.seconds ?? 0) > 0);
+
+        // Determine live status from most recent ONLINE activity
+        const onlineActivities = validActivities.filter(
+          (a) => ONLINE_SHOW_TYPES.has(ACTIVITY_TO_SHOW_TYPE[a.activity_status_id] ?? "offline")
+        );
+        const sorted = [...onlineActivities].sort((a, b) =>
           (b.created_at || "").localeCompare(a.created_at || "")
         );
         const latest = sorted[0];
-        const latestShowType = ACTIVITY_TO_SHOW_TYPE[latest.activity_status_id] ?? "offline";
-        const latestEndTime = parseDate(latest.created_at);
-        const isLive = ONLINE_SHOW_TYPES.has(latestShowType)
-          && !!latestEndTime
-          && (now.getTime() - latestEndTime.getTime()) <= 20 * 60 * 1000; // Within 20 mins
+        let isLive = false;
+        let latestShowType = "offline";
+
+        if (latest) {
+          latestShowType = ACTIVITY_TO_SHOW_TYPE[latest.activity_status_id] ?? "offline";
+          const latestEndTime = parseDate(latest.created_at);
+          // Consider live if last online activity ended within 25 minutes
+          isLive = !!latestEndTime && (now.getTime() - latestEndTime.getTime()) <= 25 * 60 * 1000;
+        }
 
         await upsertStreamingSession(admin, ca, isLive, isLive ? latestShowType : "offline");
 
         // Process today's activities into segments and stats
-        const todayActivities = activities.filter((act) => {
+        const todayActivities = validActivities.filter((act) => {
           const endTime = parseDate(act.created_at);
-          return endTime && toDateStr(endTime) === todayStr;
+          if (!endTime) return false;
+          const durationSec = act.seconds ?? 0;
+          const startTime = new Date(endTime.getTime() - durationSec * 1000);
+          // Include if the activity overlaps with today at all
+          const todayStart = new Date(todayStr + "T00:00:00Z");
+          const todayEnd = new Date(todayStr + "T23:59:59.999Z");
+          return startTime <= todayEnd && endTime >= todayStart;
         });
 
         if (todayActivities.length > 0) {
@@ -196,7 +241,7 @@ async function upsertStreamingSession(
     .from("streaming_sessions")
     .select("id")
     .eq("cam_account_id", ca.id)
-    .single();
+    .maybeSingle();
 
   const sessionData = {
     studio_id: ca.studio_id,
@@ -226,7 +271,8 @@ async function processDayData(
   for (const act of activities) {
     const endTime = parseDate(act.created_at);
     if (!endTime) continue;
-    const durationSec = act.seconds || 0;
+    const durationSec = act.seconds ?? 0;
+    if (durationSec <= 0) continue;
     const startTime = new Date(endTime.getTime() - durationSec * 1000);
     const showType = ACTIVITY_TO_SHOW_TYPE[act.activity_status_id] ?? "unknown";
 
@@ -290,7 +336,8 @@ async function processDayData(
     .select("id")
     .eq("cam_account_id", ca.id)
     .eq("date", dayStr)
-    .single();
+    .eq("platform", ca.platform)
+    .maybeSingle();
 
   if (existing) {
     await admin.from("daily_stream_stats").update(statsData).eq("id", existing.id);
@@ -298,14 +345,18 @@ async function processDayData(
     await admin.from("daily_stream_stats").insert(statsData);
   }
 
-  // Upsert stream segments for today
+  // Upsert stream segments for today (only online segments, not offline)
   const segments: Record<string, unknown>[] = [];
   for (const act of activities) {
     const endTime = parseDate(act.created_at);
     if (!endTime) continue;
-    const durationSec = act.seconds || 0;
+    const durationSec = act.seconds ?? 0;
+    if (durationSec <= 0) continue;
     const startTime = new Date(endTime.getTime() - durationSec * 1000);
     const showType = ACTIVITY_TO_SHOW_TYPE[act.activity_status_id] ?? "unknown";
+
+    // Skip offline entries
+    if (!ONLINE_SHOW_TYPES.has(showType)) continue;
 
     const dayStart = new Date(dayStr + "T00:00:00Z");
     const dayEnd = new Date(dayStr + "T23:59:59.999Z");

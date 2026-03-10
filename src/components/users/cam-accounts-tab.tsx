@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Video, Loader2, Info } from "lucide-react";
+import { Plus, Trash2, Video, Loader2, Info, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -45,6 +45,7 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
   const [newUsername, setNewUsername] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editUsername, setEditUsername] = useState("");
+  const [refetchingId, setRefetchingId] = useState<string | null>(null);
 
   const { data: camAccounts = [], isLoading } = useQuery({
     queryKey: ["camAccounts", user.id],
@@ -197,6 +198,47 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
     if (ok) deleteMutation.mutate(id);
   };
 
+  const handleRefetch = async (ca: { id: string; platform: string; username: string }) => {
+    if (refetchingId) return;
+    setRefetchingId(ca.id);
+    try {
+      const { data: job, error: jobError } = await supabase
+        .from("data_fetch_jobs")
+        .insert({
+          studio_id: studioId,
+          cam_account_id: ca.id,
+          model_id: user.id,
+          model_name: user.first_name,
+          platform: ca.platform,
+          username: ca.username,
+          status: "pending",
+          target_days: 30,
+          pages_fetched: 0,
+        })
+        .select()
+        .single();
+
+      if (jobError) {
+        toast.error("Failed to start data re-fetch");
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["dataFetchJobs"] });
+      toast.success("Re-fetching 30 days of data...");
+
+      fetch("/api/data-fetch/historical", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cam_account_id: ca.id, job_id: job.id }),
+      }).catch((err) => console.error("Re-fetch trigger failed:", err));
+    } catch (err) {
+      console.error("Re-fetch error:", err);
+      toast.error("Failed to start data re-fetch");
+    } finally {
+      setRefetchingId(null);
+    }
+  };
+
   const activeAccounts = camAccounts.filter((ca) => ca.is_active !== false);
 
   if (isLoading) {
@@ -270,6 +312,29 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
               </p>
             )}
           </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleRefetch(ca)}
+                  disabled={refetchingId === ca.id}
+                  aria-label={`Re-fetch data for ${ca.username}`}
+                  className="text-[#C9A84C] hover:text-[#B8973B] hover:bg-[#C9A84C]/10 shrink-0 h-8 w-8"
+                >
+                  {refetchingId === ca.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="bg-[#1A1A1A] border-white/10 text-xs">
+                Re-fetch 30 days of data
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Button
             variant="ghost"
             size="icon"
