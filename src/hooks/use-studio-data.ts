@@ -59,11 +59,12 @@ export function useStudioAccounts() {
     queryKey: ["accounts", studio?.id],
     queryFn: async () => {
       if (!studio?.id) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("accounts")
         .select("*")
         .eq("studio_id", studio.id)
         .order("first_name");
+      if (error) console.error("useStudioAccounts error:", error.message, error.details);
       return data || [];
     },
     enabled: !!studio?.id,
