@@ -38,6 +38,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "End time must be after start time" }, { status: 400 });
     }
 
+    // Minimum duration: 2 hours (120 minutes)
+    const durationMinutes = (end.getTime() - start.getTime()) / 60000;
+    if (durationMinutes < 120) {
+      return NextResponse.json({ error: "Shift must be at least 2 hours" }, { status: 400 });
+    }
+
     // Server-side overlap detection: check for existing shifts that overlap
     const { data: overlapping } = await supabase
       .from("shifts")

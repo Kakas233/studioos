@@ -13,7 +13,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Trash2 } from "lucide-react";
 import {
-  format, parseISO, differenceInHours, isWithinInterval,
+  format, parseISO, differenceInMinutes, isWithinInterval,
   startOfWeek, endOfWeek, addWeeks, isSunday, isAfter, isBefore,
   setHours, setMinutes, isSameDay,
 } from "date-fns";
@@ -108,8 +108,9 @@ export function ShiftModal({
     const endDateTime = setMinutes(setHours(selectedDate, endH), endM);
 
     // Rule 3: 2-hour minimum
-    const duration = differenceInHours(endDateTime, startDateTime);
-    if (duration < 2) {
+    const durationMinutes = differenceInMinutes(endDateTime, startDateTime);
+    const duration = durationMinutes / 60;
+    if (durationMinutes < 120) {
       validationErrors.push("Shift must be at least 2 hours");
     }
 
@@ -119,10 +120,10 @@ export function ShiftModal({
       return s.model_id === formData.model_id && isSameDay(parseISO(s.start_time), selectedDate);
     });
     const totalHoursToday = modelDayShifts.reduce((sum, s) => {
-      return sum + differenceInHours(parseISO(s.end_time), parseISO(s.start_time));
+      return sum + differenceInMinutes(parseISO(s.end_time), parseISO(s.start_time)) / 60;
     }, 0);
     if (totalHoursToday + duration > 8) {
-      validationErrors.push(`Model already has ${totalHoursToday}h today. Max 8h per day.`);
+      validationErrors.push(`Model already has ${Math.round(totalHoursToday * 10) / 10}h today. Max 8h per day.`);
     }
 
     // Rule 5: Conflict check

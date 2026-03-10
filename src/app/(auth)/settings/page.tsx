@@ -405,6 +405,7 @@ export default function AdminSettings() {
               <Input
                 type="number"
                 step="0.01"
+                min="0.001"
                 value={exchangeRate}
                 onChange={(e) => {
                   setExchangeRate(e.target.value);
@@ -537,6 +538,8 @@ export default function AdminSettings() {
                 <Input
                   type="number"
                   step="0.001"
+                  min="0"
+                  max="1"
                   value={siteRates[key]}
                   onChange={(e) => handleSiteRateChange(key, e.target.value)}
                   className="bg-white/[0.04] border-white/[0.06] text-white"
