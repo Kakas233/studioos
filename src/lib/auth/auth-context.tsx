@@ -61,10 +61,10 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
-/** Race a promise against a timeout. Returns undefined on timeout. */
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+/** Race a promise-like against a timeout. Returns undefined on timeout. */
+function withTimeout<T>(promiseLike: PromiseLike<T>, ms: number): Promise<T | undefined> {
   return Promise.race([
-    promise,
+    Promise.resolve(promiseLike),
     new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms)),
   ]);
 }
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [studio, setStudio] = useState<Studio | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSupportSession, setIsSupportSession] = useState(false);
+  const [isSupportSession] = useState(false);
 
   const supabase = createClient();
 
@@ -83,12 +83,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         // Fetch account with 8s timeout
         const accountResult = await withTimeout(
-          supabase
-            .from("accounts")
-            .select("*")
-            .eq("auth_user_id", authUser.id)
-            .eq("is_active", true)
-            .single(),
+          Promise.resolve(
+            supabase
+              .from("accounts")
+              .select("*")
+              .eq("auth_user_id", authUser.id)
+              .eq("is_active", true)
+              .single()
+          ),
           8000
         );
 
@@ -111,11 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Fetch studio with 8s timeout
         if (accountData.studio_id) {
           const studioResult = await withTimeout(
-            supabase
-              .from("studios")
-              .select("*")
-              .eq("id", accountData.studio_id)
-              .single(),
+            Promise.resolve(
+              supabase
+                .from("studios")
+                .select("*")
+                .eq("id", accountData.studio_id)
+                .single()
+            ),
             8000
           );
 
