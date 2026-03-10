@@ -180,7 +180,7 @@ export default function ChatPage() {
     setMessageText("");
     setSending(true);
     try {
-      await fetch("/api/chat", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -188,6 +188,12 @@ export default function ChatPage() {
           message_text: text,
         }),
       });
+      if (!res.ok) {
+        const result = await res.json();
+        toast.error(result.error || "Failed to send message");
+      }
+    } catch {
+      toast.error("Failed to send message");
     } finally {
       setSending(false);
     }
@@ -213,11 +219,16 @@ export default function ChatPage() {
   }) => {
     setCreatingChannel(true);
     try {
-      await fetch("/api/chat/channels", {
+      const res = await fetch("/api/chat/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
+      const result = await res.json();
+      if (!res.ok || result.error) {
+        toast.error(result.error || "Failed to create channel");
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["chatChannels"] });
       setCreateChannelOpen(false);
       toast.success("Channel created");

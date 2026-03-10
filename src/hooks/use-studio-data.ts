@@ -237,11 +237,12 @@ export function useChatChannels() {
     queryKey: ["chatChannels", studio?.id],
     queryFn: async () => {
       if (!studio?.id) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("chat_channels")
         .select("*")
         .eq("studio_id", studio.id)
         .order("name");
+      if (error) console.error("useChatChannels error:", error.message, error.details);
       return data || [];
     },
     enabled: !!studio?.id,
