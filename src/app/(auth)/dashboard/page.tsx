@@ -12,7 +12,7 @@ import {
   useStreamingSessions,
 } from "@/hooks/use-studio-data";
 import { useCurrency } from "@/hooks/use-currency";
-import { parseISO, isWithinInterval, startOfMonth, endOfMonth, subDays } from "date-fns";
+import { parseISO, startOfMonth, endOfMonth, subDays, format } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -135,14 +135,14 @@ export default function DashboardPage() {
   }
 
   // Helpers
+  const rangeStartStr = format(dateRange.start, "yyyy-MM-dd");
+  const rangeEndStr = format(dateRange.end, "yyyy-MM-dd");
+
   const filterByDate = <T extends Record<string, unknown>>(items: T[], dateField = "shift_date") => {
     return items.filter((item) => {
       const d = item[dateField] as string | undefined;
       if (!d) return false;
-      try {
-        const date = parseISO(d);
-        return isWithinInterval(date, { start: dateRange.start, end: dateRange.end });
-      } catch { return false; }
+      return d >= rangeStartStr && d <= rangeEndStr;
     });
   };
 
@@ -172,11 +172,11 @@ export default function DashboardPage() {
   const rangeEarnings = filterByDate(filteredEarnings);
   const prevStart = subDays(dateRange.start, Math.ceil((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
   const prevEnd = subDays(dateRange.start, 1);
+  const prevStartStr = format(prevStart, "yyyy-MM-dd");
+  const prevEndStr = format(prevEnd, "yyyy-MM-dd");
   const prevRangeEarnings = filteredEarnings.filter((e: Earning) => {
     if (!e.shift_date) return false;
-    try {
-      return isWithinInterval(parseISO(e.shift_date), { start: prevStart, end: prevEnd });
-    } catch { return false; }
+    return e.shift_date >= prevStartStr && e.shift_date <= prevEndStr;
   });
 
   const calcChange = (curr: number, prev: number) => {
@@ -204,8 +204,8 @@ export default function DashboardPage() {
       );
       if (!operatorModelIds.has(s.model_id)) return false;
     }
-    try { return isWithinInterval(parseISO(s.date), { start: dateRange.start, end: dateRange.end }); }
-    catch { return false; }
+    if (s.date < rangeStartStr || s.date > rangeEndStr) return false;
+    return true;
   });
   const totalPublicMins = rangeStats.reduce((s, d) => s + (Number(d.free_chat_minutes) || 0), 0);
   const totalPrivateMins = rangeStats.reduce((s, d) => s + (Number(d.private_chat_minutes) || 0), 0);
