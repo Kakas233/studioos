@@ -163,7 +163,7 @@ export default function ActivityFeed(_props: ActivityFeedProps) {
           <Filter className="w-4 h-4 text-gray-500" />
           <Select value={studioFilter} onValueChange={(v) => v !== null && setStudioFilter(v)}>
             <SelectTrigger className="w-48 h-8 bg-white/5 border-white/10 text-white text-xs">
-              <SelectValue placeholder="All Studios" />
+              <span className="truncate">{studioFilter === "all" ? "All Studios" : (studios.find((s) => s.id === studioFilter)?.name || "All Studios")}</span>
             </SelectTrigger>
             <SelectContent className="bg-[#1A1A1A] border-white/10">
               <SelectItem

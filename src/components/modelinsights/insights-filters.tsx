@@ -75,7 +75,7 @@ export default function InsightsFilters({
       <div className="flex gap-2 w-full lg:w-auto">
         <Select value={selectedModel} onValueChange={(v) => v !== null && setSelectedModel(v)}>
           <SelectTrigger className="flex-1 lg:w-44 h-9 bg-white/[0.03] border-white/[0.06] text-white text-xs sm:text-sm rounded-lg">
-            <SelectValue placeholder="All Models" />
+            <span className="truncate">{selectedModel === "all" ? "All Models" : (models.find((m: any) => m.id === selectedModel)?.first_name || "Select model")}</span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Models</SelectItem>

@@ -269,7 +269,7 @@ export function ShiftModal({
                   }}
                 >
                   <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
-                    <SelectValue placeholder="Select model" />
+                    <span className="truncate">{formData.model_id ? (models.find((m) => m.id === formData.model_id)?.first_name || "Select model") : "Select model"}</span>
                   </SelectTrigger>
                   <SelectContent>
                     {availableModels.map((model) => (
@@ -299,7 +299,7 @@ export function ShiftModal({
                       disabled={userRole === "operator"}
                     >
                       <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
-                        <SelectValue placeholder="Select operator" />
+                        <span className="truncate">{formData.operator_id ? (operators.find((o) => o.id === formData.operator_id)?.first_name || "Select operator") : "Select operator"}</span>
                       </SelectTrigger>
                       <SelectContent>
                         {activeOperators.map((op) => (
@@ -323,7 +323,7 @@ export function ShiftModal({
               disabled={userRole === "operator" && !!formData.model_id}
             >
               <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
-                <SelectValue placeholder="Select room" />
+                <span className="truncate">{formData.room_id ? (rooms.find((r) => r.id === formData.room_id)?.name || "Select room") : "Select room"}</span>
               </SelectTrigger>
               <SelectContent>
                 {rooms.filter((r) => r.is_active !== false).map((room) => (

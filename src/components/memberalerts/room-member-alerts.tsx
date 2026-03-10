@@ -297,7 +297,7 @@ export default function RoomMemberAlerts({ accountId, studioId }: RoomMemberAler
                 <Label className="text-xs text-[#A8A49A]/60 mb-2 block font-medium">Select Model Account</Label>
                 <Select value={selectedCamAccountId} onValueChange={(v) => v !== null && handleSelectCamAccount(v)}>
                   <SelectTrigger className="w-full h-10 bg-white/[0.03] border-white/[0.06] text-white rounded-xl text-sm hover:border-[#C9A84C]/20 transition-colors">
-                    <SelectValue placeholder="Choose a model's cam account..." />
+                    <span className="truncate">{selectedCamAccountId ? (() => { const ca = availableCamAccounts.find((c) => c.id === selectedCamAccountId); return ca ? `${getModelName(ca)} · ${ca.platform} (${ca.username})` : "Choose a model's cam account..."; })() : "Choose a model's cam account..."}</span>
                   </SelectTrigger>
                   <SelectContent className="bg-[#1A1A1A] border-white/[0.08] rounded-xl shadow-2xl shadow-black/50 backdrop-blur-xl">
                     {availableCamAccounts.map((ca) => {

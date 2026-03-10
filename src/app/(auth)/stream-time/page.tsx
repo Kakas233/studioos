@@ -136,7 +136,7 @@ export default function StreamTimePage() {
             <Label className="text-xs text-white/60">Model</Label>
             <Select value={selectedModel} onValueChange={(v) => v !== null && setSelectedModel(v)}>
               <SelectTrigger className="w-full sm:w-[180px] bg-white/[0.04] border-white/[0.06] text-white text-xs sm:text-sm">
-                <SelectValue placeholder="All Models" />
+                <span className="truncate">{selectedModel === "all" ? "All Models" : (models.find((m) => m.id === selectedModel)?.first_name || "Select model")}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Models</SelectItem>

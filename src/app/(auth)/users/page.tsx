@@ -642,7 +642,7 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
             variant="outline"
             size="sm"
             onClick={() => setShowPasswordSection(true)}
-            className="bg-background text-zinc-900 px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm h-8 w-full border-white/[0.08] hover:text-white hover:bg-white/[0.06]"
+            className="bg-white/[0.04] text-[#A8A49A] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border shadow-sm h-8 w-full border-white/[0.08] hover:text-white hover:bg-white/[0.06]"
           >
             Reset Password
           </Button>
