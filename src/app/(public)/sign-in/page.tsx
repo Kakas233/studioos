@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth/auth-context";
+import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 
 export default function SignInPage() {
-  const { account, studio, loading: authLoading, login: authLogin } = useAuth();
+  const { account, studio, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -46,11 +47,15 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      // Use client-side login so cookies are set properly
-      const result = await authLogin(email, password);
+      // Call Supabase directly — bypasses auth context to avoid any race conditions
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (!result.success) {
-        const errMsg = result.error || "Login failed";
+      if (signInError) {
+        const errMsg = signInError.message || "Login failed";
         setError(errMsg);
         setLoading(false);
         // Detect unverified email error
@@ -58,10 +63,11 @@ export default function SignInPage() {
         if (lower.includes("not confirmed") || lower.includes("not verified") || lower.includes("email_not_confirmed")) {
           setShowResendVerification(true);
         }
-      } else {
-        // Hard redirect ensures auth context re-initializes with fresh cookies
-        window.location.href = "/dashboard";
+        return;
       }
+
+      // Hard redirect — auth context will initialize fresh on the dashboard page
+      window.location.href = "/dashboard";
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
