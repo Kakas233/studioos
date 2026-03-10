@@ -132,9 +132,8 @@ export async function POST(request: Request) {
 
     console.log("Super admin 2FA verified, session created");
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
-      session_token: sessionToken,
       account: {
         id: account.id,
         email: account.email,
@@ -143,10 +142,19 @@ export async function POST(request: Request) {
         studio_id: account.studio_id,
         is_verified: true,
         is_super_admin: true,
-        cut_percentage: account.cut_percentage,
-        payout_method: account.payout_method,
       },
     });
+
+    // Set httpOnly cookie instead of returning token to client
+    response.cookies.set("sa_session", sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 8 * 60 * 60, // 8 hours
+    });
+
+    return response;
   } catch (error) {
     console.error("Super admin 2FA verify error:", error);
     return NextResponse.json(

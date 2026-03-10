@@ -28,7 +28,6 @@ import {
 
 interface StudioDetailProps {
   studioId: string;
-  sessionToken: string;
   onBack: () => void;
   onDelete: (studioId: string, studioName: string) => void;
 }
@@ -71,7 +70,6 @@ interface StudioData {
 
 export default function StudioDetail({
   studioId,
-  sessionToken,
   onBack,
   onDelete,
 }: StudioDetailProps) {
@@ -92,7 +90,7 @@ export default function StudioDetail({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          session_token: sessionToken,
+
           action: "getStudioDetails",
           payload: { studio_id: studioId },
         }),
@@ -138,15 +136,15 @@ export default function StudioDetail({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          session_token: sessionToken,
+
           action: "impersonateStudio",
           payload: { studio_id: studioId, read_only: readOnly },
         }),
       });
       const json = await res.json();
       if (json.success) {
-        localStorage.setItem("studioos_superadmin_return", sessionToken);
-        localStorage.setItem("studioos_session", json.session_token);
+        // Impersonation session is set via httpOnly cookie by the API
+        localStorage.setItem("studioos_superadmin_return", "true");
         window.location.href =
           "/dashboard?studio=" + (studio?.subdomain || "");
       } else {

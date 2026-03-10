@@ -134,11 +134,7 @@ interface DailyLogData {
   }[];
 }
 
-export default function DailyLogTab({
-  sessionToken,
-}: {
-  sessionToken: string;
-}) {
+export default function DailyLogTab() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DailyLogData | null>(null);
 
@@ -154,7 +150,7 @@ export default function DailyLogTab({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          session_token: sessionToken,
+
           action: "getDailyLog",
         }),
       });

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 
 export default function SignInPage() {
+  const router = useRouter();
   const { account, studio, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,9 +39,9 @@ export default function SignInPage() {
   // If already logged in, redirect to dashboard (don't block rendering)
   useEffect(() => {
     if (!authLoading && account && studio) {
-      window.location.href = "/dashboard";
+      router.replace("/dashboard");
     }
-  }, [authLoading, account, studio]);
+  }, [authLoading, account, studio, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

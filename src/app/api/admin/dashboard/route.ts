@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import crypto from "crypto";
 import { z } from "zod";
@@ -51,16 +52,20 @@ async function validateSuperAdminSession(sessionToken: string) {
 
 export async function POST(request: Request) {
   try {
-    const { session_token, action, payload } = await request.json();
+    const { action, payload } = await request.json();
 
-    if (!session_token) {
+    // Read session from httpOnly cookie
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get("sa_session")?.value;
+
+    if (!sessionToken) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const auth = await validateSuperAdminSession(session_token);
+    const auth = await validateSuperAdminSession(sessionToken);
     if ("error" in auth) {
       return NextResponse.json(
         { success: false, error: auth.error },

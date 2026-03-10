@@ -10,7 +10,6 @@ export default function SuperAdminReturnBanner() {
   if (!returnToken) return null;
 
   const handleReturn = () => {
-    localStorage.removeItem("studioos_session");
     localStorage.removeItem("studioos_superadmin_return");
     window.location.href = "/super-admin";
   };

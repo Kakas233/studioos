@@ -17,11 +17,7 @@ interface TelegramStatus {
   telegram_username?: string;
 }
 
-export default function TelegramTab({
-  sessionToken,
-}: {
-  sessionToken: string;
-}) {
+export default function TelegramTab() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<TelegramStatus | null>(null);
   const [linkUrl, setLinkUrl] = useState("");
@@ -41,7 +37,7 @@ export default function TelegramTab({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          session_token: sessionToken,
+
           action: "getTelegramStatus",
         }),
       });
@@ -62,7 +58,7 @@ export default function TelegramTab({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          session_token: sessionToken,
+
           action: "connectTelegram",
         }),
       });
@@ -85,7 +81,7 @@ export default function TelegramTab({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          session_token: sessionToken,
+
           action: "testTelegram",
         }),
       });

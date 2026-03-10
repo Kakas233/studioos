@@ -29,10 +29,10 @@ export default function PublicLayout({
               Pricing
             </Link>
             <Link
-              href="/faq"
+              href="/help-center"
               className="text-sm text-[#A8A49A]/70 transition-colors hover:text-white"
             >
-              FAQ
+              Help Center
             </Link>
             <Link
               href="/blog"
@@ -101,10 +101,10 @@ export default function PublicLayout({
                 </li>
                 <li>
                   <Link
-                    href="/faq"
+                    href="/help-center"
                     className="text-sm text-[#A8A49A]/40 transition-colors hover:text-white"
                   >
-                    FAQ
+                    Help Center
                   </Link>
                 </li>
               </ul>

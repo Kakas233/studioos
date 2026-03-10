@@ -93,19 +93,22 @@ export default function SuperAdminPanel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
 
-  const sessionToken =
-    typeof window !== "undefined"
-      ? localStorage.getItem("studioos_superadmin_session")
-      : null;
+  const [sessionValid, setSessionValid] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!sessionToken) {
-      router.push("/super-admin/login");
-      return;
-    }
-    fetchDashboard();
+    fetch("/api/admin/session")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.authenticated) {
+          router.push("/super-admin/login");
+        } else {
+          setSessionValid(true);
+          fetchDashboard();
+        }
+      })
+      .catch(() => router.push("/super-admin/login"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionToken, router]);
+  }, [router]);
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -114,7 +117,6 @@ export default function SuperAdminPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          session_token: sessionToken,
           action: "getDashboard",
         }),
       });
@@ -126,7 +128,6 @@ export default function SuperAdminPanel() {
           data.error === "Session expired" ||
           data.error === "Invalid session"
         ) {
-          localStorage.removeItem("studioos_superadmin_session");
           router.push("/super-admin/login");
         }
         setError(data.error);
@@ -138,8 +139,8 @@ export default function SuperAdminPanel() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("studioos_superadmin_session");
+  const handleLogout = async () => {
+    await fetch("/api/admin/session", { method: "DELETE" });
     router.push("/super-admin/login");
   };
 
@@ -155,7 +156,6 @@ export default function SuperAdminPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          session_token: sessionToken,
           action: "deleteStudio",
           payload: { studio_id: studioId },
         }),
@@ -182,7 +182,6 @@ export default function SuperAdminPanel() {
     return (
       <SuperAdminStudioDetail
         studioId={selectedStudio}
-        sessionToken={sessionToken!}
         onBack={() => setSelectedStudio(null)}
         onDelete={handleDeleteStudio}
       />
@@ -444,7 +443,6 @@ export default function SuperAdminPanel() {
           {/* Activity Tab */}
           <TabsContent value="activity" className="mt-4">
             <ActivityFeed
-              sessionToken={sessionToken!}
               allStudios={studios}
             />
           </TabsContent>
@@ -456,12 +454,12 @@ export default function SuperAdminPanel() {
 
           {/* Telegram Tab */}
           <TabsContent value="telegram" className="mt-4">
-            <TelegramTab sessionToken={sessionToken!} />
+            <TelegramTab />
           </TabsContent>
 
           {/* Daily Log Tab */}
           <TabsContent value="dailylog" className="mt-4">
-            <DailyLogTab sessionToken={sessionToken!} />
+            <DailyLogTab />
           </TabsContent>
         </Tabs>
       </div>

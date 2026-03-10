@@ -27,10 +27,10 @@ export default function SuperAdminLogin() {
 
   // Check if already logged in as super admin
   useEffect(() => {
-    const token = localStorage.getItem("studioos_superadmin_session");
-    if (token) {
-      router.push("/super-admin");
-    }
+    fetch("/api/admin/session")
+      .then((r) => r.json())
+      .then((d) => { if (d.authenticated) router.push("/super-admin"); })
+      .catch(() => {});
   }, [router]);
 
   const handleCredentials = async (e: React.FormEvent) => {
@@ -72,7 +72,7 @@ export default function SuperAdminLogin() {
       const data = await res.json();
 
       if (data.success) {
-        localStorage.setItem("studioos_superadmin_session", data.session_token);
+        // Session is set via httpOnly cookie by the API
         router.push("/super-admin");
       } else {
         setError(data.error || "Verification failed");

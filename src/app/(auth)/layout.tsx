@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
@@ -40,6 +40,7 @@ export default function AuthLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hasSuperAdminReturn, setHasSuperAdminReturn] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { user, account, studio, loading, isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -49,9 +50,9 @@ export default function AuthLayout({
   // Redirect to sign-in if not authenticated (after loading completes)
   useEffect(() => {
     if (!loading && !user) {
-      window.location.href = "/sign-in";
+      router.replace("/sign-in");
     }
-  }, [loading, user]);
+  }, [loading, user, router]);
 
   // Show spinner while auth is loading
   if (loading) {

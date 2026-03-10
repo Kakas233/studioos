@@ -48,13 +48,10 @@ interface LogEntry {
 }
 
 interface ActivityFeedProps {
-  sessionToken: string;
   allStudios?: StudioRef[];
 }
 
-export default function ActivityFeed({
-  sessionToken,
-}: ActivityFeedProps) {
+export default function ActivityFeed(_props: ActivityFeedProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [studios, setStudios] = useState<StudioRef[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +72,7 @@ export default function ActivityFeed({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          session_token: sessionToken,
+
           action: "getActivityFeed",
           payload: {
             studio_id:
