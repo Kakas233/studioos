@@ -244,14 +244,14 @@ export default function RoomsPage() {
         </div>
 
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="sm:max-w-[400px] bg-white/[0.03]">
+          <DialogContent className="sm:max-w-[400px] bg-[#111111] border-white/[0.06]">
             <DialogHeader><DialogTitle className="text-white">{selectedRoom ? "Edit Room" : "Add Room"}</DialogTitle></DialogHeader>
             <RoomForm room={selectedRoom} onSave={handleSaveRoom} onClose={() => { setModalOpen(false); setSelectedRoom(null); }} />
           </DialogContent>
         </Dialog>
 
         <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
-          <DialogContent className="sm:max-w-[400px] bg-white/[0.03]">
+          <DialogContent className="sm:max-w-[400px] bg-[#111111] border-white/[0.06]">
             <DialogHeader><DialogTitle className="text-white">Assign Model to Room</DialogTitle></DialogHeader>
             <AssignModelToRoom
               models={models}

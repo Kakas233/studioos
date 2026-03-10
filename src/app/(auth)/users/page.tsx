@@ -426,7 +426,7 @@ function AssignmentForm({
   return (
     <div className="space-y-4 py-4">
       <div className="space-y-2">
-        <Label className="text-gray-100 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Assign to Operator</Label>
+        <Label className="text-white/80 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Assign to Operator</Label>
         <Select value={operatorId} onValueChange={(v) => v !== null && setOperatorId(v)}>
           <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
             <SelectValue placeholder="Select operator" />
@@ -441,7 +441,7 @@ function AssignmentForm({
         </Select>
       </div>
       <div className="space-y-2">
-        <Label className="text-gray-100 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Assign Room</Label>
+        <Label className="text-white/80 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Assign Room</Label>
         <Select value={roomId} onValueChange={(v) => v !== null && setRoomId(v)}>
           <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
             <SelectValue placeholder="Select room" />
@@ -553,7 +553,7 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
   return (
     <div className="space-y-4 py-4">
       <div className="space-y-2">
-        <Label className="text-gray-100 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Role</Label>
+        <Label className="text-white/80 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Role</Label>
         <Select value={role} onValueChange={(v) => v !== null && setRole(v)}>
           <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -588,7 +588,7 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
       {role !== "accountant" && (
         <div className="space-y-2">
           <div className="flex items-center gap-1.5">
-            <Label className="text-gray-100 text-sm font-medium leading-none">
+            <Label className="text-white/80 text-sm font-medium leading-none">
               {(role === "admin" || role === "owner") ? "Studio Cut %" : "Cut Percentage"}
             </Label>
             {(role === "admin" || role === "owner") && (
@@ -613,7 +613,7 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
       )}
       {role !== "accountant" && (
         <div className="space-y-2">
-          <Label className="text-gray-100 text-sm font-medium leading-none">Payout Method</Label>
+          <Label className="text-white/80 text-sm font-medium leading-none">Payout Method</Label>
           <Select value={payoutMethod} onValueChange={(v) => v !== null && setPayoutMethod(v)}>
             <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white"><SelectValue /></SelectTrigger>
             <SelectContent>

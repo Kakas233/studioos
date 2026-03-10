@@ -31,7 +31,7 @@ export default function PublicNav({ activePage }: { activePage?: string }) {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0A]/80 backdrop-blur-xl border-b border-white/[0.04]" role="navigation" aria-label="Main navigation">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link href="/home" className="text-lg font-medium text-white tracking-tight hover:text-[#C9A84C] transition-colors">
-          StudioOS
+          <span className="text-[#C9A84C]">Studio</span>OS
         </Link>
 
         {/* Desktop links */}

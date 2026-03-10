@@ -262,7 +262,7 @@ export default function AccountingPage() {
                         {isAdmin && (
                           <>
                             <TableCell className="font-medium text-[#C9A84C]">{hasEarning ? formatSecondary(getSecondaryModelPay(earning)) : "-"}</TableCell>
-                            <TableCell className="font-medium text-amber-600">{hasEarning ? formatSecondary(getSecondaryOperatorPay(earning)) : "-"}</TableCell>
+                            <TableCell className="font-medium text-amber-400">{hasEarning ? formatSecondary(getSecondaryOperatorPay(earning)) : "-"}</TableCell>
                           </>
                         )}
                         {userRole === "model" && (

@@ -11,7 +11,7 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           <div className="col-span-2 md:col-span-1">
             <h3 className="text-lg font-medium text-white mb-3 tracking-tight">
-              StudioOS
+              <span className="text-[#C9A84C]">Studio</span>OS
             </h3>
             <p className="text-[#A8A49A]/40 text-sm leading-relaxed">
               The #1 webcam studio management platform. Auto stream tracking, scheduling & payouts across 8 cam sites.

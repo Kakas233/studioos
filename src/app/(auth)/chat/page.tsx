@@ -60,9 +60,9 @@ interface ChatChannel {
 const roleColors: Record<string, string> = {
   owner: "text-[#C9A84C]",
   admin: "text-[#C9A84C]/80",
-  operator: "text-amber-600",
-  model: "text-emerald-600",
-  accountant: "text-blue-600",
+  operator: "text-amber-400",
+  model: "text-emerald-400",
+  accountant: "text-blue-400",
 };
 
 export default function ChatPage() {
@@ -430,7 +430,7 @@ function CreateChannelDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px] bg-white/[0.03]">
+      <DialogContent className="sm:max-w-[400px] bg-[#111111] border-white/[0.06]">
         <DialogHeader>
           <DialogTitle className="text-white">Create Channel</DialogTitle>
         </DialogHeader>

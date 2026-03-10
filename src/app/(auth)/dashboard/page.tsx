@@ -25,6 +25,7 @@ import PendingApprovals from "@/components/dashboard/pending-approvals";
 import LiveStatus from "@/components/streamtime/live-status";
 import OperatorAgenda from "@/components/dashboard/operator-agenda";
 import WeeklyGoal from "@/components/dashboard/weekly-goal";
+import OnboardingGuide from "@/components/onboarding/onboarding-guide";
 import type { Database } from "@/lib/supabase/types";
 
 type Earning = Database["public"]["Tables"]["earnings"]["Row"];
@@ -212,6 +213,7 @@ export default function DashboardPage() {
   if (isAccountant) {
     return (
       <div className="space-y-5">
+        <OnboardingGuide />
         <DateRangeSelector dateRange={dateRange} setDateRange={setDateRange} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatsCard title="Total Revenue" value={fmtUsd(totalGrossUsd)} change={calcChange(totalGrossUsd, prevGrossUsd)} changeLabel="vs prev" />
@@ -228,6 +230,7 @@ export default function DashboardPage() {
   if (isAdmin) {
     return (
       <div className="space-y-5">
+        <OnboardingGuide />
         <StudioHeader studio={studio} accounts={accounts} />
         <DateRangeSelector dateRange={dateRange} setDateRange={setDateRange} />
 
@@ -267,6 +270,7 @@ export default function DashboardPage() {
 
     return (
       <div className="space-y-5">
+        <OnboardingGuide />
         <DateRangeSelector dateRange={dateRange} setDateRange={setDateRange} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatsCard title="My Sessions Today" value={todaySessions} change={0} />
@@ -297,6 +301,7 @@ export default function DashboardPage() {
 
     return (
       <div className="space-y-5">
+        <OnboardingGuide />
         <DateRangeSelector dateRange={dateRange} setDateRange={setDateRange} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatsCard title="My Earnings" value={fmtUsd(modelPayUsd)} change={calcChange(modelPayUsd, prevModelPay)} changeLabel="vs prev" />

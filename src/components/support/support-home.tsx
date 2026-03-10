@@ -20,7 +20,7 @@ export default function SupportHome({
   return (
     <div className="flex flex-col h-full">
       {/* Header with gradient */}
-      <div className="bg-gradient-to-b from-[#B5964D] to-[#9A7E3F] px-5 pt-5 pb-8 relative">
+      <div className="bg-gradient-to-b from-[#C9A84C] to-[#B8973B] px-5 pt-5 pb-8 relative">
         <div className="flex items-center justify-between mb-6">
           <div className="text-xl font-bold text-white tracking-tight">
             StudioOS
@@ -37,7 +37,7 @@ export default function SupportHome({
                     key={key}
                     src={url}
                     alt=""
-                    className="w-7 h-7 rounded-full border-2 border-[#B5964D] object-cover"
+                    className="w-7 h-7 rounded-full border-2 border-[#C9A84C] object-cover"
                   />
                 ))}
               </div>
@@ -54,55 +54,55 @@ export default function SupportHome({
       </div>
 
       {/* Content */}
-      <div className="flex-1 bg-[#F5F5F0] px-4 -mt-4 overflow-auto pt-6">
+      <div className="flex-1 bg-[#0A0A0A] px-4 -mt-4 overflow-auto pt-6">
         {/* Send us a message card */}
         <button
           onClick={onNewConversation}
-          className="w-full bg-white rounded-xl p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow mb-3 group"
+          className="w-full bg-[#111111] rounded-xl p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow mb-3 group border border-white/[0.06]"
         >
           <div>
-            <span className="text-sm font-semibold text-gray-800 block">
+            <span className="text-sm font-semibold text-white block">
               Start a chat
             </span>
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-[#A8A49A]/40">
               We usually reply within an hour
             </span>
           </div>
-          <div className="w-9 h-9 rounded-full bg-[#B5964D] flex items-center justify-center group-hover:bg-[#A3863F] transition-colors shrink-0">
+          <div className="w-9 h-9 rounded-full bg-[#C9A84C] flex items-center justify-center group-hover:bg-[#B8973B] transition-colors shrink-0">
             <ChevronRight className="w-4 h-4 text-white" />
           </div>
         </button>
 
         {/* Links */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-3">
+        <div className="bg-[#111111] rounded-xl shadow-sm overflow-hidden mb-3 border border-white/[0.06]">
           <a
             href="/help"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+            className="flex items-center justify-between p-4 hover:bg-white/[0.03] transition-colors border-b border-white/[0.06]"
           >
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-[#A8A49A]/80">
               Help Center &amp; Docs
             </span>
-            <ExternalLink className="w-4 h-4 text-gray-400" />
+            <ExternalLink className="w-4 h-4 text-[#A8A49A]/40" />
           </a>
           <a
             href="mailto:support@getstudioos.com"
-            className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-between p-4 hover:bg-white/[0.03] transition-colors"
           >
-            <span className="text-sm text-gray-700">Email us</span>
-            <ExternalLink className="w-4 h-4 text-gray-400" />
+            <span className="text-sm text-[#A8A49A]/80">Email us</span>
+            <ExternalLink className="w-4 h-4 text-[#A8A49A]/40" />
           </a>
         </div>
 
-        <p className="text-xs text-gray-400 text-center mt-3 mb-2">
+        <p className="text-xs text-[#A8A49A]/40 text-center mt-3 mb-2">
           We usually reply within an hour
         </p>
       </div>
 
       {/* Bottom tabs */}
-      <div className="bg-white border-t border-gray-200 flex pb-[env(safe-area-inset-bottom)]">
-        <button className="flex-1 flex flex-col items-center py-3 text-[#B5964D]">
+      <div className="bg-[#0A0A0A] border-t border-white/[0.06] flex pb-[env(safe-area-inset-bottom)]">
+        <button className="flex-1 flex flex-col items-center py-3 text-[#C9A84C]">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path
               d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z"
@@ -116,7 +116,7 @@ export default function SupportHome({
         </button>
         <button
           onClick={onViewMessages}
-          className="flex-1 flex flex-col items-center py-3 text-gray-400 hover:text-gray-600 transition-colors relative"
+          className="flex-1 flex flex-col items-center py-3 text-[#A8A49A]/60 hover:text-white transition-colors relative"
         >
           <MessageSquare className="w-5 h-5" />
           <span className="text-[10px] mt-1 font-medium">Messages</span>

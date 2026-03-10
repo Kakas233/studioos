@@ -111,13 +111,13 @@ function SignUpForm() {
             <CardTitle className="text-xl text-white">Check Your Email!</CardTitle>
           </CardHeader>
           <CardContent className="text-center space-y-4">
-            <p className="text-gray-400">
+            <p className="text-[#A8A49A]/60">
               We&apos;ve sent a verification link to <strong className="text-[#C9A84C]">{formData.email}</strong>
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[#A8A49A]/50">
               Click the link to verify your account and activate your studio. The link expires in 24 hours.
             </p>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-[#A8A49A]/40">
               Didn&apos;t receive it? Check your spam folder or resend below.
             </p>
             <div className="pt-2 space-y-2">
@@ -159,7 +159,7 @@ function SignUpForm() {
                 )}
               </Button>
               <Link href="/sign-in">
-                <Button variant="ghost" className="w-full text-gray-500 hover:text-white hover:bg-white/5">
+                <Button variant="ghost" className="w-full text-[#A8A49A]/50 hover:text-white hover:bg-white/[0.04]">
                   Go to Sign In
                 </Button>
               </Link>
@@ -178,25 +178,25 @@ function SignUpForm() {
             StudioOS
           </div>
           <CardTitle className="text-xl font-bold text-white">Create Your Studio</CardTitle>
-          <p className="text-gray-500 text-sm">Start your 7-day free trial · No credit card required</p>
+          <p className="text-[#A8A49A]/50 text-sm">Start your 7-day free trial · No credit card required</p>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName" className="text-gray-300">Your Name</Label>
+              <Label htmlFor="firstName" className="text-white/70">Your Name</Label>
               <Input
                 id="firstName"
                 placeholder="John"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 required
-                className="bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
+                className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-[#A8A49A]/40 focus:border-[#C9A84C]/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-300">Email Address</Label>
+              <Label htmlFor="email" className="text-white/70">Email Address</Label>
               <Input
                 id="email"
                 type="email"
@@ -204,12 +204,12 @@ function SignUpForm() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
-                className="bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
+                className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-[#A8A49A]/40 focus:border-[#C9A84C]/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-300">Password</Label>
+              <Label htmlFor="password" className="text-white/70">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -218,12 +218,12 @@ function SignUpForm() {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
-                  className="pr-10 bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
+                  className="pr-10 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-[#A8A49A]/40 focus:border-[#C9A84C]/50"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A8A49A]/50 hover:text-white/70"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -231,14 +231,14 @@ function SignUpForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="studioName" className="text-gray-300">Studio Name</Label>
+              <Label htmlFor="studioName" className="text-white/70">Studio Name</Label>
               <Input
                 id="studioName"
                 placeholder="My Studio"
                 value={formData.studioName}
                 onChange={(e) => setFormData({ ...formData, studioName: e.target.value })}
                 required
-                className="bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
+                className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-[#A8A49A]/40 focus:border-[#C9A84C]/50"
               />
             </div>
 
@@ -247,9 +247,9 @@ function SignUpForm() {
                 type="checkbox"
                 checked={agreedToTerms}
                 onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 accent-[#C9A84C]"
+                className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/[0.04] accent-[#C9A84C]"
               />
-              <span className="text-xs text-gray-400 leading-relaxed">
+              <span className="text-xs text-[#A8A49A]/60 leading-relaxed">
                 I agree to the{" "}
                 <Link href="/legal/terms" target="_blank" className="text-[#C9A84C] hover:underline">
                   Terms of Service
@@ -276,7 +276,7 @@ function SignUpForm() {
               )}
             </Button>
 
-            <p className="text-xs text-center text-gray-500">
+            <p className="text-xs text-center text-[#A8A49A]/50">
               Already have an account?{" "}
               <Link href="/sign-in" className="text-[#C9A84C] hover:underline font-medium">
                 Sign In

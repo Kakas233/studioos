@@ -47,22 +47,24 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      // Use client-side login so the auth context picks up the session immediately
+      // Use client-side login so cookies are set properly
       const result = await authLogin(email, password);
 
       if (!result.success) {
         const errMsg = result.error || "Login failed";
         setError(errMsg);
+        setLoading(false);
         // Detect unverified email error
         const lower = errMsg.toLowerCase();
         if (lower.includes("not confirmed") || lower.includes("not verified") || lower.includes("email_not_confirmed")) {
           setShowResendVerification(true);
         }
+      } else {
+        // Hard redirect ensures auth context re-initializes with fresh cookies
+        window.location.href = "/dashboard";
       }
-      // Redirect is handled by the useEffect when account & studio are set
     } catch {
       setError("Something went wrong. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
@@ -104,7 +106,7 @@ export default function SignInPage() {
             StudioOS
           </div>
           <CardTitle className="text-xl font-bold text-white">Welcome Back</CardTitle>
-          <p className="text-gray-500 text-sm">Sign in to your account</p>
+          <p className="text-[#A8A49A]/50 text-sm">Sign in to your account</p>
         </CardHeader>
 
         <CardContent>
@@ -149,7 +151,7 @@ export default function SignInPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-300">Email Address</Label>
+              <Label htmlFor="email" className="text-white/70">Email Address</Label>
               <Input
                 id="email"
                 type="email"
@@ -157,12 +159,12 @@ export default function SignInPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
+                className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-[#A8A49A]/30 focus:border-[#C9A84C]/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-300">Password</Label>
+              <Label htmlFor="password" className="text-white/70">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -171,12 +173,12 @@ export default function SignInPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pr-10 bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
+                  className="pr-10 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-[#A8A49A]/30 focus:border-[#C9A84C]/50"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A8A49A]/50 hover:text-white/70"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -209,7 +211,7 @@ export default function SignInPage() {
               >
                 Forgot password?
               </button>
-              <p className="text-gray-500">
+              <p className="text-[#A8A49A]/50">
                 Don&apos;t have an account?{" "}
                 <Link href="/pricing" className="text-[#C9A84C] hover:underline font-medium">
                   Create Studio
@@ -242,10 +244,10 @@ export default function SignInPage() {
             <CardContent>
               {forgotSent ? (
                 <div className="space-y-4 text-center">
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-[#A8A49A]/60">
                     If an admin/owner account exists for <strong className="text-[#C9A84C]">{forgotEmail}</strong>, we&apos;ve sent a temporary password.
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-[#A8A49A]/50">
                     Check your inbox and use the temporary password to sign in, then change it in Settings.
                   </p>
                   <Button
@@ -262,10 +264,10 @@ export default function SignInPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-sm text-gray-400 text-center">
+                  <p className="text-sm text-[#A8A49A]/60 text-center">
                     Enter your admin email address. We&apos;ll send you a password reset link.
                   </p>
-                  <p className="text-xs text-gray-500 text-center">
+                  <p className="text-xs text-[#A8A49A]/50 text-center">
                     This feature is only available for studio owners & admins. Models and operators should contact their studio admin for password resets.
                   </p>
 
@@ -277,14 +279,14 @@ export default function SignInPage() {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="forgotEmail" className="text-gray-300">Email Address</Label>
+                    <Label htmlFor="forgotEmail" className="text-white/70">Email Address</Label>
                     <Input
                       id="forgotEmail"
                       type="email"
                       placeholder="you@example.com"
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-[#C9A84C]/50"
+                      className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-[#A8A49A]/30 focus:border-[#C9A84C]/50"
                     />
                   </div>
 
@@ -311,7 +313,7 @@ export default function SignInPage() {
                       setShowForgotPassword(false);
                       setForgotError("");
                     }}
-                    className="w-full text-sm text-gray-500 hover:text-white transition-colors flex items-center justify-center gap-1"
+                    className="w-full text-sm text-[#A8A49A]/50 hover:text-white transition-colors flex items-center justify-center gap-1"
                   >
                     <ArrowLeft className="w-3 h-3" />
                     Back to Sign In

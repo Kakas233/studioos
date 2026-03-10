@@ -9,6 +9,7 @@ import SuperAdminReturnBanner from "@/components/shared/super-admin-return-banne
 import SuspendedBanner from "@/components/shared/suspended-banner";
 import ReadOnlyOverlay from "@/components/shared/read-only-overlay";
 import SupportChatWidget from "@/components/support/support-chat-widget";
+import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -99,7 +100,7 @@ export default function AuthLayout({
             {blockedBySuspension ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-5">
-                  <span className="text-3xl">{"\uD83D\uDD12"}</span>
+                  <Lock className="w-8 h-8 text-red-400" />
                 </div>
                 <h2 className="text-lg font-medium text-white mb-2">Studio Access Paused</h2>
                 <p className="text-sm text-[#A8A49A]/50 max-w-md">

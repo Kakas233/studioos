@@ -42,7 +42,7 @@ export default function SupportChatWidget() {
           onClick={() => { setOpen(!open); setHasUnread(false); }}
           className={cn(
             "h-14 w-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-200",
-            "bg-[#B5964D] hover:bg-[#A3863F] active:scale-95",
+            "bg-[#C9A84C] hover:bg-[#B8973B] active:scale-95",
             open && "sm:flex hidden" // hide button on mobile when open (panel is full screen)
           )}
         >
@@ -51,9 +51,9 @@ export default function SupportChatWidget() {
           ) : (
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z" fill="white"/>
-              <circle cx="8" cy="10" r="1.2" fill="#B5964D"/>
-              <circle cx="12" cy="10" r="1.2" fill="#B5964D"/>
-              <circle cx="16" cy="10" r="1.2" fill="#B5964D"/>
+              <circle cx="8" cy="10" r="1.2" fill="#C9A84C"/>
+              <circle cx="12" cy="10" r="1.2" fill="#C9A84C"/>
+              <circle cx="16" cy="10" r="1.2" fill="#C9A84C"/>
             </svg>
           )}
           {hasUnread && !open && (
