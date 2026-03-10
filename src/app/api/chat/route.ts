@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+
+const chatMessageSchema = z.object({
+  channel_id: z.string().uuid("Invalid channel ID"),
+  message_text: z.string().min(1, "Message cannot be empty").max(5000, "Message too long (max 5000 characters)"),
+}).strict();
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** GET /api/chat?channel_id=xxx — Get messages for a channel */
 export async function GET(request: NextRequest) {
@@ -9,8 +17,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const before = searchParams.get("before"); // cursor-based pagination
 
-    if (!channelId) {
-      return NextResponse.json({ error: "channel_id required" }, { status: 400 });
+    if (!channelId || !UUID_REGEX.test(channelId)) {
+      return NextResponse.json({ error: "Valid channel_id required" }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -85,26 +93,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Your subscription is not active. Please renew to continue." }, { status: 403 });
     }
 
-    if (!body.channel_id || !body.message_text?.trim()) {
-      return NextResponse.json({ error: "channel_id and message_text required" }, { status: 400 });
-    }
+    const parsed = chatMessageSchema.parse(body);
 
     const { data, error } = await supabase
       .from("chat_messages")
       .insert({
-        channel_id: body.channel_id,
+        channel_id: parsed.channel_id,
         studio_id: account.studio_id,
         user_id: account.id,
         user_name: `${account.first_name || ""} ${account.last_name || ""}`.trim() || "Unknown",
         user_role: account.role,
-        message_text: body.message_text.trim(),
+        message_text: parsed.message_text.trim(),
       })
       .select()
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

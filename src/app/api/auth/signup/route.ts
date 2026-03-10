@@ -4,6 +4,11 @@ import { sendVerificationEmail } from "@/lib/email";
 import { z } from "zod";
 import { MODEL_LIMITS } from "@/lib/pricing";
 
+// Rate limiter: max 3 signups per IP per 15 minutes
+const signupAttempts = new Map<string, number[]>();
+const MAX_SIGNUPS = 3;
+const WINDOW_MS = 15 * 60 * 1000;
+
 const signupSchema = z.object({
   studioName: z.string().min(2).max(100),
   ownerName: z.string().min(2).max(100),
@@ -21,6 +26,20 @@ const signupSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting by IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const now = Date.now();
+    const entry = signupAttempts.get(ip) || [];
+    const recent = entry.filter((t) => now - t < WINDOW_MS);
+    if (recent.length >= MAX_SIGNUPS) {
+      return NextResponse.json(
+        { error: "Too many signup attempts. Please wait 15 minutes." },
+        { status: 429 }
+      );
+    }
+    recent.push(now);
+    signupAttempts.set(ip, recent);
+
     const body = await request.json();
     const parsed = signupSchema.parse(body);
 
