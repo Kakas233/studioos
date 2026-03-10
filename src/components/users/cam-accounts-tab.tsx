@@ -13,6 +13,7 @@ import { Plus, Trash2, Video, Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/lib/auth/auth-context";
+import { useConfirmDialog } from "@/components/shared/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 
 const PLATFORMS = [
@@ -38,6 +39,7 @@ interface CamAccountsTabProps {
 export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) {
   const queryClient = useQueryClient();
   const { studio } = useAuth();
+  const { confirm, ConfirmDialogEl } = useConfirmDialog();
   const supabase = createClient();
   const [newPlatform, setNewPlatform] = useState("");
   const [newUsername, setNewUsername] = useState("");
@@ -189,10 +191,9 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
     updateMutation.mutate({ id, data: { username: editUsername.trim() } });
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm("Remove this cam account?")) {
-      deleteMutation.mutate(id);
-    }
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({ title: "Remove Cam Account", description: "Remove this cam account?", confirmLabel: "Remove", variant: "destructive" });
+    if (ok) deleteMutation.mutate(id);
   };
 
   const activeAccounts = camAccounts.filter((ca) => ca.is_active !== false);
@@ -329,6 +330,7 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
           )}
         </Button>
       </div>
+      {ConfirmDialogEl}
     </div>
   );
 }

@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import CamAccountsTab from "@/components/users/cam-accounts-tab";
 import FeatureGate from "@/components/shared/feature-gate";
+import { useConfirmDialog } from "@/components/shared/confirm-dialog";
 import WeeklyGoalSettings from "@/components/users/weekly-goal-settings";
 import { createClient } from "@/lib/supabase/client";
 
@@ -42,6 +43,7 @@ export default function UsersManagementPage() {
 
   const userRole = account?.role || "model";
   const isAdmin = userRole === "admin" || userRole === "owner";
+  const { confirm, ConfirmDialogEl } = useConfirmDialog();
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
@@ -166,7 +168,7 @@ export default function UsersManagementPage() {
     },
   });
 
-  const handleDeleteUser = (user: any) => {
+  const handleDeleteUser = async (user: any) => {
     if (user.id === account.id) {
       toast.error("You cannot deactivate your own account");
       return;
@@ -175,9 +177,8 @@ export default function UsersManagementPage() {
       toast.error("The studio owner account cannot be deactivated");
       return;
     }
-    if (window.confirm("Are you sure you want to deactivate this account? They will lose access.")) {
-      deleteAccountMutation.mutate(user.id);
-    }
+    const ok = await confirm({ title: "Deactivate Account", description: "Are you sure you want to deactivate this account? They will lose access.", confirmLabel: "Deactivate", variant: "destructive" });
+    if (ok) deleteAccountMutation.mutate(user.id);
   };
 
   // Helper to get operator name for a model assignment
@@ -400,6 +401,7 @@ export default function UsersManagementPage() {
             />
           </DialogContent>
         </Dialog>
+      {ConfirmDialogEl}
       </div>
     </FeatureGate>
   );

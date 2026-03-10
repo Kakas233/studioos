@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Building2, Plus, Edit2, Trash2, Users, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import FeatureGate from "@/components/shared/feature-gate";
+import { useConfirmDialog } from "@/components/shared/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 
 export default function RoomsPage() {
@@ -39,6 +40,7 @@ export default function RoomsPage() {
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assignRoomId, setAssignRoomId] = useState<string | null>(null);
 
+  const { confirm, ConfirmDialogEl } = useConfirmDialog();
   const models = allAccounts.filter((u) => u.role === "model" && u.is_active !== false);
 
   // Helper to get model name by ID
@@ -158,14 +160,16 @@ export default function RoomsPage() {
     }
     setAssignModalOpen(false);
   };
-  const handleRemoveFromRoom = (assignmentId: string) => {
-    if (window.confirm("Remove this model from the room?")) {
-      removeAssignmentMutation.mutate(assignmentId);
-    }
+  const handleRemoveFromRoom = async (assignmentId: string) => {
+    const ok = await confirm({ title: "Remove Model", description: "Remove this model from the room?", confirmLabel: "Remove", variant: "destructive" });
+    if (ok) removeAssignmentMutation.mutate(assignmentId);
   };
   const handleAddRoom = () => { setSelectedRoom(null); setModalOpen(true); };
   const handleEditRoom = (room: any) => { setSelectedRoom(room); setModalOpen(true); };
-  const handleDeleteRoom = (roomId: string) => { if (window.confirm("Are you sure you want to delete this room?")) deleteRoomMutation.mutate(roomId); };
+  const handleDeleteRoom = async (roomId: string) => {
+    const ok = await confirm({ title: "Delete Room", description: "Are you sure you want to delete this room?", confirmLabel: "Delete", variant: "destructive" });
+    if (ok) deleteRoomMutation.mutate(roomId);
+  };
   const handleSaveRoom = (roomData: Record<string, unknown>) => {
     if (selectedRoom) { updateRoomMutation.mutate({ id: selectedRoom.id, data: roomData }); }
     else { createRoomMutation.mutate(roomData); }
@@ -269,6 +273,7 @@ export default function RoomsPage() {
           </DialogContent>
         </Dialog>
       </div>
+      {ConfirmDialogEl}
     </FeatureGate>
   );
 }

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { isSunday, isAfter, setHours, setMinutes, parseISO } from "date-fns";
 import { CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirmDialog } from "@/components/shared/confirm-dialog";
 import type { Database } from "@/lib/supabase/types";
 
 type Shift = Database["public"]["Tables"]["shifts"]["Row"];
@@ -27,6 +28,7 @@ export default function SchedulePage() {
   const { account, loading: authLoading, isAdmin } = useAuth();
   const userRole = account?.role || "model";
 
+  const { confirm, ConfirmDialogEl } = useConfirmDialog();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
@@ -116,10 +118,9 @@ export default function SchedulePage() {
       createShiftMutation.mutate(shiftData);
     }
   };
-  const handleDeleteShift = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this shift?")) {
-      deleteShiftMutation.mutate(id);
-    }
+  const handleDeleteShift = async (id: string) => {
+    const ok = await confirm({ title: "Delete Shift", description: "Are you sure you want to delete this shift?", confirmLabel: "Delete", variant: "destructive" });
+    if (ok) deleteShiftMutation.mutate(id);
   };
 
   // Shift request mutations
@@ -356,6 +357,7 @@ export default function SchedulePage() {
           rooms={rooms}
         />
       )}
+      {ConfirmDialogEl}
     </div>
   );
 }
