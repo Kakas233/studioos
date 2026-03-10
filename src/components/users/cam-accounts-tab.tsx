@@ -67,12 +67,50 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
       if (error) throw error;
       return created;
     },
-    onSuccess: () => {
+    onSuccess: async (created) => {
       queryClient.invalidateQueries({ queryKey: ["camAccounts", user.id] });
       setNewPlatform("");
       setNewUsername("");
       setAddingInProgress(false);
-      toast.success("Cam account added");
+      toast.success("Cam account added — fetching 30 days of historical data...");
+
+      // Create a DataFetchJob and trigger historical data fetch
+      try {
+        const { data: job, error: jobError } = await supabase
+          .from("data_fetch_jobs")
+          .insert({
+            studio_id: studioId,
+            cam_account_id: created.id,
+            model_id: user.id,
+            model_name: user.first_name,
+            platform: created.platform,
+            username: created.username,
+            status: "pending",
+            target_days: 30,
+            pages_fetched: 0,
+          })
+          .select()
+          .single();
+
+        if (jobError) {
+          console.error("Failed to create data fetch job:", jobError);
+          return;
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["dataFetchJobs"] });
+
+        // Fire-and-forget: trigger the historical data fetch
+        fetch("/api/data-fetch/historical", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cam_account_id: created.id,
+            job_id: job.id,
+          }),
+        }).catch((err) => console.error("Historical fetch trigger failed:", err));
+      } catch (err) {
+        console.error("Failed to trigger historical fetch:", err);
+      }
     },
     onError: () => {
       setAddingInProgress(false);
