@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,6 @@ import {
 } from "lucide-react";
 
 export default function SignInPage() {
-  const router = useRouter();
   const { account, studio, loading: authLoading, login: authLogin } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,11 +33,12 @@ export default function SignInPage() {
   const [resendingVerification, setResendingVerification] = useState(false);
   const [resendVerificationSent, setResendVerificationSent] = useState(false);
 
+  // If already logged in, redirect to dashboard (don't block rendering)
   useEffect(() => {
     if (!authLoading && account && studio) {
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     }
-  }, [authLoading, account, studio, router]);
+  }, [authLoading, account, studio]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,14 +88,6 @@ export default function SignInPage() {
       setForgotLoading(false);
     }
   };
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6">
