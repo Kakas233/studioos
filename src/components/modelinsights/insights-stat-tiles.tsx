@@ -72,42 +72,31 @@ export default function InsightsStatTiles({
     0
   );
   const publicTime = streamStats.reduce(
-    (s: number, d: any) =>
-      s + (d.free_chat_minutes || d.public_minutes || 0),
+    (s: number, d: any) => s + (d.free_chat_minutes || 0),
     0
   );
-  const privateTime =
-    streamStats.reduce(
-      (s: number, d: any) =>
-        s +
-        (d.private_chat_minutes || 0) +
-        (d.nude_chat_minutes || 0) +
-        (d.semiprivate_minutes || 0) +
-        (d.vip_chat_minutes || 0) +
-        (d.true_private_minutes || 0) +
-        (d.paid_chat_minutes || 0),
-      0
-    ) ||
-    streamStats.reduce(
-      (s: number, d: any) => s + (d.private_minutes || 0),
-      0
-    );
-  const groupTime =
-    streamStats.reduce(
-      (s: number, d: any) =>
-        s +
-        (d.member_chat_minutes || 0) +
-        (d.group_chat_minutes || 0) +
-        (d.happy_hour_minutes || 0) +
-        (d.party_chat_minutes || 0) +
-        (d.pre_gold_show_minutes || 0) +
-        (d.gold_show_minutes || 0),
-      0
-    ) ||
-    streamStats.reduce(
-      (s: number, d: any) => s + (d.group_minutes || 0),
-      0
-    );
+  const privateTime = streamStats.reduce(
+    (s: number, d: any) =>
+      s +
+      (d.private_chat_minutes || 0) +
+      (d.nude_chat_minutes || 0) +
+      (d.semiprivate_minutes || 0) +
+      (d.vip_chat_minutes || 0) +
+      (d.true_private_minutes || 0) +
+      (d.paid_chat_minutes || 0),
+    0
+  );
+  const groupTime = streamStats.reduce(
+    (s: number, d: any) =>
+      s +
+      (d.member_chat_minutes || 0) +
+      (d.group_chat_minutes || 0) +
+      (d.happy_hour_minutes || 0) +
+      (d.party_chat_minutes || 0) +
+      (d.pre_gold_show_minutes || 0) +
+      (d.gold_show_minutes || 0),
+    0
+  );
   const totalHours = totalOnline / 60;
   const perHour = totalHours > 0 ? periodRevenue / totalHours : 0;
 

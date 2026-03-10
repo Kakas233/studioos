@@ -219,12 +219,17 @@ export default function ModelInsightsPage() {
         streaming[dow][h] =
           (streaming[dow][h] || 0) +
           (stat.total_minutes || 0) * w;
-        pvtMap[dow][h] =
-          (pvtMap[dow][h] || 0) +
-          (stat.private_minutes || 0) * w;
+        const pvtMins =
+          (stat.private_chat_minutes || 0) +
+          (stat.nude_chat_minutes || 0) +
+          (stat.semiprivate_minutes || 0) +
+          (stat.vip_chat_minutes || 0) +
+          (stat.true_private_minutes || 0) +
+          (stat.paid_chat_minutes || 0);
+        pvtMap[dow][h] = (pvtMap[dow][h] || 0) + pvtMins * w;
         publicMap[dow][h] =
           (publicMap[dow][h] || 0) +
-          (stat.public_minutes || 0) * w;
+          (stat.free_chat_minutes || 0) * w;
       }
     });
     return { streaming, pvtMap, publicMap };

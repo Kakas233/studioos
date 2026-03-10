@@ -79,7 +79,7 @@ function buildAnalyticsPayload(earnings: any[], streamStats: any[]) {
 
   // --- Stream time metrics (granular) ---
   const totalFreeChatMins = streamStats.reduce(
-    (s: number, d: any) => s + (d.free_chat_minutes || d.public_minutes || 0),
+    (s: number, d: any) => s + (d.free_chat_minutes || 0),
     0
   );
   const totalPrivateChatMins = streamStats.reduce(
@@ -146,26 +146,18 @@ function buildAnalyticsPayload(earnings: any[], streamStats: any[]) {
   const totalPublicMins = totalFreeChatMins;
   const totalPrivateMins =
     totalPrivateChatMins +
-      totalNudeChatMins +
-      totalSemiprivateMins +
-      totalVipChatMins +
-      totalTruePrivateMins +
-      totalPaidChatMins ||
-    streamStats.reduce(
-      (s: number, d: any) => s + (d.private_minutes || 0),
-      0
-    );
+    totalNudeChatMins +
+    totalSemiprivateMins +
+    totalVipChatMins +
+    totalTruePrivateMins +
+    totalPaidChatMins;
   const totalGroupMins =
     totalMemberChatMins +
-      totalGroupChatMins +
-      totalHappyHourMins +
-      totalPartyChatMins +
-      totalPreGoldShowMins +
-      totalGoldShowMins ||
-    streamStats.reduce(
-      (s: number, d: any) => s + (d.group_minutes || 0),
-      0
-    );
+    totalGroupChatMins +
+    totalHappyHourMins +
+    totalPartyChatMins +
+    totalPreGoldShowMins +
+    totalGoldShowMins;
 
   // --- Day-of-week patterns ---
   const dowLabels = [
@@ -205,9 +197,21 @@ function buildAnalyticsPayload(earnings: any[], streamStats: any[]) {
         dates: [],
       };
     dowStats[dow].totalMins += stat.total_minutes || 0;
-    dowStats[dow].privateMins += stat.private_minutes || 0;
-    dowStats[dow].publicMins += stat.public_minutes || 0;
-    dowStats[dow].groupMins += stat.group_minutes || 0;
+    dowStats[dow].privateMins +=
+      (stat.private_chat_minutes || 0) +
+      (stat.nude_chat_minutes || 0) +
+      (stat.semiprivate_minutes || 0) +
+      (stat.vip_chat_minutes || 0) +
+      (stat.true_private_minutes || 0) +
+      (stat.paid_chat_minutes || 0);
+    dowStats[dow].publicMins += stat.free_chat_minutes || 0;
+    dowStats[dow].groupMins +=
+      (stat.member_chat_minutes || 0) +
+      (stat.group_chat_minutes || 0) +
+      (stat.happy_hour_minutes || 0) +
+      (stat.party_chat_minutes || 0) +
+      (stat.pre_gold_show_minutes || 0) +
+      (stat.gold_show_minutes || 0);
     dowStats[dow].days += 1;
     if (!dowStats[dow].dates.includes(stat.date))
       dowStats[dow].dates.push(stat.date);

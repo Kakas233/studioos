@@ -29,7 +29,13 @@ export default function RevenueScatterPlot({
     if (!s.date) return;
     if (!dateMap[s.date]) dateMap[s.date] = { hours: 0, pvtMins: 0 };
     dateMap[s.date].hours += (s.total_minutes || 0) / 60;
-    dateMap[s.date].pvtMins += s.private_minutes || 0;
+    dateMap[s.date].pvtMins +=
+      (s.private_chat_minutes || 0) +
+      (s.nude_chat_minutes || 0) +
+      (s.semiprivate_minutes || 0) +
+      (s.vip_chat_minutes || 0) +
+      (s.true_private_minutes || 0) +
+      (s.paid_chat_minutes || 0);
   });
 
   const data = Object.entries(dateMap)

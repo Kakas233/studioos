@@ -94,20 +94,12 @@ export default function ShowTypeBreakdown({
       }
     }
 
-    // Fall back to legacy fields if no granular data
+    // Fall back to total_minutes if no granular data found
     if (Object.keys(totals).length === 0) {
       for (const s of streamStats) {
-        if (s.public_minutes > 0)
+        if (s.total_minutes > 0)
           totals["free_chat"] =
-            (totals["free_chat"] || 0) + s.public_minutes;
-        if (s.private_minutes > 0)
-          totals["private_chat"] =
-            (totals["private_chat"] || 0) + s.private_minutes;
-        if (s.group_minutes > 0)
-          totals["group_chat"] =
-            (totals["group_chat"] || 0) + s.group_minutes;
-        if (s.break_minutes > 0)
-          totals["away"] = (totals["away"] || 0) + s.break_minutes;
+            (totals["free_chat"] || 0) + s.total_minutes;
       }
     }
 

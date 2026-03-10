@@ -27,8 +27,14 @@ export default function BestTimesChart({ streamStats }: BestTimesChartProps) {
   });
 
   streamStats.forEach((stat: any) => {
-    if (!stat.date || !(stat.private_minutes > 0)) return;
-    const privateMins = stat.private_minutes || 0;
+    const privateMins =
+      (stat.private_chat_minutes || 0) +
+      (stat.nude_chat_minutes || 0) +
+      (stat.semiprivate_minutes || 0) +
+      (stat.vip_chat_minutes || 0) +
+      (stat.true_private_minutes || 0) +
+      (stat.paid_chat_minutes || 0);
+    if (!stat.date || privateMins <= 0) return;
     const weights = [
       0.5, 0.3, 0.2, 0.1, 0.1, 0.1, 0.2, 0.3, 0.5, 0.8, 1.0, 1.2,
       1.5, 1.8, 2.0, 2.2, 2.5, 2.8, 3.0, 3.5, 3.2, 2.8, 2.0, 1.0,
