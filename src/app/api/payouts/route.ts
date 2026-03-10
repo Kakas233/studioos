@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+
+const payoutSchema = z.object({
+  model_id: z.string().uuid(),
+  period_start: z.string(),
+  period_end: z.string(),
+  amount_usd: z.number().min(0),
+  amount_secondary: z.number().min(0).optional(),
+  status: z.enum(["pending", "paid", "cancelled"]).optional(),
+}).strict();
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,15 +40,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Your subscription is not active. Please renew to continue." }, { status: 403 });
     }
 
+    const parsed = payoutSchema.parse(body);
+
     const { data, error } = await supabase
       .from("payouts")
-      .insert({ studio_id: account.studio_id, ...body })
+      .insert({ studio_id: account.studio_id, ...parsed })
       .select()
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -65,9 +80,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const validatedUpdate = payoutSchema.partial().parse(updateData);
+
     const { data, error } = await supabase
       .from("payouts")
-      .update(updateData)
+      .update(validatedUpdate)
       .eq("id", id)
       .eq("studio_id", account.studio_id)
       .select()
@@ -75,7 +92,10 @@ export async function PUT(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

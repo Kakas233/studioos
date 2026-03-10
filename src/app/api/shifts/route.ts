@@ -9,7 +9,7 @@ const shiftSchema = z.object({
   start_time: z.string(),
   end_time: z.string(),
   status: z.enum(["scheduled", "completed", "no_show", "cancelled", "pending_approval"]).optional(),
-});
+}).strict();
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,6 +29,15 @@ export async function POST(request: NextRequest) {
 
     if (!account || !["owner", "admin"].includes(account.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { data: studio } = await supabase
+      .from("studios")
+      .select("subscription_status")
+      .eq("id", account.studio_id)
+      .single();
+    if (studio?.subscription_status === "suspended" || studio?.subscription_status === "cancelled") {
+      return NextResponse.json({ error: "Your subscription is not active. Please renew to continue." }, { status: 403 });
     }
 
     // Time validation
@@ -108,8 +117,19 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const { data: studioPut } = await supabase
+      .from("studios")
+      .select("subscription_status")
+      .eq("id", account.studio_id)
+      .single();
+    if (studioPut?.subscription_status === "suspended" || studioPut?.subscription_status === "cancelled") {
+      return NextResponse.json({ error: "Your subscription is not active. Please renew to continue." }, { status: 403 });
+    }
+
+    const validatedUpdate = shiftSchema.partial().parse(updateData);
+
     // If updating time, check for overlaps (exclude current shift)
-    if (updateData.start_time && updateData.end_time) {
+    if (validatedUpdate.start_time && validatedUpdate.end_time) {
       const { data: existingShift } = await supabase
         .from("shifts")
         .select("model_id")
@@ -125,8 +145,8 @@ export async function PUT(request: NextRequest) {
           .eq("model_id", existingShift.model_id)
           .neq("id", id)
           .in("status", ["scheduled", "completed", "pending_approval"])
-          .lt("start_time", updateData.end_time)
-          .gt("end_time", updateData.start_time)
+          .lt("start_time", validatedUpdate.end_time)
+          .gt("end_time", validatedUpdate.start_time)
           .limit(1);
 
         if (overlapping && overlapping.length > 0) {
@@ -140,7 +160,7 @@ export async function PUT(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("shifts")
-      .update(updateData)
+      .update(validatedUpdate)
       .eq("id", id)
       .eq("studio_id", account.studio_id)
       .select()
@@ -148,7 +168,10 @@ export async function PUT(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

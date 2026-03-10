@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+
+const alertUpdateSchema = z.object({
+  model_username: z.string().min(1).max(200).optional(),
+  model_name: z.string().max(200).optional(),
+  sites: z.array(z.string()).optional(),
+  spending_threshold: z.number().min(0).optional(),
+  is_active: z.boolean().optional(),
+}).strict();
 
 /** GET /api/alerts — Get member alerts */
 export async function GET() {
@@ -109,9 +118,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const validatedUpdate = alertUpdateSchema.parse(updateData);
+
     const { data, error } = await supabase
       .from("member_alerts")
-      .update(updateData)
+      .update(validatedUpdate)
       .eq("id", id)
       .eq("studio_id", account.studio_id)
       .select()
@@ -119,7 +130,10 @@ export async function PUT(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
