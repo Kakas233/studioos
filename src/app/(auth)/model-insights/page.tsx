@@ -9,10 +9,8 @@ import {
   useStudioDailyStats,
 } from "@/hooks/use-studio-data";
 import {
-  parseISO,
-  isWithinInterval,
-  startOfMonth,
-  endOfMonth,
+  subDays,
+  format,
   getDay,
 } from "date-fns";
 import { Loader2, LayoutGrid } from "lucide-react";
@@ -71,8 +69,8 @@ export default function ModelInsightsPage() {
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [dateRange, setDateRange] = useState({
-    start: startOfMonth(new Date()),
-    end: endOfMonth(new Date()),
+    start: subDays(new Date(), 29),
+    end: new Date(),
   });
   const [showCustomizer, setShowCustomizer] = useState(false);
 
@@ -133,25 +131,18 @@ export default function ModelInsightsPage() {
     return map;
   }, [studioCamAccounts]);
 
+  const dateFromStr = format(dateRange.start, "yyyy-MM-dd");
+  const dateToStr = format(dateRange.end, "yyyy-MM-dd");
+
   const filteredEarnings = useMemo(() => {
     return earnings.filter((e: any) => {
       if (!e.shift_date) return false;
-      try {
-        if (
-          !isWithinInterval(parseISO(e.shift_date), {
-            start: dateRange.start,
-            end: dateRange.end,
-          })
-        )
-          return false;
-      } catch {
-        return false;
-      }
+      if (e.shift_date < dateFromStr || e.shift_date > dateToStr) return false;
       if (selectedModel !== "all" && e.model_id !== selectedModel)
         return false;
       return true;
     });
-  }, [earnings, dateRange, selectedModel]);
+  }, [earnings, dateFromStr, dateToStr, selectedModel]);
 
   const allTimeEarnings = useMemo(() => {
     return earnings.filter(
@@ -167,10 +158,7 @@ export default function ModelInsightsPage() {
   const filteredStats = useMemo(() => {
     return allStats.filter((stat: any) => {
       if (!studioCamIdSet.has(stat.cam_account_id)) return false;
-      if (
-        selectedModel !== "all" &&
-        stat.model_id !== selectedModel
-      )
+      if (selectedModel !== "all" && stat.model_id !== selectedModel)
         return false;
       if (
         selectedPlatform !== "all" &&
@@ -178,20 +166,15 @@ export default function ModelInsightsPage() {
       )
         return false;
       if (!stat.date) return false;
-      try {
-        return isWithinInterval(parseISO(stat.date), {
-          start: dateRange.start,
-          end: dateRange.end,
-        });
-      } catch {
-        return false;
-      }
+      if (stat.date < dateFromStr || stat.date > dateToStr) return false;
+      return true;
     });
   }, [
     allStats,
     selectedModel,
     selectedPlatform,
-    dateRange,
+    dateFromStr,
+    dateToStr,
     camPlatformMap,
     studioCamIdSet,
   ]);
