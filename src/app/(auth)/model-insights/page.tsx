@@ -245,11 +245,18 @@ export default function ModelInsightsPage() {
     revenue: (
       <RevenueAreaChart
         earnings={filteredEarnings}
+        streamStats={filteredStats}
         dateRange={dateRange}
       />
     ),
     showType: <ShowTypeBreakdown streamStats={filteredStats} />,
-    siteBreakdown: <SiteBreakdown earnings={filteredEarnings} />,
+    siteBreakdown: (
+      <SiteBreakdown
+        earnings={filteredEarnings}
+        streamStats={filteredStats}
+        camPlatformMap={camPlatformMap}
+      />
+    ),
     scatter: (
       <RevenueScatterPlot
         earnings={filteredEarnings}

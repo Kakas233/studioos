@@ -129,6 +129,7 @@ export function useStudioDailyStats(camAccountIds: string[]) {
       return data || [];
     },
     enabled: !!studio?.id && camAccountIds.length > 0,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
