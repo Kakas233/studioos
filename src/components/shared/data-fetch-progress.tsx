@@ -273,11 +273,21 @@ function JobCard({
           )}
 
           {isFailed && (
-            <p className="text-[10px] text-red-400/70">
-              Failed
-              {job.error_message ? `: ${job.error_message}` : ""}.
-              Data will be retried automatically.
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] text-red-400/70">
+                Failed
+                {job.error_message ? `: ${job.error_message}` : ""}
+              </p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDismiss(job.id);
+                }}
+                className="text-[10px] text-red-400 hover:text-red-300 font-medium shrink-0 ml-2"
+              >
+                Dismiss
+              </button>
+            </div>
           )}
         </div>
       </div>

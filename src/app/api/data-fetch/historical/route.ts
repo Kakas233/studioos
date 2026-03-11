@@ -163,10 +163,19 @@ async function fetchModelActivities(platform: string, username: string, page = 1
         console.error(`Model not found: ${platform}/${username}`);
         return null;
       }
+      if (response.status === 429) {
+        // Rate limited — wait longer before retry
+        console.error(`Rate limited for ${platform}/${username} page ${page} (attempt ${attempt + 1})`);
+        if (attempt < retries) {
+          await new Promise((r) => setTimeout(r, 10000 * (attempt + 1)));
+          continue;
+        }
+        return null;
+      }
       if (!response.ok) {
         console.error(`API ${response.status} for ${platform}/${username} page ${page} (attempt ${attempt + 1})`);
         if (attempt < retries) {
-          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+          await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
           continue;
         }
         return null;
@@ -230,14 +239,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Race condition guard: check if another job is already in_progress for this cam account
+    // But auto-expire stuck jobs older than 10 minutes
     const { data: existingJobs } = await admin
       .from("data_fetch_jobs")
-      .select("id, status")
+      .select("id, status, started_at, created_at")
       .eq("cam_account_id", cam_account_id)
       .eq("status", "in_progress");
 
-    if (existingJobs && existingJobs.length > 0 && !existingJobs.some(j => j.id === job_id)) {
-      return NextResponse.json({ error: "Another fetch is already in progress for this account" }, { status: 409 });
+    if (existingJobs && existingJobs.length > 0) {
+      const now = Date.now();
+      const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+      const activeJobs = existingJobs.filter(j => {
+        if (j.id === job_id) return false; // Skip self
+        const startedAt = j.started_at || j.created_at;
+        const jobAge = now - new Date(startedAt).getTime();
+        if (jobAge > STALE_THRESHOLD_MS) {
+          // Auto-expire stuck job
+          admin.from("data_fetch_jobs").update({
+            status: "failed",
+            error_message: "Auto-expired: stuck for over 10 minutes",
+            completed_at: new Date().toISOString(),
+          }).eq("id", j.id).then(() => {
+            console.log(`Auto-expired stuck job ${j.id}`);
+          });
+          return false;
+        }
+        return true;
+      });
+
+      if (activeJobs.length > 0) {
+        return NextResponse.json({ error: "Another fetch is already in progress for this account" }, { status: 409 });
+      }
     }
 
     // Fetch cam account using admin client (bypasses RLS)
@@ -261,14 +293,18 @@ export async function POST(request: NextRequest) {
 
     // Fetch first page to discover total pages
     const firstPageData = await fetchModelActivities(ca.platform, ca.username, 1);
+    console.log(`First page response for ${ca.platform}/${ca.username}:`, firstPageData ? `${(firstPageData.data as Activity[])?.length || 0} activities, ${firstPageData.last_page || 0} pages` : "null/failed");
+
     if (!firstPageData || !Array.isArray((firstPageData as Record<string, unknown>).data) || ((firstPageData as Record<string, unknown>).data as Activity[]).length === 0) {
+      const msg = firstPageData?.message ? String(firstPageData.message) : "No data available";
       await admin.from("data_fetch_jobs").update({
         status: "completed",
         completed_at: new Date().toISOString(),
         pages_fetched: 0,
         total_pages: 0,
+        error_message: msg,
       }).eq("id", job_id);
-      return NextResponse.json({ success: true, message: "No data available for this account" });
+      return NextResponse.json({ success: true, message: msg });
     }
 
     const lastPageNum = (firstPageData.last_page as number) || 1;
@@ -280,8 +316,9 @@ export async function POST(request: NextRequest) {
     const cutoffStr = toDateStr(cutoffDate);
 
     // Calculate how many pages to fetch — start from the last (newest) page going backwards
-    // Cap at 50 pages (5000 activities) to stay within Vercel timeout
-    const pagesToFetch = Math.min(lastPageNum, 50);
+    // Cap at 30 pages (3000 activities) to stay within Vercel 5-minute timeout
+    // (30 pages * ~3s delay + processing ≈ 120-180s, well within 300s limit)
+    const pagesToFetch = Math.min(lastPageNum, 30);
     await admin.from("data_fetch_jobs").update({
       total_pages: pagesToFetch,
     }).eq("id", job_id);
@@ -293,7 +330,7 @@ export async function POST(request: NextRequest) {
     let consecutiveFailures = 0;
 
     for (let p = lastPageNum; p >= Math.max(1, lastPageNum - pagesToFetch + 1) && !reachedCutoff; p--) {
-      await randomDelay(600, 1500);
+      await randomDelay(1500, 3000);
       const pageData = await fetchModelActivities(ca.platform, ca.username, p);
 
       if (!pageData || !Array.isArray(pageData.data)) {

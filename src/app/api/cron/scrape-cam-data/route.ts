@@ -58,7 +58,14 @@ async function fetchRecentActivities(platform: string, username: string): Promis
     });
     clearTimeout(timeout);
     if (firstRes.status === 404) return null; // Model not found
-    if (!firstRes.ok) return null;
+    if (firstRes.status === 429) {
+      console.error(`Rate limited on first page for ${platform}/${username}`);
+      return null;
+    }
+    if (!firstRes.ok) {
+      console.error(`API ${firstRes.status} on first page for ${platform}/${username}`);
+      return null;
+    }
     const firstData = await firstRes.json();
     const lastPage = firstData.last_page || 1;
 
@@ -219,8 +226,8 @@ export async function GET(request: NextRequest) {
         errors++;
       }
 
-      // Small delay between accounts to avoid rate limiting
-      await randomDelay(500, 1500);
+      // Delay between accounts to avoid rate limiting
+      await randomDelay(2000, 4000);
     }
 
     console.log(`Scrape complete: ${updated} updated, ${errors} errors`);
