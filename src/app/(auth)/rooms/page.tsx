@@ -302,7 +302,7 @@ function AssignModelToRoom({
         <Label>Select Model</Label>
         <Select value={selectedModelId} onValueChange={(v) => v !== null && setSelectedModelId(v)}>
           <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
-            <SelectValue placeholder="Choose a model..." />
+            <span className="truncate">{selectedModelId ? (availableModels.find((m) => m.id === selectedModelId)?.first_name || "Choose a model...") : "Choose a model..."}</span>
           </SelectTrigger>
           <SelectContent>
             {availableModels.map((m) => (

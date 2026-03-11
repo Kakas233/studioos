@@ -439,7 +439,7 @@ function AssignmentForm({
         <Label className="text-white/80 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Assign to Operator</Label>
         <Select value={operatorId} onValueChange={(v) => v !== null && setOperatorId(v)}>
           <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
-            <SelectValue placeholder="Select operator" />
+            <span className="truncate">{operatorId ? (activeOperators.find((op) => op.id === operatorId)?.first_name || "Select operator") : "Select operator"}</span>
           </SelectTrigger>
           <SelectContent>
             {activeOperators.map((op) => (
@@ -454,7 +454,7 @@ function AssignmentForm({
         <Label className="text-white/80 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Assign Room</Label>
         <Select value={roomId} onValueChange={(v) => v !== null && setRoomId(v)}>
           <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
-            <SelectValue placeholder="Select room" />
+            <span className="truncate">{roomId ? (rooms.find((r) => r.id === roomId)?.name || "Select room") : "Select room"}</span>
           </SelectTrigger>
           <SelectContent>
             {rooms.map((room) => (
