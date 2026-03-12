@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Building2, Plus, Edit2, Trash2, Users, UserPlus, X } from "lucide-react";
+import { Plus, Edit2, Trash2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import FeatureGate from "@/components/shared/feature-gate";
 import { useConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -190,64 +190,54 @@ export default function RoomsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {rooms.length === 0 ? (
-            <Card className="col-span-full bg-[#111111]/80 border-white/[0.04]">
-              <CardContent className="py-12 text-center">
-                <Building2 className="w-12 h-12 mx-auto text-white/30 mb-4" />
-                <p className="text-white/60">No rooms created yet</p>
-                <Button onClick={handleAddRoom} variant="link" className="text-[#C9A84C] mt-2">Add your first room</Button>
-              </CardContent>
-            </Card>
+            <div className="col-span-full text-center py-16">
+              <p className="text-sm text-[#A8A49A]/40">No rooms created yet</p>
+              <button onClick={handleAddRoom} className="text-sm text-[#C9A84C] hover:underline mt-2">Add your first room</button>
+            </div>
           ) : (
             rooms.map((room) => {
               const roomAssignments = getAssignedModels(room.id);
               return (
-                <Card key={room.id} className="bg-[#111111]/80 border-white/[0.04] overflow-hidden">
-                  <div className={`h-1 ${room.is_active !== false ? "bg-green-500" : "bg-gray-300"}`} />
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
-                        <Building2 className="w-5 h-5 text-[#C9A84C]" />{room.name}
-                      </CardTitle>
-                      <Badge variant="outline" className={room.is_active !== false ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-white/[0.05] text-white/40 border-white/[0.08]"}>
-                        {room.is_active !== false ? "Active" : "Inactive"}
-                      </Badge>
+                <div key={room.id} className="border border-white/[0.06] rounded-xl bg-white/[0.02] p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${room.is_active !== false ? "bg-emerald-400" : "bg-[#A8A49A]/20"}`} />
+                      <p className="text-sm font-medium text-white">{room.name}</p>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2 text-sm">
-                        <Users className="w-4 h-4 text-white/40 mt-0.5" />
-                        <div className="flex-1">
-                          {roomAssignments.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {roomAssignments.map((a) => (
-                                <Badge key={a.id} variant="outline" className="bg-white/[0.03] text-white flex items-center gap-1 pr-1">
-                                  {getModelName(a.model_id)}
-                                  <button onClick={() => handleRemoveFromRoom(a.id)} className="ml-1 hover:text-red-600 rounded-full">
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </Badge>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-white/70">No models assigned</span>
-                          )}
-                        </div>
+                    <span className="text-[10px] text-[#A8A49A]/40">
+                      {room.is_active !== false ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  <div className="mb-3">
+                    {roomAssignments.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {roomAssignments.map((a) => (
+                          <span key={a.id} className="inline-flex items-center gap-1 text-xs text-white bg-white/[0.04] border border-white/[0.06] rounded-md px-2 py-1">
+                            {getModelName(a.model_id)}
+                            <button onClick={() => handleRemoveFromRoom(a.id)} className="text-[#A8A49A]/30 hover:text-red-400 transition-colors">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
                       </div>
-                      <div className="flex gap-2 pt-2">
-                        <Button variant="outline" size="sm" onClick={() => handleOpenAssignModel(room.id)} className="flex-1">
-                          <UserPlus className="w-4 h-4 mr-1" />Assign Model
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleEditRoom(room)} className="flex-1">
-                          <Edit2 className="w-4 h-4 mr-1" />Edit
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteRoom(room.id)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 border-white/[0.06]">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    ) : (
+                      <p className="text-xs text-[#A8A49A]/30">No models assigned</p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-white/[0.04]">
+                    <button onClick={() => handleOpenAssignModel(room.id)} className="flex-1 text-xs text-[#A8A49A]/50 hover:text-white transition-colors py-1.5">
+                      Assign
+                    </button>
+                    <button onClick={() => handleEditRoom(room)} className="flex-1 text-xs text-[#A8A49A]/50 hover:text-white transition-colors py-1.5">
+                      Edit
+                    </button>
+                    <button onClick={() => handleDeleteRoom(room.id)} className="text-xs text-[#A8A49A]/30 hover:text-red-400 transition-colors py-1.5 px-2">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               );
             })
           )}
