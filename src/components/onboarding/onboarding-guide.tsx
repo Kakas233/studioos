@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
@@ -52,6 +52,19 @@ export default function OnboardingGuide() {
       .update({ onboarding_dismissed: true })
       .eq("id", account.id);
   };
+
+  // Auto-dismiss 5 seconds after all steps are completed
+  const autoDismissRef = useRef(false);
+  useEffect(() => {
+    if (allDone && !autoDismissRef.current) {
+      autoDismissRef.current = true;
+      const timer = setTimeout(() => {
+        handleDismiss();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allDone]);
 
   const handleComplete = async (stepId: string) => {
     if (completedSteps.includes(stepId)) return;

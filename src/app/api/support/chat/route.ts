@@ -793,6 +793,24 @@ export async function POST(request: Request) {
           error: "ticket_id is required",
         });
       }
+
+      const ratingValue = Number(body.rating);
+      if (!ratingValue || ratingValue < 1 || ratingValue > 10) {
+        return NextResponse.json({
+          success: false,
+          error: "Rating must be between 1 and 10",
+        });
+      }
+
+      await (getSupabase()
+        .from("support_tickets") as any)
+        .update({
+          rating: ratingValue,
+          status: "resolved",
+          resolved_at: new Date().toISOString(),
+        })
+        .eq("id", ticket_id);
+
       return NextResponse.json({ success: true });
     }
 
