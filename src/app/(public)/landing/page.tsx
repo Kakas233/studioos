@@ -10,6 +10,7 @@ import HowItWorks from "@/components/landing/how-it-works";
 import Pricing from "@/components/landing/pricing";
 import FAQ from "@/components/landing/faq";
 import FinalCTA from "@/components/landing/final-cta";
+import EnterpriseSection from "@/components/landing/enterprise-section";
 import Footer from "@/components/landing/footer";
 import CookieConsent from "@/components/landing/cookie-consent";
 import BackToTop from "@/components/landing/back-to-top";
@@ -86,6 +87,7 @@ export default function Landing() {
         <Pricing />
         <FAQ />
         <FinalCTA />
+        <EnterpriseSection />
         <Footer />
       </main>
 
