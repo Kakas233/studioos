@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2, ArrowLeft, X, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -609,9 +608,9 @@ export default function TicketConversation({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-black/[0.08]">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-black/[0.08] shrink-0">
         <button
           onClick={onBack}
           className="text-gray-400 hover:text-gray-700 transition-colors"
@@ -648,7 +647,7 @@ export default function TicketConversation({
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 px-4 py-3">
+      <div className="flex-1 overflow-y-auto px-4 py-3">
         <div className="space-y-3">
           {/* Onboarding sequence for new tickets */}
           {isNewTicket && onboardingStep > 0 && (
@@ -900,11 +899,11 @@ export default function TicketConversation({
 
           <div ref={messagesEndRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Input */}
       {!isResolved && !chatClosed && !closingFlow && (
-        <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-black/[0.08]">
+        <div className="shrink-0 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-black/[0.08]">
           {/* Escalation button */}
           {!isEscalated && agentRevealed && !sending && (
             <button
@@ -960,7 +959,7 @@ export default function TicketConversation({
 
       {/* Closed chat footer */}
       {chatClosed && (
-        <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-black/[0.08] text-center">
+        <div className="shrink-0 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-black/[0.08] text-center">
           <p className="text-xs text-gray-400 mb-2">
             This chat has been closed.
           </p>
