@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
 
+const VPS_URL = process.env.VPS_URL;
+const VPS_SECRET = process.env.VPS_INTERNAL_SECRET;
+
 const alertUpdateSchema = z.object({
   model_username: z.string().min(1).max(200).optional(),
   model_name: z.string().max(200).optional(),
@@ -10,6 +13,42 @@ const alertUpdateSchema = z.object({
   spending_threshold: z.number().min(0).optional(),
   is_active: z.boolean().optional(),
 }).strict();
+
+/** Notify VPS to start monitoring a room */
+async function vpsStartMonitor(site: string, modelUsername: string, modelId: string) {
+  if (!VPS_URL || !VPS_SECRET) return;
+  try {
+    await fetch(`${VPS_URL}/monitor/start`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": VPS_SECRET,
+      },
+      body: JSON.stringify({ site, modelUsername, modelId }),
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch (err) {
+    console.error("[VPS] Failed to start monitor:", err);
+  }
+}
+
+/** Notify VPS to stop monitoring a room */
+async function vpsStopMonitor(modelId: string) {
+  if (!VPS_URL || !VPS_SECRET) return;
+  try {
+    await fetch(`${VPS_URL}/monitor/stop`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": VPS_SECRET,
+      },
+      body: JSON.stringify({ modelId }),
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch (err) {
+    console.error("[VPS] Failed to stop monitor:", err);
+  }
+}
 
 /** GET /api/alerts — Get member alerts */
 export async function GET() {
@@ -92,6 +131,15 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    // Sync to VPS — start monitoring for each site
+    if (data) {
+      const sites = data.sites as string[] || [];
+      for (const site of sites) {
+        await vpsStartMonitor(site, data.model_username, data.id);
+      }
+    }
+
     return NextResponse.json(data);
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -173,6 +221,10 @@ export async function DELETE(request: NextRequest) {
       .eq("studio_id", account.studio_id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    // Sync to VPS — stop monitoring this alert
+    await vpsStopMonitor(id);
+
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
