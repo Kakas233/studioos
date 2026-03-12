@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth/auth-context";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
+import DeleteStudioSection from "@/components/billing/delete-studio-section";
 import PlanCard from "@/components/billing/plan-card";
 import BillingCycleCard from "@/components/billing/billing-cycle-card";
 import PaymentMethodCard from "@/components/billing/payment-method-card";
@@ -152,6 +153,10 @@ export default function BillingPage() {
         studioId={studio?.id}
         currentTier={(effectiveBilling.plan || "free").toLowerCase()}
       />
+
+      {account.role === "owner" && (
+        <DeleteStudioSection studioName={studio?.name || "your studio"} />
+      )}
     </div>
   );
 }

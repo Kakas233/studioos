@@ -714,48 +714,66 @@ export async function POST(request: Request) {
           error: "studio_id required",
         });
 
-      // Deactivate all accounts
+      // Get all accounts (need auth_user_ids to delete auth users)
       const { data: studioAccounts } = await adminClient
         .from("accounts")
-        .select("id")
+        .select("id, auth_user_id")
         .eq("studio_id", studioId);
 
       const accountIds = (studioAccounts || []).map((a: { id: string }) => a.id);
+      const authUserIds = (studioAccounts || [])
+        .map((a: { auth_user_id: string | null }) => a.auth_user_id)
+        .filter(Boolean) as string[];
+
+      // Permanently delete ALL related data
       if (accountIds.length > 0) {
-        await adminClient.from("accounts").update({ is_active: false }).in("id", accountIds);
-      }
+        await adminClient.from("support_tickets").delete().eq("studio_id", studioId);
+        await adminClient.from("telegram_links").delete().in("account_id", accountIds);
+        await adminClient.from("member_alerts").delete().eq("studio_id", studioId);
 
-      // Deactivate all MemberAlerts
-      const { data: studioAlerts } = await adminClient
-        .from("member_alerts")
-        .select("id")
-        .eq("studio_id", studioId)
-        .eq("is_active", true);
-
-      const alertIds = (studioAlerts || []).map((a: { id: string }) => a.id);
-      if (alertIds.length > 0) {
-        await adminClient.from("member_alerts").update({ is_active: false }).in("id", alertIds);
-      }
-
-      // Deactivate CamAccounts
-      const { data: studioCams } = await adminClient
-        .from("cam_accounts")
-        .select("id")
-        .eq("studio_id", studioId)
-        .eq("is_active", true);
-
-      const camIds = (studioCams || []).map((a: { id: string }) => a.id);
-      if (camIds.length > 0) {
-        await adminClient.from("cam_accounts").update({ is_active: false }).in("id", camIds);
+        const { data: channels } = await adminClient
+          .from("chat_channels")
+          .select("id")
+          .eq("studio_id", studioId);
+        const channelIds = (channels || []).map((c: { id: string }) => c.id);
+        if (channelIds.length > 0) {
+          await adminClient.from("chat_messages").delete().in("channel_id", channelIds);
+        }
+        await adminClient.from("chat_channels").delete().eq("studio_id", studioId);
+        await adminClient.from("shift_analyses").delete().eq("studio_id", studioId);
+        await adminClient.from("shift_change_requests").delete().eq("studio_id", studioId);
+        await adminClient.from("shift_requests").delete().eq("studio_id", studioId);
+        await adminClient.from("shifts").delete().eq("studio_id", studioId);
+        await adminClient.from("stream_segments").delete().eq("studio_id", studioId);
+        await adminClient.from("daily_stream_stats").delete().eq("studio_id", studioId);
+        await adminClient.from("streaming_sessions").delete().eq("studio_id", studioId);
+        await adminClient.from("payouts").delete().eq("studio_id", studioId);
+        await adminClient.from("earnings").delete().eq("studio_id", studioId);
+        await adminClient.from("data_fetch_jobs").delete().eq("studio_id", studioId);
+        await adminClient.from("assignments").delete().eq("studio_id", studioId);
+        await adminClient.from("cam_accounts").delete().eq("studio_id", studioId);
+        await adminClient.from("rooms").delete().eq("studio_id", studioId);
+        await adminClient.from("audit_logs").delete().eq("studio_id", studioId);
+        await adminClient.from("error_logs").delete().eq("studio_id", studioId);
+        await adminClient.from("global_settings").delete().eq("studio_id", studioId);
+        await adminClient.from("accounts").delete().eq("studio_id", studioId);
       }
 
       // Delete the studio
       await adminClient.from("studios").delete().eq("id", studioId);
 
+      // Delete Supabase auth users so they can re-register
+      for (const authUserId of authUserIds) {
+        try {
+          await adminClient.auth.admin.deleteUser(authUserId);
+        } catch (err) {
+          console.error(`Failed to delete auth user ${authUserId}:`, err);
+        }
+      }
+
       return NextResponse.json({
         success: true,
-        message:
-          "Studio deleted and all associated data deactivated",
+        message: "Studio and all data permanently deleted",
       });
     }
 
