@@ -91,8 +91,7 @@ export default function RoomMemberAlerts({ accountId, studioId }: RoomMemberAler
     const { data } = await supabase
       .from("member_alerts")
       .select("*")
-      .eq("studio_id", studioId!)
-      .eq("alert_type", "room_member");
+      .eq("studio_id", studioId!);
     setAlerts(data || []);
     setLoading(false);
   };
@@ -149,7 +148,6 @@ export default function RoomMemberAlerts({ accountId, studioId }: RoomMemberAler
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          alert_type: "room_member",
           cam_account_id: ca.id,
           model_username: ca.username.toLowerCase(),
           model_name: getModelName(ca),

@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
       .insert({
         studio_id: account.studio_id,
         account_id: account.id,
-        alert_type: body.alert_type || "room_member",
         cam_account_id: body.cam_account_id || null,
         model_username: body.model_username.trim(),
         model_name: body.model_name || body.model_username.trim(),
