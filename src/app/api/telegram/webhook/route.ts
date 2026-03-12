@@ -39,7 +39,14 @@ async function sendTelegramMessage(
 // Verify the request came from Telegram by checking the secret token header
 function verifyTelegramRequest(request: NextRequest): boolean {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!secret) return true; // If no secret configured, allow (for initial setup)
+  if (!secret) {
+    // In production, reject requests when no secret is configured
+    if (process.env.NODE_ENV === "production") {
+      console.error("TELEGRAM_WEBHOOK_SECRET not configured — rejecting webhook request");
+      return false;
+    }
+    return true; // Allow in development for initial setup
+  }
   const headerSecret = request.headers.get("x-telegram-bot-api-secret-token");
   return headerSecret === secret;
 }

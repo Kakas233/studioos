@@ -7,11 +7,18 @@ const earningsInsertSchema = z.object({
   cam_account_id: z.string().uuid().optional().nullable(),
   shift_id: z.string().uuid().optional().nullable(),
   shift_date: z.string(),
+  operator_id: z.string().uuid().optional().nullable(),
   total_gross_usd: z.number().min(0).optional(),
   studio_cut_usd: z.number().min(0).optional(),
   model_pay_usd: z.number().min(0).optional(),
   operator_pay_usd: z.number().min(0).optional(),
   total_gross_secondary: z.number().min(0).optional(),
+  model_pay_secondary: z.number().min(0).optional(),
+  operator_pay_secondary: z.number().min(0).optional(),
+  model_cut_percentage: z.number().min(0).max(100).optional(),
+  operator_cut_percentage: z.number().min(0).max(100).optional(),
+  exchange_rate_used: z.number().min(0).optional(),
+  secondary_currency_code: z.string().optional(),
   mfc_usd: z.number().min(0).optional(),
   cb_usd: z.number().min(0).optional(),
   sc_usd: z.number().min(0).optional(),
@@ -20,8 +27,9 @@ const earningsInsertSchema = z.object({
   cs_usd: z.number().min(0).optional(),
   f4f_usd: z.number().min(0).optional(),
   lj_usd: z.number().min(0).optional(),
+  onlyfans_usd: z.number().min(0).optional(),
   is_estimated: z.boolean().optional(),
-}).strict();
+});
 
 export async function POST(request: NextRequest) {
   try {

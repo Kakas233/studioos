@@ -18,15 +18,15 @@ import { format, parseISO } from "date-fns";
 import { getCurrencyInfo } from "@/lib/currencies";
 
 const SITES = [
-  { key: "myfreecams", name: "MyFreeCams", rateKey: "myfreecams_rate" as const, isSpecial: false },
-  { key: "chaturbate", name: "Chaturbate", rateKey: "chaturbate_rate" as const, isSpecial: false },
-  { key: "stripchat", name: "Stripchat", rateKey: "stripchat_rate" as const, isSpecial: false },
-  { key: "bongacams", name: "BongaCams", rateKey: "bongacams_rate" as const, isSpecial: false },
-  { key: "cam4", name: "Cam4", rateKey: "cam4_rate" as const, isSpecial: false },
-  { key: "camsoda", name: "Camsoda", rateKey: "camsoda_rate" as const, isSpecial: false },
-  { key: "flirt4free", name: "Flirt4Free", rateKey: "flirt4free_rate" as const, isSpecial: false },
-  { key: "livejasmin", name: "LiveJasmin", rateKey: "livejasmin_rate" as const, isSpecial: false },
-  { key: "onlyfans", name: "OnlyFans", rateKey: "onlyfans" as const, isSpecial: true },
+  { key: "myfreecams", dbKey: "mfc_usd", name: "MyFreeCams", rateKey: "myfreecams_rate" as const, isSpecial: false },
+  { key: "chaturbate", dbKey: "cb_usd", name: "Chaturbate", rateKey: "chaturbate_rate" as const, isSpecial: false },
+  { key: "stripchat", dbKey: "sc_usd", name: "Stripchat", rateKey: "stripchat_rate" as const, isSpecial: false },
+  { key: "bongacams", dbKey: "bc_usd", name: "BongaCams", rateKey: "bongacams_rate" as const, isSpecial: false },
+  { key: "cam4", dbKey: "c4_usd", name: "Cam4", rateKey: "cam4_rate" as const, isSpecial: false },
+  { key: "camsoda", dbKey: "cs_usd", name: "Camsoda", rateKey: "camsoda_rate" as const, isSpecial: false },
+  { key: "flirt4free", dbKey: "f4f_usd", name: "Flirt4Free", rateKey: "flirt4free_rate" as const, isSpecial: false },
+  { key: "livejasmin", dbKey: "lj_usd", name: "LiveJasmin", rateKey: "livejasmin_rate" as const, isSpecial: false },
+  { key: "onlyfans", dbKey: "onlyfans_usd", name: "OnlyFans", rateKey: "onlyfans" as const, isSpecial: true },
 ] as const;
 
 interface Shift {
@@ -157,6 +157,7 @@ export default function EarningsForm({
 
     return {
       site: site.key,
+      dbKey: site.dbKey,
       name: site.name,
       tokens,
       usd,
@@ -198,33 +199,29 @@ export default function EarningsForm({
       const finalModelPaySecondary = finalGrossSecondary * (modelCutPercentage / 100);
       const finalOperatorPaySecondary = finalGrossSecondary * (operatorCutPercentage / 100);
 
+      const studioCutUsd = Math.round((totalGrossUsd - modelPayUsd - operatorPayUsd) * 100) / 100;
+
       const earningData: Record<string, unknown> = {
-        studio_id: shift.studio_id,
         shift_id: shift.id,
         model_id: shift.model_id,
         operator_id: shift.operator_id,
         shift_date: format(parseISO(shift.start_time), "yyyy-MM-dd"),
-        total_gross_usd: totalGrossUsd,
-        total_gross_secondary: finalGrossSecondary,
-        model_pay_usd: modelPayUsd,
-        model_pay_secondary: finalModelPaySecondary,
-        operator_pay_usd: operatorPayUsd,
-        operator_pay_secondary: finalOperatorPaySecondary,
+        total_gross_usd: Math.round(totalGrossUsd * 100) / 100,
+        studio_cut_usd: Math.max(0, studioCutUsd),
+        total_gross_secondary: Math.round(finalGrossSecondary * 100) / 100,
+        model_pay_usd: Math.round(modelPayUsd * 100) / 100,
+        model_pay_secondary: Math.round(finalModelPaySecondary * 100) / 100,
+        operator_pay_usd: Math.round(operatorPayUsd * 100) / 100,
+        operator_pay_secondary: Math.round(finalOperatorPaySecondary * 100) / 100,
         model_cut_percentage: modelCutPercentage,
         operator_cut_percentage: operatorCutPercentage,
         secondary_currency_code: secondaryCurrency,
         exchange_rate_used: finalRate,
       };
 
-      // Add site-specific data
+      // Add site-specific USD data using abbreviated DB field names
       calculations.forEach((calc) => {
-        if (calc.isSpecial) {
-          earningData.onlyfans_gross_usd = Number(values[calc.site]) || 0;
-          earningData.onlyfans_net_usd = calc.usd;
-        } else {
-          earningData[`${calc.site}_tokens`] = calc.tokens;
-          earningData[`${calc.site}_usd`] = calc.usd;
-        }
+        earningData[calc.dbKey] = calc.usd;
       });
 
       onSave(earningData, shift.status === "completed" && !!existingEarning && userRole === "operator");

@@ -131,7 +131,7 @@ export default function SchedulePage() {
   });
 
   const now = new Date();
-  const sundayLockTime = isSunday(now) ? setMinutes(setHours(new Date(now), 23), 59) : null;
+  const sundayLockTime = isSunday(now) ? setMinutes(setHours(new Date(now), 20), 0) : null;
   const isLocked = sundayLockTime ? isAfter(now, sundayLockTime) : false;
   const canEdit = isAdmin || userRole === "operator" || isModelWorksAlone;
 
@@ -203,13 +203,12 @@ export default function SchedulePage() {
     const modelAccount = allAccounts.find((a) => a.id === req.model_id);
 
     const shiftData = {
-      studio_id: account?.studio_id,
       model_id: req.model_id,
       operator_id: modelAssignment?.operator_id || (modelAccount?.works_alone ? req.model_id : account.id),
       room_id: req.preferred_room_id || null,
       start_time: startDateTime.toISOString(),
       end_time: endDateTime.toISOString(),
-      status: "scheduled",
+      status: "scheduled" as const,
     };
 
     createShiftMutation.mutate(shiftData);

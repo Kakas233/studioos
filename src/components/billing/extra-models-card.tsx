@@ -53,14 +53,17 @@ export default function ExtraModelsCard({
 
       const data = await res.json();
 
-      if (data.success) {
-        toast.success(
-          `Added ${data.quantity_added} extra model seat${data.quantity_added > 1 ? "s" : ""}! New limit: ${data.new_model_limit}`
-        );
-        if (onSuccess) onSuccess();
-      } else {
+      if (!res.ok) {
         toast.error(data.error || "Failed to add extra models");
+        return;
       }
+
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      toast.error("No checkout URL returned");
     } catch {
       toast.error("Failed to add extra models. Please try again.");
     } finally {

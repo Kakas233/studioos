@@ -85,6 +85,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Room overlap detection: prevent double-booking a room
+    if (parsed.room_id) {
+      const { data: roomOverlap } = await adminDb
+        .from("shifts")
+        .select("id")
+        .eq("studio_id", account.studio_id)
+        .eq("room_id", parsed.room_id)
+        .in("status", ["scheduled", "completed", "pending_approval"])
+        .lt("start_time", parsed.end_time)
+        .gt("end_time", parsed.start_time)
+        .limit(1);
+
+      if (roomOverlap && roomOverlap.length > 0) {
+        return NextResponse.json(
+          { error: "This room is already booked during this time period" },
+          { status: 409 }
+        );
+      }
+    }
+
     const { data, error } = await adminDb
       .from("shifts")
       .insert({
@@ -161,6 +181,28 @@ export async function PUT(request: NextRequest) {
             { status: 409 }
           );
         }
+      }
+    }
+
+    // Room overlap check on update
+    const roomToCheck = validatedUpdate.room_id;
+    if (roomToCheck && validatedUpdate.start_time && validatedUpdate.end_time) {
+      const { data: roomOverlap } = await adminDb
+        .from("shifts")
+        .select("id")
+        .eq("studio_id", account.studio_id)
+        .eq("room_id", roomToCheck)
+        .neq("id", id)
+        .in("status", ["scheduled", "completed", "pending_approval"])
+        .lt("start_time", validatedUpdate.end_time)
+        .gt("end_time", validatedUpdate.start_time)
+        .limit(1);
+
+      if (roomOverlap && roomOverlap.length > 0) {
+        return NextResponse.json(
+          { error: "This room is already booked during this time period" },
+          { status: 409 }
+        );
       }
     }
 

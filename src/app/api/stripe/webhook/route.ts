@@ -119,7 +119,8 @@ export async function POST(request: NextRequest) {
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.parent?.subscription_details?.subscription;
+        const subscriptionId = (invoice as unknown as { subscription?: string | { id: string } }).subscription
+          ?? invoice.parent?.subscription_details?.subscription;
         if (subscriptionId) {
           const subIdStr = typeof subscriptionId === "string" ? subscriptionId : subscriptionId.id;
           const { data: studio } = await admin
