@@ -169,17 +169,15 @@ export default function NewTicketForm({
 
       <div className="p-4 border-t border-white/[0.06]">
         <div className="border border-[#C9A84C]/30 rounded-xl p-3 focus-within:border-[#C9A84C]/60 transition-colors bg-white/[0.04]">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder={
-              isPublic
-                ? "email@example.com"
-                : "email@example.com (optional)"
-            }
-            className="w-full text-sm text-white placeholder:text-[#A8A49A]/40 bg-transparent outline-none mb-2 pb-2 border-b border-white/[0.06]"
-          />
+          {isPublic && (
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@example.com"
+              className="w-full text-sm text-white placeholder:text-[#A8A49A]/40 bg-transparent outline-none mb-2 pb-2 border-b border-white/[0.06]"
+            />
+          )}
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
