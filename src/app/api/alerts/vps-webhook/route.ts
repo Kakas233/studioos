@@ -51,7 +51,7 @@ async function fetchMemberSpending(
     if (!infoRes.ok) return null;
     const infoData = await infoRes.json();
 
-    const allTimeTokens = infoData?.data?.tokens_spent ?? infoData?.data?.total_tokens ?? 0;
+    const allTimeTokens = infoData?.data?.all_time_tokens ?? 0;
 
     // Fetch activity for 3-month and 1-month breakdowns
     const now = new Date();
@@ -165,8 +165,11 @@ export async function POST(request: NextRequest) {
     const spending = await fetchMemberSpending(site, memberUsername);
 
     // Apply spending threshold filter using all-time tokens converted to USD
-    // Token rate: ~20 tokens = $1 (MFC), varies by site
-    const tokenRate = site === "myfreecams" ? 0.05 : 0.05; // $0.05 per token
+    const SITE_TOKEN_RATES: Record<string, number> = {
+      livejasmin: 1.0, bongacams: 0.02, cam4: 0.1, flirt4free: 0.03,
+      myfreecams: 0.05, chaturbate: 0.05, stripchat: 0.05, camsoda: 0.05,
+    };
+    const tokenRate = SITE_TOKEN_RATES[site.toLowerCase()] ?? 0.05;
     const allTimeUsd = spending ? Math.round(spending.allTime * tokenRate) : 0;
 
     if (spending && alert.spending_threshold > 0 && allTimeUsd < alert.spending_threshold) {
