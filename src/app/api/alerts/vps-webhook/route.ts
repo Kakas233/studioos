@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       .from("telegram_links")
       .select("telegram_chat_id, account_id")
       .eq("studio_id", alert.studio_id)
-      .not("telegram_chat_id", "is", null);
+      .not("telegram_chat_id", "is", null) as { data: { telegram_chat_id: string; account_id: string }[] | null };
 
     if (!telegramLinks || telegramLinks.length === 0) {
       return NextResponse.json({ delivered: false, reason: "no_telegram_links" });
