@@ -5,16 +5,35 @@ const VPS_SECRET = process.env.VPS_INTERNAL_SECRET;
 const TELEGRAM_API = "https://api.telegram.org/bot";
 const STATBATE_API = "https://plus.statbate.com/api";
 
+// Map VPS site names to Statbate API site names
+const SITE_MAP: Record<string, string> = {
+  myfreecams: "mfc",
+  mfc: "mfc",
+  chaturbate: "chaturbate",
+  stripchat: "stripchat",
+  bongacams: "bongacams",
+  camsoda: "camsoda",
+  livejasmin: "livejasmin",
+};
+
+// Token-to-USD conversion rates per Statbate site
+const TOKEN_RATES: Record<string, number> = {
+  mfc: 0.05,
+  chaturbate: 0.05,
+  stripchat: 0.05,
+  bongacams: 0.02,
+  camsoda: 0.05,
+  livejasmin: 1.0,
+};
+
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** Format number with commas: 10226 → "10,226" */
 function fmt(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-/** Capitalize first letter of site name */
 function capSite(site: string): string {
   const names: Record<string, string> = {
     myfreecams: "Myfreecams",
@@ -27,18 +46,75 @@ function capSite(site: string): string {
   return names[site.toLowerCase()] || site;
 }
 
-/** Fetch member spending data from Statbate API */
-async function fetchMemberSpending(
+function formatDateUTC(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d} 00:00:00`;
+}
+
+/** Fetch period tokens using /top-models endpoint and summing total_tokens */
+async function fetchPeriodTokens(
+  apiToken: string,
+  statbateSite: string,
+  username: string,
+  rangeStart: string,
+  rangeEnd: string,
+): Promise<number> {
+  try {
+    const params = new URLSearchParams({
+      "range[0]": rangeStart,
+      "range[1]": rangeEnd,
+    });
+    const res = await fetch(
+      `${STATBATE_API}/members/${statbateSite}/${username}/top-models?${params}`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+
+    if (!res.ok) return 0;
+
+    const data = await res.json();
+    const models = data?.data || [];
+    let totalTokens = 0;
+    for (const m of models) {
+      totalTokens += (m.total_tokens || 0);
+    }
+    return totalTokens;
+  } catch {
+    return 0;
+  }
+}
+
+interface SpendingData {
+  allTimeTokens: number;
+  allTimeUsd: number;
+  threeMonthTokens: number;
+  threeMonthUsd: number;
+  oneMonthTokens: number;
+  oneMonthUsd: number;
+}
+
+/** Fetch member spending from Statbate — matches old Base44 getMemberSpending */
+async function getMemberSpending(
   site: string,
   memberUsername: string,
-): Promise<{ allTime: number; threeMonths: number; lastMonth: number } | null> {
+): Promise<SpendingData | null> {
   const apiToken = process.env.STATBATE_API_TOKEN;
   if (!apiToken) return null;
 
+  const statbateSite = SITE_MAP[site.toLowerCase()] || site.toLowerCase();
+  const tokenRate = TOKEN_RATES[statbateSite] || 0.05;
+
   try {
-    // Fetch member info (contains all-time spending)
+    // Fetch member info (all-time tokens)
     const infoRes = await fetch(
-      `${STATBATE_API}/members/${site}/${memberUsername}/info?timezone=UTC`,
+      `${STATBATE_API}/members/${statbateSite}/${memberUsername}/info?timezone=UTC`,
       {
         headers: {
           Authorization: `Bearer ${apiToken}`,
@@ -50,58 +126,40 @@ async function fetchMemberSpending(
 
     if (!infoRes.ok) return null;
     const infoData = await infoRes.json();
+    const memberData = infoData?.data;
+    if (!memberData) return null;
 
-    const allTimeTokens = infoData?.data?.all_time_tokens ?? 0;
+    const allTimeTokens = memberData.all_time_tokens || 0;
+    const allTimeUsd = allTimeTokens * tokenRate;
 
-    // Fetch activity for 3-month and 1-month breakdowns
+    // Calculate date ranges
     const now = new Date();
+    const nowStr = formatDateUTC(now);
+
     const threeMonthsAgo = new Date(now);
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    threeMonthsAgo.setUTCMonth(threeMonthsAgo.getUTCMonth() - 3);
+    const threeMonthStr = formatDateUTC(threeMonthsAgo);
+
     const oneMonthAgo = new Date(now);
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    oneMonthAgo.setUTCMonth(oneMonthAgo.getUTCMonth() - 1);
+    const oneMonthStr = formatDateUTC(oneMonthAgo);
 
-    const formatDate = (d: Date) => d.toISOString().split("T")[0];
+    // Fetch 3-month and 1-month spending in parallel using /top-models endpoint
+    const [threeMonthTokens, oneMonthTokens] = await Promise.all([
+      fetchPeriodTokens(apiToken, statbateSite, memberUsername, threeMonthStr, nowStr),
+      fetchPeriodTokens(apiToken, statbateSite, memberUsername, oneMonthStr, nowStr),
+    ]);
 
-    // 3 month tips
-    const tips3Res = await fetch(
-      `${STATBATE_API}/members/${site}/${memberUsername}/tips?timezone=UTC&range[0]=${formatDate(threeMonthsAgo)}&range[1]=${formatDate(now)}&per_page=1`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          Accept: "application/json",
-        },
-        signal: AbortSignal.timeout(8000),
-      },
-    );
-
-    let threeMonthTokens = 0;
-    if (tips3Res.ok) {
-      const tips3Data = await tips3Res.json();
-      threeMonthTokens = tips3Data?.meta?.total_tokens ?? 0;
-    }
-
-    // 1 month tips
-    const tips1Res = await fetch(
-      `${STATBATE_API}/members/${site}/${memberUsername}/tips?timezone=UTC&range[0]=${formatDate(oneMonthAgo)}&range[1]=${formatDate(now)}&per_page=1`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          Accept: "application/json",
-        },
-        signal: AbortSignal.timeout(8000),
-      },
-    );
-
-    let lastMonthTokens = 0;
-    if (tips1Res.ok) {
-      const tips1Data = await tips1Res.json();
-      lastMonthTokens = tips1Data?.meta?.total_tokens ?? 0;
-    }
+    const threeMonthUsd = threeMonthTokens * tokenRate;
+    const oneMonthUsd = oneMonthTokens * tokenRate;
 
     return {
-      allTime: allTimeTokens,
-      threeMonths: threeMonthTokens,
-      lastMonth: lastMonthTokens,
+      allTimeTokens,
+      allTimeUsd,
+      threeMonthTokens,
+      threeMonthUsd,
+      oneMonthTokens,
+      oneMonthUsd,
     };
   } catch (err) {
     console.error("[VPS-Webhook] Statbate API error:", err);
@@ -146,7 +204,6 @@ export async function POST(request: NextRequest) {
       .then(r => r.data);
 
     if (!alert) {
-      // Try case-insensitive match
       alert = await adminDb
         .from("member_alerts")
         .select("id, studio_id, account_id, model_username, spending_threshold")
@@ -162,20 +219,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch spending data from Statbate API
-    const spending = await fetchMemberSpending(site, memberUsername);
-
-    // Apply spending threshold filter using all-time tokens converted to USD
-    const SITE_TOKEN_RATES: Record<string, number> = {
-      livejasmin: 1.0, bongacams: 0.02, cam4: 0.1, flirt4free: 0.03,
-      myfreecams: 0.05, chaturbate: 0.05, stripchat: 0.05, camsoda: 0.05,
-    };
-    const tokenRate = SITE_TOKEN_RATES[site.toLowerCase()] ?? 0.05;
-    const allTimeUsd = spending ? Math.round(spending.allTime * tokenRate) : 0;
+    const spending = await getMemberSpending(site, memberUsername);
+    const threshold = alert.spending_threshold ?? 400;
 
     // If threshold is set: only alert if spending data exists AND meets threshold
-    if (alert.spending_threshold > 0) {
-      if (!spending || allTimeUsd < alert.spending_threshold) {
-        return NextResponse.json({ filtered: true, reason: spending ? "below_threshold" : "no_spending_data", allTimeUsd });
+    if (threshold > 0) {
+      if (!spending || spending.allTimeUsd < threshold) {
+        return NextResponse.json({
+          filtered: true,
+          reason: spending ? "below_threshold" : "no_spending_data",
+          allTimeUsd: spending?.allTimeUsd ?? 0,
+        });
       }
     }
 
@@ -195,24 +249,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ delivered: false, reason: "no_bot_token" });
     }
 
-    // Build message matching the old alert format
+    // Build message matching the old Base44 alert format
     const siteName = capSite(site);
     let message: string;
 
-    if (spending && spending.allTime > 0) {
-      const threeMonthUsd = Math.round(spending.threeMonths * tokenRate);
-      const lastMonthUsd = Math.round(spending.lastMonth * tokenRate);
-
+    if (spending && spending.allTimeTokens > 0) {
       message =
-        `🔔 Spender in ${escapeHtml(modelUsername)}'s room (${escapeHtml(siteName)})\n\n` +
+        `▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n` +
+        `🔔 <b>Spender in ${escapeHtml(modelUsername)}'s room</b> (${escapeHtml(siteName)})\n\n` +
         `👤 <b>${escapeHtml(memberUsername)}</b> just entered\n\n` +
-        `All-time:    ${fmt(spending.allTime)} tk ($${fmt(allTimeUsd)})\n` +
-        `3 months:   ${fmt(spending.threeMonths)} tk ($${fmt(threeMonthUsd)})\n` +
-        `Last month: ${fmt(spending.lastMonth)} tk ($${fmt(lastMonthUsd)})\n\n` +
-        `<i>(min $${fmt(alert.spending_threshold)})</i>`;
+        `All-time:      ${fmt(spending.allTimeTokens)} tk ($${fmt(Math.round(spending.allTimeUsd))})\n` +
+        `3 months:      ${fmt(spending.threeMonthTokens)} tk ($${fmt(Math.round(spending.threeMonthUsd))})\n` +
+        `Last month:   ${fmt(spending.oneMonthTokens)} tk ($${fmt(Math.round(spending.oneMonthUsd))})\n\n` +
+        `<i>(min $${fmt(threshold)})</i>`;
     } else {
-      // No spending data available — still send alert
       message =
+        `▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n` +
         `🔔 Member in ${escapeHtml(modelUsername)}'s room (${escapeHtml(siteName)})\n\n` +
         `👤 <b>${escapeHtml(memberUsername)}</b> just entered\n\n` +
         `<i>Spending data unavailable</i>`;
@@ -238,7 +290,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ delivered: delivered > 0, count: delivered, allTimeUsd });
+    return NextResponse.json({
+      delivered: delivered > 0,
+      count: delivered,
+      allTimeUsd: spending?.allTimeUsd ?? 0,
+    });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

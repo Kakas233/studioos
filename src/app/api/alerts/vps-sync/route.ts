@@ -9,7 +9,7 @@ const VPS_SECRET = process.env.VPS_INTERNAL_SECRET;
  * Protected by VPS internal secret.
  */
 export async function GET(request: NextRequest) {
-  const secret = request.headers.get("x-internal-secret");
+  const secret = request.headers.get("x-internal-secret") || request.headers.get("api_key");
   if (!VPS_SECRET || secret !== VPS_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -26,22 +26,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Transform to the format VPS expects: one entry per site per model
-    const monitors: { modelId: string; modelUsername: string; site: string; spendingThreshold: number }[] = [];
+    // Return in the format the old Base44 listMonitoredModels used
+    const models = (alerts || []).map(alert => ({
+      model_username: alert.model_username,
+      sites: (alert.sites as string[]) || [],
+      spending_threshold: alert.spending_threshold ?? 400,
+    }));
 
-    for (const alert of alerts || []) {
-      const sites = (alert.sites as string[]) || [];
-      for (const site of sites) {
-        monitors.push({
-          modelId: alert.id,
-          modelUsername: alert.model_username,
-          site,
-          spendingThreshold: alert.spending_threshold ?? 0,
-        });
-      }
-    }
-
-    return NextResponse.json({ monitors, count: monitors.length });
+    return NextResponse.json({ models });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
