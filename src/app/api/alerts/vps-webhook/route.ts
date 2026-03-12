@@ -4,6 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const VPS_SECRET = process.env.VPS_INTERNAL_SECRET;
 const TELEGRAM_API = "https://api.telegram.org/bot";
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 /**
  * POST /api/alerts/vps-webhook — Called by VPS when a member enters a monitored room.
  * Replaces the old Base44 `memberAlertWebhook` endpoint.
@@ -98,10 +102,11 @@ async function deliverAlert(
     return NextResponse.json({ delivered: false, reason: "no_bot_token" });
   }
 
-  const message = `🚨 *Member Alert*\n\n` +
-    `👤 *${memberUsername}* entered ${modelUsername}'s room\n` +
-    `🌐 Site: ${site}\n\n` +
-    `⏰ ${new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "UTC" })} UTC`;
+  const time = new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "UTC" });
+  const message = `🚨 <b>Member Alert</b>\n\n` +
+    `👤 <b>${escapeHtml(memberUsername)}</b> entered ${escapeHtml(modelUsername)}'s room\n` +
+    `🌐 Site: ${escapeHtml(site)}\n\n` +
+    `⏰ ${time} UTC`;
 
   // Send to all connected Telegram accounts in this studio
   let delivered = 0;
@@ -113,7 +118,7 @@ async function deliverAlert(
         body: JSON.stringify({
           chat_id: link.telegram_chat_id,
           text: message,
-          parse_mode: "Markdown",
+          parse_mode: "HTML",
         }),
         signal: AbortSignal.timeout(10000),
       });
