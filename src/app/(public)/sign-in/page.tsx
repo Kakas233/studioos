@@ -36,10 +36,10 @@ export default function SignInPage() {
   const [resendingVerification, setResendingVerification] = useState(false);
   const [resendVerificationSent, setResendVerificationSent] = useState(false);
 
-  // If already logged in, redirect to dashboard (don't block rendering)
+  // If already logged in, redirect to news feed
   useEffect(() => {
     if (!authLoading && account && studio) {
-      router.replace("/dashboard");
+      router.replace("/news");
     }
   }, [authLoading, account, studio, router]);
 
@@ -68,8 +68,8 @@ export default function SignInPage() {
         return;
       }
 
-      // Hard redirect — auth context will initialize fresh on the dashboard page
-      window.location.href = "/dashboard";
+      // Hard redirect — auth context will initialize fresh on the news page
+      window.location.href = "/news";
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);

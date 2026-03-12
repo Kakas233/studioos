@@ -115,6 +115,9 @@ export async function POST(request: Request) {
       // Delete global settings
       await admin.from("global_settings").delete().eq("studio_id", studioId);
 
+      // Delete news
+      await admin.from("news_posts").delete().eq("studio_id", studioId);
+
       // Delete accounts
       await admin.from("accounts").delete().eq("studio_id", studioId);
     }

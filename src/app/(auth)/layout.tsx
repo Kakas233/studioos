@@ -13,6 +13,7 @@ import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PAGE_TITLES: Record<string, string> = {
+  "/news": "News",
   "/dashboard": "Dashboard",
   "/schedule": "Schedule",
   "/accounting": "Accounting",
@@ -93,7 +94,8 @@ export default function AuthLayout({
   const canAccessBilling = account?.role === "owner" || account?.role === "admin";
   const isBillingPage = pathname === "/billing";
   const isFaqPage = pathname === "/faq";
-  const blockedBySuspension = isSuspended && !isBillingPage && !isFaqPage;
+  const isNewsPage = pathname === "/news";
+  const blockedBySuspension = isSuspended && !isBillingPage && !isFaqPage && !isNewsPage;
 
   const title = PAGE_TITLES[pathname] || "StudioOS";
 

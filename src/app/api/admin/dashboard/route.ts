@@ -756,6 +756,7 @@ export async function POST(request: Request) {
         await adminClient.from("audit_logs").delete().eq("studio_id", studioId);
         await adminClient.from("error_logs").delete().eq("studio_id", studioId);
         await adminClient.from("global_settings").delete().eq("studio_id", studioId);
+        await adminClient.from("news_posts").delete().eq("studio_id", studioId);
         await adminClient.from("accounts").delete().eq("studio_id", studioId);
       }
 

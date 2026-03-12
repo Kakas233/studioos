@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Calendar, DollarSign, Wallet, Settings,
   ChevronLeft, ChevronRight, LogOut, Users, Building2,
   HelpCircle, Database, MessageSquare, Radio, CreditCard,
-  Search, Bell, BarChart3, Lock, X, UserSearch,
+  Search, Bell, BarChart3, Lock, X, UserSearch, Newspaper,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +36,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  { icon: Newspaper, label: "News", href: "/news", page: "News", roles: ["owner", "admin", "operator", "model", "accountant"], requiredTier: "free" },
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", page: "Dashboard", roles: ["owner", "admin", "operator", "model", "accountant"], requiredTier: "free" },
   { icon: Calendar, label: "Schedule", href: "/schedule", page: "Schedule", roles: ["owner", "admin", "operator", "model"], requiredTier: "free" },
   { icon: DollarSign, label: "Accounting", href: "/accounting", page: "Accounting", roles: ["owner", "admin", "operator", "model", "accountant"], requiredTier: "free" },
