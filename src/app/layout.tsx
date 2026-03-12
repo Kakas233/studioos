@@ -18,7 +18,12 @@ export const metadata: Metadata = {
     "All-in-one webcam studio management platform. Track streams, manage models, automate earnings, and optimize performance across 8 cam sites.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://getstudioos.com"),
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
   openGraph: {
     type: "website",
