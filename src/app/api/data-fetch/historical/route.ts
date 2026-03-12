@@ -315,21 +315,28 @@ export async function POST(request: NextRequest) {
     cutoffDate.setDate(cutoffDate.getDate() - 30);
     const cutoffStr = toDateStr(cutoffDate);
 
-    // Calculate how many pages to fetch — start from the last (newest) page going backwards
-    // Cap at 30 pages (3000 activities) to stay within Vercel 5-minute timeout
-    // (30 pages * ~3s delay + processing ≈ 120-180s, well within 300s limit)
-    const pagesToFetch = Math.min(lastPageNum, 30);
+    // Fetch pages from the end (most recent) going backwards until we reach the
+    // 30-day cutoff date. No hard page cap — the date determines when to stop.
+    // Time guard at 4 minutes (240s) to stay within maxDuration of 300s.
+    const startTime = Date.now();
+    const TIME_LIMIT_MS = 240_000;
+
     await admin.from("data_fetch_jobs").update({
-      total_pages: pagesToFetch,
+      total_pages: lastPageNum,
     }).eq("id", job_id);
 
-    // Fetch pages from the end (most recent) going backwards
     let allActivities: Activity[] = [];
     let pagesFetched = 0;
     let reachedCutoff = false;
     let consecutiveFailures = 0;
 
-    for (let p = lastPageNum; p >= Math.max(1, lastPageNum - pagesToFetch + 1) && !reachedCutoff; p--) {
+    for (let p = lastPageNum; p >= 1 && !reachedCutoff; p--) {
+      // Time guard: stop if we've been running too long
+      if (Date.now() - startTime > TIME_LIMIT_MS) {
+        console.log(`Time limit reached after ${pagesFetched} pages, stopping`);
+        break;
+      }
+
       await randomDelay(1500, 3000);
       const pageData = await fetchModelActivities(ca.platform, ca.username, p);
 
@@ -347,9 +354,8 @@ export async function POST(request: NextRequest) {
       const activities = pageData.data as Activity[];
       allActivities.push(...activities);
 
-      // Check if we've gone past the 30-day window
-      // Activities on a page can be in any order, so check all of them
-      // and stop only if ALL activities on this page are before cutoff
+      // Check if we've gone past the 30-day window using actual dates from activities.
+      // Stop only if ALL activities on this page are before the cutoff date.
       let allBeforeCutoff = true;
       for (const act of activities) {
         const endTime = parseDate(act.created_at);
@@ -360,6 +366,7 @@ export async function POST(request: NextRequest) {
       }
       if (allBeforeCutoff && activities.length > 0) {
         reachedCutoff = true;
+        console.log(`Reached 30-day cutoff at page ${p} (${pagesFetched + 1} pages fetched)`);
       }
 
       pagesFetched++;
@@ -385,7 +392,7 @@ export async function POST(request: NextRequest) {
         status: "completed",
         completed_at: new Date().toISOString(),
         pages_fetched: pagesFetched,
-        total_pages: pagesToFetch,
+        total_pages: lastPageNum,
       }).eq("id", job_id);
       return NextResponse.json({ success: true, message: "No recent data within 30-day window", pages_fetched: pagesFetched });
     }
@@ -518,7 +525,7 @@ export async function POST(request: NextRequest) {
       status: "completed",
       completed_at: new Date().toISOString(),
       pages_fetched: pagesFetched,
-      total_pages: pagesToFetch,
+      total_pages: lastPageNum,
     }).eq("id", job_id);
 
     console.log(`Completed historical fetch for ${ca.platform}/${ca.username}: ${daysProcessed} days, ${pagesFetched} pages, ${allActivities.length} activities`);
