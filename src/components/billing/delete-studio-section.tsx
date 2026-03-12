@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface DeleteStudioSectionProps {
@@ -11,12 +11,12 @@ interface DeleteStudioSectionProps {
 
 export default function DeleteStudioSection({ studioName }: DeleteStudioSectionProps) {
   const router = useRouter();
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [step, setStep] = useState<"idle" | "warning" | "confirm">("idle");
   const [input, setInput] = useState("");
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (input !== "DELETE MY STUDIO") return;
+    if (input.toLowerCase() !== "delete studio") return;
     setDeleting(true);
     try {
       const res = await fetch("/api/studio/delete", {
@@ -26,7 +26,7 @@ export default function DeleteStudioSection({ studioName }: DeleteStudioSectionP
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("Studio permanently deleted.");
+        toast.success("Studio deleted.");
         router.push("/sign-in");
       } else {
         toast.error(data.error || "Failed to delete studio");
@@ -38,61 +38,87 @@ export default function DeleteStudioSection({ studioName }: DeleteStudioSectionP
     }
   };
 
-  return (
-    <div className="mt-12 border border-red-500/20 rounded-xl bg-red-500/[0.03] p-5">
-      <div className="flex items-start gap-3 mb-3">
-        <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-        <div>
-          <h3 className="text-sm font-semibold text-red-400">
-            Delete Studio
-          </h3>
-          <p className="text-xs text-[#A8A49A]/50 mt-1 leading-relaxed">
-            Permanently delete <strong className="text-white/70">{studioName}</strong> and
-            all associated data including all user accounts, earnings, shifts, stream data,
-            chat history, and settings. All users will be removed and can create new accounts.
-            This action cannot be undone.
-          </p>
+  if (step === "idle") {
+    return (
+      <div className="mt-12 flex items-center justify-between">
+        <p className="text-xs text-[#A8A49A]/40">
+          Want to permanently remove your studio?
+        </p>
+        <button
+          onClick={() => setStep("warning")}
+          className="text-xs text-red-400/60 hover:text-red-400 transition-colors"
+        >
+          Delete Studio
+        </button>
+      </div>
+    );
+  }
+
+  if (step === "warning") {
+    return (
+      <div className="mt-12 border border-white/[0.06] rounded-xl bg-white/[0.02] p-5">
+        <p className="text-sm font-medium text-white mb-3">
+          Delete {studioName}
+        </p>
+        <p className="text-xs text-[#A8A49A]/60 leading-relaxed mb-1">
+          This will permanently delete:
+        </p>
+        <ul className="text-xs text-[#A8A49A]/50 leading-relaxed space-y-0.5 mb-4">
+          <li>All user accounts (models, operators, accountants, admins)</li>
+          <li>All earnings, payouts, and financial data</li>
+          <li>All shifts, schedules, and stream history</li>
+          <li>All chat messages, support tickets, and settings</li>
+        </ul>
+        <p className="text-xs text-[#A8A49A]/40 mb-5">
+          Everyone will be able to create new accounts after deletion. This cannot be undone.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setStep("confirm")}
+            className="px-4 py-2 text-xs font-medium text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/10 transition-colors"
+          >
+            Continue
+          </button>
+          <button
+            onClick={() => setStep("idle")}
+            className="text-xs text-[#A8A49A]/40 hover:text-white transition-colors"
+          >
+            Cancel
+          </button>
         </div>
       </div>
+    );
+  }
 
-      {!showConfirm ? (
+  return (
+    <div className="mt-12 border border-white/[0.06] rounded-xl bg-white/[0.02] p-5">
+      <p className="text-sm font-medium text-white mb-3">
+        Type <span className="text-[#A8A49A]/70">delete studio</span> to confirm
+      </p>
+      <input
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="delete studio"
+        className="w-full max-w-xs text-sm text-white bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 outline-none focus:border-white/[0.15] placeholder:text-[#A8A49A]/20"
+        autoFocus
+      />
+      <div className="flex items-center gap-3 mt-4">
         <button
-          onClick={() => setShowConfirm(true)}
-          className="ml-8 text-xs text-red-400/70 hover:text-red-400 font-medium transition-colors"
+          onClick={handleDelete}
+          disabled={input.toLowerCase() !== "delete studio" || deleting}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-30 disabled:hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-2"
         >
-          I want to delete this studio...
+          {deleting && <Loader2 className="w-3 h-3 animate-spin" />}
+          Delete Studio
         </button>
-      ) : (
-        <div className="ml-8 mt-4 space-y-3">
-          <p className="text-xs text-red-400/80">
-            Type <strong className="text-red-400 font-mono">DELETE MY STUDIO</strong> to confirm:
-          </p>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="DELETE MY STUDIO"
-            className="w-full max-w-sm text-sm text-white bg-white/[0.04] border border-red-500/20 rounded-lg px-3 py-2 outline-none focus:border-red-500/50 placeholder:text-[#A8A49A]/20 font-mono"
-            autoFocus
-          />
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleDelete}
-              disabled={input !== "DELETE MY STUDIO" || deleting}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-30 disabled:hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-2"
-            >
-              {deleting && <Loader2 className="w-3 h-3 animate-spin" />}
-              Permanently Delete Everything
-            </button>
-            <button
-              onClick={() => { setShowConfirm(false); setInput(""); }}
-              className="text-xs text-[#A8A49A]/40 hover:text-white transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+        <button
+          onClick={() => { setStep("idle"); setInput(""); }}
+          className="text-xs text-[#A8A49A]/40 hover:text-white transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
