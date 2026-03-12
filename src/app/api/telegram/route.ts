@@ -113,6 +113,26 @@ export async function POST(request: Request) {
       const botUsername =
         botInfo.result?.username || "StudioOS_Alerts_bot";
 
+      // Ensure webhook is registered with Telegram
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (appUrl) {
+        const webhookUrl = `${appUrl}/api/telegram/webhook`;
+        const webhookPayload: Record<string, string> = { url: webhookUrl };
+        const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+        if (webhookSecret) {
+          webhookPayload.secret_token = webhookSecret;
+        }
+        try {
+          await fetch(`${TELEGRAM_API}${botToken}/setWebhook`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(webhookPayload),
+          });
+        } catch (e) {
+          console.error("Failed to set Telegram webhook:", e);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         link_url: `https://t.me/${botUsername}?start=${token}`,
