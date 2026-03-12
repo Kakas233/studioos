@@ -1,11 +1,27 @@
 "use client";
 
 export default function GlobalError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Report critical error
+  if (typeof window !== "undefined") {
+    fetch("/api/errors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        error_type: "global_error",
+        message: error?.message || "Unknown global error",
+        stack_trace: error?.stack || "",
+        url: window.location.href,
+        user_agent: navigator.userAgent,
+      }),
+    }).catch(() => {});
+  }
+
   return (
     <html>
       <body style={{ backgroundColor: "#0A0A0A", margin: 0 }}>

@@ -12,6 +12,17 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error("App error:", error);
+    fetch("/api/errors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        error_type: "segment_error",
+        message: error?.message || "Unknown error",
+        stack_trace: error?.stack || "",
+        url: typeof window !== "undefined" ? window.location.href : "",
+        user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+      }),
+    }).catch(() => {});
   }, [error]);
 
   return (

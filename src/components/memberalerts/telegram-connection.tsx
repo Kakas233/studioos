@@ -21,7 +21,9 @@ export default function TelegramConnection({ accountId, studioId }: TelegramConn
   const [sendingTest, setSendingTest] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollStartRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
+  const POLL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes max polling
 
   useEffect(() => {
     mountedRef.current = true;
@@ -48,8 +50,14 @@ export default function TelegramConnection({ accountId, studioId }: TelegramConn
       if (isConnected && pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
+        pollStartRef.current = null;
         setLinkUrl(null);
         toast.success("Telegram connected successfully!");
+      } else if (pollRef.current && pollStartRef.current && Date.now() - pollStartRef.current > POLL_TIMEOUT_MS) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+        pollStartRef.current = null;
+        toast.error("Connection timed out. Please try generating a new link.");
       }
     } catch (err) {
       console.error("Check status error:", err);
@@ -73,8 +81,9 @@ export default function TelegramConnection({ accountId, studioId }: TelegramConn
       const data = await res.json();
       if (data?.link_url) {
         setLinkUrl(data.link_url);
-        // Start polling every 4 seconds
+        // Start polling every 4 seconds (max 5 minutes)
         if (pollRef.current) clearInterval(pollRef.current);
+        pollStartRef.current = Date.now();
         pollRef.current = setInterval(() => checkStatus(true), 4000);
       } else {
         toast.error("Failed to generate link");
