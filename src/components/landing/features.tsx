@@ -69,7 +69,7 @@ const features = [
     description: "Understand who's watching your models across platforms. Identify high-value viewers, track cross-room activity, and uncover revenue patterns.",
     color: '#EC4899',
     stats: [
-      { label: 'Sites', value: '6' },
+      { label: 'Sites', value: '8' },
       { label: 'Tip history', value: 'Full' },
     ],
     visual: 'lookup' as const,

@@ -3,21 +3,31 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+const COOKIE_CONSENT_KEY = 'studioos_cookie_consent';
+
+export function getCookieConsent(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(COOKIE_CONSENT_KEY);
+}
+
 export default function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem('cookie_consent');
+    const consent = getCookieConsent();
     if (!consent) setVisible(true);
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem('cookie_consent', 'accepted');
+    localStorage.setItem(COOKIE_CONSENT_KEY, 'accepted');
     setVisible(false);
   };
 
   const handleDecline = () => {
-    localStorage.setItem('cookie_consent', 'declined');
+    localStorage.setItem(COOKIE_CONSENT_KEY, 'declined');
+    if (typeof window !== 'undefined' && (window as any).posthog) {
+      (window as any).posthog.opt_out_capturing();
+    }
     setVisible(false);
   };
 

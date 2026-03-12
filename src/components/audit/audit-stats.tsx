@@ -32,6 +32,21 @@ export default function AuditStats({ logs }: { logs: AuditLog[] }) {
     },
   ];
 
+  const bgClasses: Record<string, string> = {
+    blue: "bg-blue-500/10",
+    emerald: "bg-emerald-500/10",
+    amber: "bg-amber-500/10",
+    red: "bg-red-500/10",
+    purple: "bg-purple-500/10",
+  };
+  const textClasses: Record<string, string> = {
+    blue: "text-blue-400",
+    emerald: "text-emerald-400",
+    amber: "text-amber-400",
+    red: "text-red-400",
+    purple: "text-purple-400",
+  };
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {stats.map((s) => (
@@ -41,8 +56,8 @@ export default function AuditStats({ logs }: { logs: AuditLog[] }) {
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={`p-2.5 bg-${s.color}-500/10 rounded-xl`}>
-                <s.icon className={`w-4 h-4 text-${s.color}-400`} />
+              <div className={`p-2.5 ${bgClasses[s.color]} rounded-xl`}>
+                <s.icon className={`w-4 h-4 ${textClasses[s.color]}`} />
               </div>
               <div>
                 <p className="text-xs text-white/50">{s.label}</p>

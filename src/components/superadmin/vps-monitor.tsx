@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Monitor, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
 
-const VPS_URL =
-  process.env.NEXT_PUBLIC_VPS_URL || "http://134.209.92.120:3001/admin";
+const VPS_URL = process.env.NEXT_PUBLIC_VPS_URL || "";
 
 export default function VPSMonitor() {
   const [expanded, setExpanded] = useState(false);

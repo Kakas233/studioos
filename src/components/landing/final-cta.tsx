@@ -73,7 +73,7 @@ export default function FinalCTA() {
             <p className="text-[#A8A49A]/40 text-xs leading-relaxed max-w-sm mx-auto mb-5">
               Quick video guides, platform updates, and tips — straight to your Telegram.
             </p>
-            <a href="https://t.me/studioos_updates" target="_blank" rel="noopener noreferrer">
+            <a href="https://t.me/StudioOS_updates" target="_blank" rel="noopener noreferrer">
               <Button className="bg-[#C9A84C] hover:bg-[#B8973B] text-black font-medium rounded-full px-6 text-sm h-9">
                 <Send className="w-3.5 h-3.5 mr-1.5" />
                 Join Our Channel
