@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
 
 const alertUpdateSchema = z.object({
@@ -55,12 +56,14 @@ export async function POST(request: NextRequest) {
       .eq("is_active", true)
       .single();
 
-    if (!account || !["owner", "admin", "operator"].includes(account.role)) {
+    if (!account) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const adminDb = createAdminClient();
+
     // Check subscription status for write operations
-    const { data: studioPost } = await supabase
+    const { data: studioPost } = await adminDb
       .from("studios")
       .select("subscription_status")
       .eq("id", account.studio_id)
@@ -73,16 +76,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Model username required" }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminDb
       .from("member_alerts")
       .insert({
         studio_id: account.studio_id,
         account_id: account.id,
+        alert_type: body.alert_type || "room_member",
         cam_account_id: body.cam_account_id || null,
         model_username: body.model_username.trim(),
         model_name: body.model_name || body.model_username.trim(),
         sites: body.sites || [],
-        spending_threshold: body.spending_threshold || 0,
+        spending_threshold: body.spending_threshold ?? 0,
         is_active: true,
       })
       .select()
@@ -157,11 +161,13 @@ export async function DELETE(request: NextRequest) {
       .eq("is_active", true)
       .single();
 
-    if (!account || !["owner", "admin", "operator"].includes(account.role)) {
+    if (!account) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { error } = await supabase
+    const adminDb = createAdminClient();
+
+    const { error } = await adminDb
       .from("member_alerts")
       .delete()
       .eq("id", id)

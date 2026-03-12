@@ -144,28 +144,48 @@ export default function RoomMemberAlerts({ accountId, studioId }: RoomMemberAler
     if (!siteKey) return;
 
     setAdding(true);
-    await supabase.from("member_alerts").insert({
-      account_id: accountId,
-      studio_id: studioId,
-      alert_type: "room_member",
-      cam_account_id: ca.id,
-      model_username: ca.username.toLowerCase(),
-      model_name: getModelName(ca),
-      sites: [siteKey],
-      spending_threshold: spendingThreshold,
-      is_active: true,
-    });
-    setSelectedCamAccountId("");
-    setSpendingThreshold(400);
-    toast.success("Room tracking added");
-    await loadAlerts();
-    setAdding(false);
+    try {
+      const res = await fetch("/api/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          alert_type: "room_member",
+          cam_account_id: ca.id,
+          model_username: ca.username.toLowerCase(),
+          model_name: getModelName(ca),
+          sites: [siteKey],
+          spending_threshold: spendingThreshold,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Failed to add room tracking");
+        return;
+      }
+      setSelectedCamAccountId("");
+      setSpendingThreshold(400);
+      toast.success("Room tracking added");
+      await loadAlerts();
+    } catch {
+      toast.error("Failed to add room tracking");
+    } finally {
+      setAdding(false);
+    }
   };
 
   const handleRemoveRoom = async (alertId: string) => {
-    await supabase.from("member_alerts").delete().eq("id", alertId);
-    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
-    toast.success("Room tracking removed");
+    try {
+      const res = await fetch(`/api/alerts?id=${alertId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to remove tracking");
+        return;
+      }
+      setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+      toast.success("Room tracking removed");
+    } catch {
+      toast.error("Failed to remove tracking");
+    }
   };
 
   const totalSlots = supportedCamAccounts.length;
