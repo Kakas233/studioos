@@ -706,6 +706,114 @@ export async function POST(request: Request) {
       });
     }
 
+    if (action === "generateFreeStudio") {
+      const { studio_name, owner_email, owner_password, owner_first_name, model_limit } = payload || {};
+      if (!studio_name || !owner_email || !owner_password || !owner_first_name) {
+        return NextResponse.json({ success: false, error: "studio_name, owner_email, owner_password, and owner_first_name are required" });
+      }
+
+      const finalModelLimit = model_limit || 30;
+
+      // Create auth user
+      const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+        email: owner_email,
+        password: owner_password,
+        email_confirm: true,
+      });
+
+      if (authError || !authUser?.user) {
+        return NextResponse.json({ success: false, error: authError?.message || "Failed to create auth user" });
+      }
+
+      // Create studio with elite tier, active, no stripe (free)
+      const { data: studioData, error: studioError } = await adminClient
+        .from("studios")
+        .insert({
+          name: studio_name,
+          subdomain: studio_name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-"),
+          subscription_tier: "elite",
+          subscription_status: "active",
+          model_limit: finalModelLimit,
+          current_model_count: 0,
+          onboarding_completed: false,
+          payout_frequency: "biweekly",
+        })
+        .select("id")
+        .single();
+
+      if (studioError || !studioData) {
+        // Cleanup auth user on failure
+        await adminClient.auth.admin.deleteUser(authUser.user.id);
+        return NextResponse.json({ success: false, error: studioError?.message || "Failed to create studio" });
+      }
+
+      // Create owner account
+      const { error: accountError } = await adminClient
+        .from("accounts")
+        .insert({
+          auth_user_id: authUser.user.id,
+          studio_id: studioData.id,
+          email: owner_email,
+          first_name: owner_first_name,
+          role: "owner",
+          is_active: true,
+          cut_percentage: 33,
+        });
+
+      if (accountError) {
+        return NextResponse.json({ success: false, error: accountError.message || "Failed to create account" });
+      }
+
+      // Create default global settings
+      await adminClient.from("global_settings").insert({
+        studio_id: studioData.id,
+        secondary_currency: "USD",
+        exchange_rate: 1,
+        exchange_rate_mode: "manual",
+        myfreecams_rate: 0.05,
+        chaturbate_rate: 0.05,
+        stripchat_rate: 0.05,
+        bongacams_rate: 0.02,
+        cam4_rate: 0.1,
+        camsoda_rate: 0.05,
+        flirt4free_rate: 0.03,
+        livejasmin_rate: 1.0,
+      });
+
+      // Create default chat channel
+      await adminClient.from("chat_channels").insert({
+        studio_id: studioData.id,
+        name: "General",
+        channel_type: "general",
+      });
+
+      // Log it
+      await adminClient.from("audit_logs").insert({
+        studio_id: studioData.id,
+        studio_name: studio_name,
+        event_type: "create",
+        entity_type: "Studio",
+        entity_id: studioData.id,
+        actor_id: superAdminAccount.id,
+        actor_email: superAdminAccount.email,
+        actor_name: "Super Admin",
+        summary: `Super Admin created free Elite studio "${studio_name}" with ${finalModelLimit} model slots`,
+        synced_to_sheets: false,
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          studio_id: studioData.id,
+          owner_email,
+          studio_name,
+          tier: "elite",
+          model_limit: finalModelLimit,
+        },
+        message: `Free Elite studio "${studio_name}" created with ${finalModelLimit} model slots`,
+      });
+    }
+
     if (action === "deleteStudio") {
       const studioId = payload?.studio_id;
       if (!studioId)

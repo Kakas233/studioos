@@ -32,6 +32,7 @@ import {
   Bell,
   Send,
   FileText,
+  UserPlus,
   type LucideIcon,
 } from "lucide-react";
 import SuperAdminStudioDetail from "@/components/superadmin/studio-detail";
@@ -92,6 +93,9 @@ export default function SuperAdminPanel() {
   const [selectedStudio, setSelectedStudio] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  const [showGenerateForm, setShowGenerateForm] = useState(false);
+  const [genForm, setGenForm] = useState({ studio_name: "", owner_email: "", owner_password: "", owner_first_name: "", model_limit: 30 });
+  const [generating, setGenerating] = useState(false);
 
   const [sessionValid, setSessionValid] = useState<boolean | null>(null);
 
@@ -167,6 +171,34 @@ export default function SuperAdminPanel() {
       }
     } catch {
       alert("Failed to delete studio");
+    }
+  };
+
+  const handleGenerateStudio = async () => {
+    if (!genForm.studio_name || !genForm.owner_email || !genForm.owner_password || !genForm.owner_first_name) {
+      alert("All fields are required");
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/admin/dashboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "generateFreeStudio", payload: genForm }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Studio "${genForm.studio_name}" created!\n\nEmail: ${genForm.owner_email}\nPassword: ${genForm.owner_password}\nPlan: Elite (${genForm.model_limit} models)\n\nShare these credentials with the studio owner.`);
+        setShowGenerateForm(false);
+        setGenForm({ studio_name: "", owner_email: "", owner_password: "", owner_first_name: "", model_limit: 30 });
+        fetchDashboard();
+      } else {
+        alert(data.error || "Failed to create studio");
+      }
+    } catch {
+      alert("Failed to create studio");
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -337,18 +369,67 @@ export default function SuperAdminPanel() {
 
           {/* Studios Tab */}
           <TabsContent value="overview" className="space-y-4 mt-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-bold">All Studios</h2>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search studios..."
-                  className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-gray-600"
-                />
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setShowGenerateForm(!showGenerateForm)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                >
+                  <UserPlus className="w-3.5 h-3.5 mr-1" />
+                  Generate Free Studio
+                </Button>
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search studios..."
+                    className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-gray-600"
+                  />
+                </div>
               </div>
             </div>
+
+            {/* Generate Free Studio Form */}
+            {showGenerateForm && (
+              <Card className="bg-[#0A0A0A] border-emerald-500/20">
+                <CardContent className="p-4 space-y-3">
+                  <p className="text-sm font-semibold text-emerald-400">Generate Free Elite Studio</p>
+                  <p className="text-xs text-gray-500">Creates a permanent Elite plan studio with no Stripe subscription. For testing partners only.</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase tracking-wider">Studio Name *</label>
+                      <Input value={genForm.studio_name} onChange={(e) => setGenForm({ ...genForm, studio_name: e.target.value })} placeholder="Test Studio" className="bg-white/5 border-white/10 text-white h-8 text-sm mt-1" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase tracking-wider">Owner Name *</label>
+                      <Input value={genForm.owner_first_name} onChange={(e) => setGenForm({ ...genForm, owner_first_name: e.target.value })} placeholder="John" className="bg-white/5 border-white/10 text-white h-8 text-sm mt-1" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase tracking-wider">Owner Email *</label>
+                      <Input type="email" value={genForm.owner_email} onChange={(e) => setGenForm({ ...genForm, owner_email: e.target.value })} placeholder="owner@studio.com" className="bg-white/5 border-white/10 text-white h-8 text-sm mt-1" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase tracking-wider">Password *</label>
+                      <Input value={genForm.owner_password} onChange={(e) => setGenForm({ ...genForm, owner_password: e.target.value })} placeholder="Min 8 characters" className="bg-white/5 border-white/10 text-white h-8 text-sm mt-1" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 uppercase tracking-wider">Model Limit</label>
+                      <Input type="number" value={genForm.model_limit} onChange={(e) => setGenForm({ ...genForm, model_limit: Number(e.target.value) || 30 })} className="bg-white/5 border-white/10 text-white h-8 text-sm mt-1" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end pt-1">
+                    <Button size="sm" variant="ghost" onClick={() => setShowGenerateForm(false)} className="text-gray-400 text-xs">Cancel</Button>
+                    <Button size="sm" onClick={handleGenerateStudio} disabled={generating} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+                      {generating ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Creating...</> : "Create Studio"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="space-y-3">
               {filteredStudios.length === 0 && (
                 <p className="text-gray-500 text-center py-8">
