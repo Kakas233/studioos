@@ -63,11 +63,13 @@ export async function GET() {
       try {
         if (studio.stripe_subscription_id) {
           const subscription = await stripe.subscriptions.retrieve(studio.stripe_subscription_id);
+          // In newer Stripe API versions, period dates are on items, not the subscription
+          const firstItem = subscription.items?.data?.[0];
           billing.subscription = {
             id: subscription.id,
             status: subscription.status,
-            current_period_start: subscription.current_period_start,
-            current_period_end: subscription.current_period_end,
+            current_period_start: firstItem?.current_period_start ?? null,
+            current_period_end: firstItem?.current_period_end ?? null,
             cancel_at_period_end: subscription.cancel_at_period_end,
           };
         }
