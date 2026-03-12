@@ -330,7 +330,7 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="bg-[#1A1A1A] border-white/10 text-xs">
+              <TooltipContent side="top" className="bg-[#1A1A1A] border-white/10 text-xs text-white">
                 Re-fetch 30 days of data
               </TooltipContent>
             </Tooltip>
@@ -355,7 +355,7 @@ export default function CamAccountsTab({ user, studioId }: CamAccountsTabProps) 
               <TooltipTrigger asChild>
                 <Info className="w-3.5 h-3.5 text-[#A8A49A]/40 cursor-help" />
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs">
+              <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs text-white">
                 <p>When you add a new cam account, the system automatically fetches 30 days of historical streaming data. This process takes approximately 20-30 minutes per account.</p>
               </TooltipContent>
             </Tooltip>

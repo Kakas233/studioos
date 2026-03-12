@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
 
 const shiftSchema = z.object({
@@ -11,27 +12,40 @@ const shiftSchema = z.object({
   status: z.enum(["scheduled", "completed", "no_show", "cancelled", "pending_approval"]).optional(),
 }).strict();
 
+const ALLOWED_ROLES = ["owner", "admin", "operator", "model"];
+
+async function getAccountWithAuth(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("id, studio_id, role, works_alone")
+    .eq("auth_user_id", user.id)
+    .eq("is_active", true)
+    .single();
+
+  if (!account || !ALLOWED_ROLES.includes(account.role)) return null;
+
+  // Models can only create shifts if they work alone
+  if (account.role === "model" && !account.works_alone) return null;
+
+  return account;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const parsed = shiftSchema.parse(body);
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const account = await getAccountWithAuth(supabase);
+    if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { data: account } = await supabase
-      .from("accounts")
-      .select("studio_id, role")
-      .eq("auth_user_id", user.id)
-      .eq("is_active", true)
-      .single();
+    // Use admin client for DB operations (bypasses RLS since we already verified auth)
+    const adminDb = createAdminClient();
 
-    if (!account || !["owner", "admin"].includes(account.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const { data: studio } = await supabase
+    const { data: studio } = await adminDb
       .from("studios")
       .select("subscription_status")
       .eq("id", account.studio_id)
@@ -54,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Server-side overlap detection: check for existing shifts that overlap
-    const { data: overlapping } = await supabase
+    const { data: overlapping } = await adminDb
       .from("shifts")
       .select("id")
       .eq("studio_id", account.studio_id)
@@ -71,7 +85,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminDb
       .from("shifts")
       .insert({
         studio_id: account.studio_id,
@@ -103,21 +117,13 @@ export async function PUT(request: NextRequest) {
     if (!id) return NextResponse.json({ error: "Shift ID required" }, { status: 400 });
 
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: account } = await supabase
-      .from("accounts")
-      .select("studio_id, role")
-      .eq("auth_user_id", user.id)
-      .eq("is_active", true)
-      .single();
+    const account = await getAccountWithAuth(supabase);
+    if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    if (!account || !["owner", "admin"].includes(account.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const adminDb = createAdminClient();
 
-    const { data: studioPut } = await supabase
+    const { data: studioPut } = await adminDb
       .from("studios")
       .select("subscription_status")
       .eq("id", account.studio_id)
@@ -130,7 +136,7 @@ export async function PUT(request: NextRequest) {
 
     // If updating time, check for overlaps (exclude current shift)
     if (validatedUpdate.start_time && validatedUpdate.end_time) {
-      const { data: existingShift } = await supabase
+      const { data: existingShift } = await adminDb
         .from("shifts")
         .select("model_id")
         .eq("id", id)
@@ -138,7 +144,7 @@ export async function PUT(request: NextRequest) {
         .single();
 
       if (existingShift) {
-        const { data: overlapping } = await supabase
+        const { data: overlapping } = await adminDb
           .from("shifts")
           .select("id")
           .eq("studio_id", account.studio_id)
@@ -158,7 +164,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminDb
       .from("shifts")
       .update(validatedUpdate)
       .eq("id", id)
@@ -183,21 +189,12 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ error: "Shift ID required" }, { status: 400 });
 
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: account } = await supabase
-      .from("accounts")
-      .select("studio_id, role")
-      .eq("auth_user_id", user.id)
-      .eq("is_active", true)
-      .single();
+    const account = await getAccountWithAuth(supabase);
+    if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    if (!account || !["owner", "admin"].includes(account.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const { error } = await supabase.from("shifts").delete().eq("id", id).eq("studio_id", account.studio_id);
+    const adminDb = createAdminClient();
+    const { error } = await adminDb.from("shifts").delete().eq("id", id).eq("studio_id", account.studio_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ success: true });
   } catch {

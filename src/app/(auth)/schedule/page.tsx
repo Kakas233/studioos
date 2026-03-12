@@ -23,6 +23,35 @@ type ShiftRequest = Database["public"]["Tables"]["shift_requests"]["Row"];
 
 const supabase = createClient();
 
+async function apiShiftCreate(data: Record<string, unknown>) {
+  const res = await fetch("/api/shifts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Failed to create shift");
+  return json;
+}
+
+async function apiShiftUpdate(id: string, data: Record<string, unknown>) {
+  const res = await fetch("/api/shifts", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, ...data }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Failed to update shift");
+  return json;
+}
+
+async function apiShiftDelete(id: string) {
+  const res = await fetch(`/api/shifts?id=${id}`, { method: "DELETE" });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Failed to delete shift");
+  return json;
+}
+
 export default function SchedulePage() {
   const queryClient = useQueryClient();
   const { account, loading: authLoading, isAdmin } = useAuth();
@@ -47,8 +76,7 @@ export default function SchedulePage() {
 
   const createShiftMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      const { error } = await supabase.from("shifts").insert({ ...data, studio_id: account?.studio_id });
-      if (error) throw error;
+      return apiShiftCreate(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
@@ -61,8 +89,7 @@ export default function SchedulePage() {
 
   const updateShiftMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
-      const { error } = await supabase.from("shifts").update(data).eq("id", id);
-      if (error) throw error;
+      return apiShiftUpdate(id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
@@ -75,8 +102,7 @@ export default function SchedulePage() {
 
   const deleteShiftMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("shifts").delete().eq("id", id);
-      if (error) throw error;
+      return apiShiftDelete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
@@ -123,7 +149,7 @@ export default function SchedulePage() {
     if (ok) deleteShiftMutation.mutate(id);
   };
 
-  // Shift request mutations
+  // Shift request mutations (direct Supabase — shift_requests RLS allows model insert)
   const createShiftRequestMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
       const { error } = await supabase.from("shift_requests").insert(data);

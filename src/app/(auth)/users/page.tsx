@@ -237,7 +237,7 @@ export default function UsersManagementPage() {
                               <TooltipTrigger asChild>
                                 <span className="text-xs text-[#C9A84C]/70 cursor-help">{u.cut_percentage ?? 33}% studio</span>
                               </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[220px] bg-[#1A1A1A] border-white/10 text-xs">
+                              <TooltipContent side="top" className="max-w-[220px] bg-[#1A1A1A] border-white/10 text-xs text-white">
                                 <p>The studio&apos;s cut percentage applied per shift earnings.</p>
                               </TooltipContent>
                             </Tooltip>
@@ -575,7 +575,7 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
                   <TooltipTrigger asChild>
                     <HelpCircle className="w-3.5 h-3.5 text-white/30 cursor-help" />
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs">
+                  <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs text-white">
                     <p>The studio&apos;s percentage from each shift&apos;s earnings. Per shift: model gets their cut, operator gets their cut, and the studio keeps this percentage.</p>
                   </TooltipContent>
                 </Tooltip>
@@ -835,7 +835,7 @@ function CreateUserForm({ studioId, onClose }: { studioId: string; onClose: () =
                     <TooltipTrigger asChild>
                       <HelpCircle className="w-3.5 h-3.5 text-white/30 cursor-help" />
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs">
+                    <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs text-white">
                       <p>The studio&apos;s percentage from each shift&apos;s earnings. Per shift: model gets their cut, operator gets their cut, and the studio keeps this percentage.</p>
                     </TooltipContent>
                   </Tooltip>
