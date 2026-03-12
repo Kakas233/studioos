@@ -172,8 +172,11 @@ export async function POST(request: NextRequest) {
     const tokenRate = SITE_TOKEN_RATES[site.toLowerCase()] ?? 0.05;
     const allTimeUsd = spending ? Math.round(spending.allTime * tokenRate) : 0;
 
-    if (spending && alert.spending_threshold > 0 && allTimeUsd < alert.spending_threshold) {
-      return NextResponse.json({ filtered: true, reason: "below_threshold", allTimeUsd });
+    // If threshold is set: only alert if spending data exists AND meets threshold
+    if (alert.spending_threshold > 0) {
+      if (!spending || allTimeUsd < alert.spending_threshold) {
+        return NextResponse.json({ filtered: true, reason: spending ? "below_threshold" : "no_spending_data", allTimeUsd });
+      }
     }
 
     // Find Telegram chat IDs for this studio
