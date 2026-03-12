@@ -5,11 +5,9 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStudioAccounts, useAssignments, useRooms } from "@/hooks/use-studio-data";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -24,8 +22,8 @@ import {
 } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import {
-  Users, UserPlus, Edit2, Link2, Banknote, CreditCard, Percent, Trash2,
-  Video, UserCheck, Loader2, Shuffle, Copy, Eye, EyeOff, HelpCircle,
+  UserPlus, Edit2, Link2, Trash2,
+  Video, Loader2, Shuffle, Copy, Eye, EyeOff, HelpCircle,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -193,150 +191,119 @@ export default function UsersManagementPage() {
       {/* Users management requires Starter tier */}
       <div className="space-y-6">
         <div className="flex justify-end">
-          <Button
+          <button
             onClick={() => setCreateModalOpen(true)}
-            size="sm"
-            className="bg-[#C9A84C] hover:bg-[#B8973B] text-black"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#C9A84C] border border-[#C9A84C]/20 rounded-md hover:bg-[#C9A84C]/10 transition-colors"
           >
-            <UserPlus className="w-4 h-4 mr-1" />
-            <span className="hidden sm:inline">Invite User</span>
-            <span className="sm:hidden">Invite</span>
-          </Button>
+            <UserPlus className="w-3.5 h-3.5" />
+            Invite User
+          </button>
         </div>
 
-        <Card className="bg-[#111111]/80 border-white/[0.04]">
-          <CardHeader className="pb-3 border-b border-white/[0.04]">
-            <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              All Users
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-white/[0.03]">
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Cut %</TableHead>
-                    <TableHead>Payout Method</TableHead>
-                    <TableHead>Assignment</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allAccounts.filter((a) => a.is_active !== false).map((u) => {
-                    const assignment = getAssignmentForModel(u.id);
+        <div className="rounded-lg border border-white/[0.04] overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-white/[0.02]">
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Cut %</TableHead>
+                  <TableHead>Payout</TableHead>
+                  <TableHead>Assignment</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allAccounts.filter((a) => a.is_active !== false).map((u) => {
+                  const assignment = getAssignmentForModel(u.id);
 
-                    return (
-                      <TableRow key={u.id} className="hover:bg-white/[0.03]/50">
-                        <TableCell className="font-medium text-white">{u.first_name}</TableCell>
-                        <TableCell className="text-white/70">{u.email}</TableCell>
-                        <TableCell>
-                          <Badge className={ROLE_COLORS[u.role] || "bg-gray-500 text-white"}>
-                            {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {(u.role === "model" || u.role === "operator") && (
-                            <Badge variant="outline" className="bg-white/[0.03] text-white/70 border-white/[0.08]">
-                              {u.cut_percentage ?? 33}%
-                            </Badge>
-                          )}
-                          {(u.role === "admin" || u.role === "owner") && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="bg-[#C9A84C]/10 text-[#C9A84C] border-[#C9A84C]/20 cursor-help">
-                                    {u.cut_percentage ?? 33}% Studio
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-[220px] bg-[#1A1A1A] border-white/10 text-xs">
-                                  <p>This is the studio&apos;s cut percentage applied per shift earnings.</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {u.payout_method === "Cash" ? (
-                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                              <Banknote className="w-3 h-3 mr-1" />
-                              Cash
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20">
-                              <CreditCard className="w-3 h-3 mr-1" />
-                              Bank
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {u.role === "model" && u.works_alone && (
-                            <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/20">
-                              <UserCheck className="w-3 h-3 mr-1" />Works Alone
-                            </Badge>
-                          )}
-                          {u.role === "model" && !u.works_alone && assignment && (
-                            <div className="text-sm">
-                              <p className="text-white">{getOperatorName(assignment.operator_id)}</p>
-                              <p className="text-white/50 text-xs">{getRoomNameForAssignment(assignment) || "No room"}</p>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditUser(u)}
-                              aria-label={`Edit ${u.first_name}`}
-                              className="text-white/60 hover:text-[#e8e6e3]"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            {u.role === "model" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleAssignments(u)}
-                                aria-label={`Manage assignments for ${u.first_name}`}
-                                className="text-white/60 hover:text-[#e8e6e3]"
-                              >
-                                <Link2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {u.id !== account.id && u.role !== "owner" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteUser(u)}
-                                aria-label={`Deactivate ${u.first_name}`}
-                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
+                  return (
+                    <TableRow key={u.id} className="hover:bg-white/[0.02]">
+                      <TableCell className="font-medium text-white">{u.first_name}</TableCell>
+                      <TableCell className="text-white/60 text-xs">{u.email}</TableCell>
+                      <TableCell>
+                        <span className={`text-xs ${ROLE_COLORS[u.role] ? "text-white/70" : "text-white/50"}`}>
+                          {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {(u.role === "model" || u.role === "operator") && (
+                          <span className="text-xs text-white/50">{u.cut_percentage ?? 33}%</span>
+                        )}
+                        {(u.role === "admin" || u.role === "owner") && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-xs text-[#C9A84C]/70 cursor-help">{u.cut_percentage ?? 33}% studio</span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[220px] bg-[#1A1A1A] border-white/10 text-xs">
+                                <p>The studio&apos;s cut percentage applied per shift earnings.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-white/40">
+                          {u.payout_method === "Cash" ? "Cash" : "Bank"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {u.role === "model" && u.works_alone && (
+                          <span className="text-xs text-white/40">Solo</span>
+                        )}
+                        {u.role === "model" && !u.works_alone && assignment && (
+                          <div>
+                            <p className="text-xs text-white/70">{getOperatorName(assignment.operator_id)}</p>
+                            <p className="text-[11px] text-white/30">{getRoomNameForAssignment(assignment) || "No room"}</p>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {allAccounts.filter((a) => a.is_active !== false).length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
-                        <Users className="w-8 h-8 mx-auto mb-2 text-[#A8A49A]/20" />
-                        <p className="text-sm text-[#A8A49A]/40">No team members yet</p>
-                        <p className="text-xs text-[#A8A49A]/30 mt-1">Add your first team member using the button above</p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-0.5">
+                          <button
+                            onClick={() => handleEditUser(u)}
+                            aria-label={`Edit ${u.first_name}`}
+                            className="p-1.5 text-white/30 hover:text-white/70 transition-colors"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          {u.role === "model" && (
+                            <button
+                              onClick={() => handleAssignments(u)}
+                              aria-label={`Manage assignments for ${u.first_name}`}
+                              className="p-1.5 text-white/30 hover:text-white/70 transition-colors"
+                            >
+                              <Link2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {u.id !== account.id && u.role !== "owner" && (
+                            <button
+                              onClick={() => handleDeleteUser(u)}
+                              aria-label={`Deactivate ${u.first_name}`}
+                              className="p-1.5 text-white/20 hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  );
+                })}
+                {allAccounts.filter((a) => a.is_active !== false).length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <p className="text-sm text-[#A8A49A]/40">No team members yet</p>
+                      <p className="text-xs text-[#A8A49A]/30 mt-1">Invite your first team member above</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
 
         <Dialog open={assignmentModalOpen} onOpenChange={setAssignmentModalOpen}>
           <DialogContent className="sm:max-w-[400px] bg-[#111111] border-white/[0.06]">
@@ -579,11 +546,11 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
 
       {role === "model" && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-purple-500/[0.06] rounded-lg border border-purple-500/10">
+          <div className="flex items-center justify-between p-3 rounded-lg border border-white/[0.06]">
             <div>
-              <p className="text-sm font-medium text-purple-300">Works Alone</p>
-              <p className="text-xs text-purple-400/60 mt-0.5">
-                Model can manage own shifts without an operator
+              <p className="text-sm text-white/80">Works Alone</p>
+              <p className="text-xs text-[#A8A49A]/40 mt-0.5">
+                Model manages own shifts without an operator
               </p>
             </div>
             <Switch
@@ -618,7 +585,7 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
           <div className="flex items-center gap-2">
             <Input type="number" min="0" max="100" value={cutPercentage}
               onChange={(e) => setCutPercentage(Number(e.target.value))} className="bg-white/[0.04] border-white/[0.06] text-white" />
-            <Percent className="w-4 h-4 text-white/50" />
+            <span className="text-xs text-white/40">%</span>
           </div>
         </div>
       )}
@@ -647,8 +614,8 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
             Reset Password
           </Button>
         ) : (
-          <div className="space-y-2 p-3 bg-amber-500/[0.04] rounded-lg border border-amber-500/10">
-            <p className="text-xs font-medium text-amber-300">Set New Password</p>
+          <div className="space-y-2 p-3 rounded-lg border border-white/[0.06]">
+            <p className="text-xs font-medium text-white/70">Set New Password</p>
             <Input
               type="password"
               placeholder="Min. 8 characters"
@@ -878,7 +845,7 @@ function CreateUserForm({ studioId, onClose }: { studioId: string; onClose: () =
             <div className="flex items-center gap-2">
               <Input type="number" min="0" max="100" value={cutPercentage}
                 onChange={(e) => setCutPercentage(Number(e.target.value))} className="bg-white/[0.04] border-white/[0.06] text-white" />
-              <Percent className="w-4 h-4 text-white/50" />
+              <span className="text-xs text-white/40">%</span>
             </div>
           </div>
           <div className="space-y-2">
