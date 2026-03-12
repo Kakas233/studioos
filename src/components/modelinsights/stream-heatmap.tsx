@@ -139,11 +139,22 @@ export default function StreamHeatmap({
                         <div
                           className="bg-[#1a1a1a] border border-white/[0.08] rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl pointer-events-none"
                           style={{
-                            position: "absolute",
-                            bottom: "calc(100% + 8px)",
-                            left: "50%",
-                            transform: "translateX(-50%)",
+                            position: "fixed",
                             zIndex: 9999,
+                          }}
+                          ref={(el) => {
+                            if (!el) return;
+                            const parent = el.parentElement;
+                            if (!parent) return;
+                            const rect = parent.getBoundingClientRect();
+                            el.style.left = `${rect.left + rect.width / 2}px`;
+                            el.style.transform = "translateX(-50%)";
+                            // Show below if too close to top of viewport
+                            if (rect.top < 60) {
+                              el.style.top = `${rect.bottom + 8}px`;
+                            } else {
+                              el.style.top = `${rect.top - el.offsetHeight - 8}px`;
+                            }
                           }}
                         >
                           <p className="text-[9px] text-[#A8A49A]/50">

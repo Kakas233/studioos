@@ -90,18 +90,18 @@ export default function MemberActivityChart({ site, username, rangeStart, rangeE
         ) : chartData.length === 0 ? (
           <p className="text-center text-[#A8A49A]/30 text-sm py-8">No activity data</p>
         ) : (
-          <div className="h-52">
+          <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
+              <BarChart data={chartData} margin={{ top: 10, right: 5, left: -15, bottom: 5 }}>
                 <XAxis
                   dataKey="name"
-                  tick={{ fill: "#A8A49A60", fontSize: 10 }}
+                  tick={{ fill: "rgba(168,164,154,0.4)", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                   interval={view === "hourly" ? 2 : 0}
                 />
                 <YAxis
-                  tick={{ fill: "#A8A49A40", fontSize: 10 }}
+                  tick={{ fill: "rgba(168,164,154,0.25)", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
@@ -109,21 +109,25 @@ export default function MemberActivityChart({ site, username, rangeStart, rangeE
                 <Tooltip
                   contentStyle={{
                     background: "#1a1a1a",
-                    border: "1px solid rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.08)",
                     borderRadius: "8px",
                     fontSize: "12px",
                     color: "#fff",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
                   }}
+                  labelStyle={{ color: "#A8A49A", fontSize: "11px", marginBottom: "2px" }}
+                  itemStyle={{ color: "#fff", padding: 0 }}
+                  cursor={{ fill: "rgba(201,168,76,0.06)" }}
                   formatter={(val: number, name: string) => [
                     name === "tokens" ? `${val.toLocaleString()} tokens` : `${val} tips`,
                     name === "tokens" ? "Tokens" : "Tips",
                   ]}
                 />
-                <Bar dataKey="tokens" radius={[3, 3, 0, 0]} maxBarSize={view === "hourly" ? 14 : 36}>
+                <Bar dataKey="tokens" radius={[4, 4, 0, 0]} maxBarSize={view === "hourly" ? 16 : 40}>
                   {chartData.map((entry: any, idx: number) => (
                     <Cell
                       key={idx}
-                      fill={`rgba(201, 168, 76, ${0.25 + (entry.tokens / maxVal) * 0.75})`}
+                      fill={`rgba(201, 168, 76, ${0.3 + (entry.tokens / maxVal) * 0.7})`}
                     />
                   ))}
                 </Bar>
