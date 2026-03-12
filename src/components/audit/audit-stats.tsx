@@ -1,7 +1,5 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Activity, FileText, AlertTriangle, CheckCircle, Cloud } from "lucide-react";
 import type { AuditLog } from "./audit-log-item";
 
 export default function AuditStats({ logs }: { logs: AuditLog[] }) {
@@ -15,57 +13,23 @@ export default function AuditStats({ logs }: { logs: AuditLog[] }) {
   const syncedCount = logs.filter((l) => l.synced_to_sheets).length;
 
   const stats = [
-    {
-      label: "Today's Events",
-      value: todayLogs.length,
-      icon: Activity,
-      color: "blue",
-    },
-    { label: "Creates", value: creates, icon: FileText, color: "emerald" },
-    { label: "Updates", value: updates, icon: CheckCircle, color: "amber" },
-    { label: "Deletes", value: deletes, icon: AlertTriangle, color: "red" },
-    {
-      label: "Synced to Sheets",
-      value: syncedCount,
-      icon: Cloud,
-      color: "purple",
-    },
+    { label: "Today", value: todayLogs.length },
+    { label: "Creates", value: creates },
+    { label: "Updates", value: updates },
+    { label: "Deletes", value: deletes },
+    { label: "Synced", value: syncedCount },
   ];
-
-  const bgClasses: Record<string, string> = {
-    blue: "bg-blue-500/10",
-    emerald: "bg-emerald-500/10",
-    amber: "bg-amber-500/10",
-    red: "bg-red-500/10",
-    purple: "bg-purple-500/10",
-  };
-  const textClasses: Record<string, string> = {
-    blue: "text-blue-400",
-    emerald: "text-emerald-400",
-    amber: "text-amber-400",
-    red: "text-red-400",
-    purple: "text-purple-400",
-  };
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {stats.map((s) => (
-        <Card
+        <div
           key={s.label}
-          className="bg-[#111111]/80 border-white/[0.04]"
+          className="border border-white/[0.06] rounded-xl bg-white/[0.02] p-4"
         >
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={`p-2.5 ${bgClasses[s.color]} rounded-xl`}>
-                <s.icon className={`w-4 h-4 ${textClasses[s.color]}`} />
-              </div>
-              <div>
-                <p className="text-xs text-white/50">{s.label}</p>
-                <p className="text-xl font-bold text-white">{s.value}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          <p className="text-[10px] text-[#A8A49A]/40 uppercase tracking-wider mb-1">{s.label}</p>
+          <p className="text-xl font-semibold text-white">{s.value}</p>
+        </div>
       ))}
     </div>
   );
