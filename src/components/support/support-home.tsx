@@ -22,7 +22,7 @@ export default function SupportHome({
       {/* Header with gradient */}
       <div className="bg-gradient-to-b from-[#C9A84C] to-[#B8973B] px-5 pt-5 pb-8 relative">
         <div className="flex items-center justify-between mb-6">
-          <div className="text-xl font-bold text-white tracking-tight">
+          <div className="text-xl font-bold text-gray-900 tracking-tight">
             StudioOS
           </div>
           <div className="flex items-center gap-2">
@@ -44,64 +44,64 @@ export default function SupportHome({
             </div>
             <button
               onClick={onClose}
-              className="ml-2 text-white/70 hover:text-white transition-colors"
+              className="ml-2 text-gray-900/70 hover:text-gray-900 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
-        <h2 className="text-2xl font-semibold text-white">Hi there 👋</h2>
+        <h2 className="text-2xl font-semibold text-gray-900">Hi there 👋</h2>
       </div>
 
       {/* Content */}
-      <div className="flex-1 bg-[#0A0A0A] px-4 -mt-4 overflow-auto pt-6">
+      <div className="flex-1 bg-white px-4 -mt-4 overflow-auto pt-6">
         {/* Send us a message card */}
         <button
           onClick={onNewConversation}
-          className="w-full bg-[#111111] rounded-xl p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow mb-3 group border border-white/[0.06]"
+          className="w-full bg-white rounded-xl p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow mb-3 group border border-gray-200"
         >
           <div>
-            <span className="text-sm font-semibold text-white block">
+            <span className="text-sm font-semibold text-gray-900 block">
               Start a chat
             </span>
-            <span className="text-xs text-[#A8A49A]/40">
+            <span className="text-xs text-gray-400">
               We usually reply within an hour
             </span>
           </div>
           <div className="w-9 h-9 rounded-full bg-[#C9A84C] flex items-center justify-center group-hover:bg-[#B8973B] transition-colors shrink-0">
-            <ChevronRight className="w-4 h-4 text-white" />
+            <ChevronRight className="w-4 h-4 text-gray-900" />
           </div>
         </button>
 
         {/* Links */}
-        <div className="bg-[#111111] rounded-xl shadow-sm overflow-hidden mb-3 border border-white/[0.06]">
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-3 border border-gray-200">
           <a
             href="/help"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between p-4 hover:bg-white/[0.03] transition-colors border-b border-white/[0.06]"
+            className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors border-b border-gray-200"
           >
-            <span className="text-sm text-[#A8A49A]/80">
+            <span className="text-sm text-gray-500">
               Help Center &amp; Docs
             </span>
-            <ExternalLink className="w-4 h-4 text-[#A8A49A]/40" />
+            <ExternalLink className="w-4 h-4 text-gray-400" />
           </a>
           <a
             href="mailto:support@getstudioos.com"
-            className="flex items-center justify-between p-4 hover:bg-white/[0.03] transition-colors"
+            className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
           >
-            <span className="text-sm text-[#A8A49A]/80">Email us</span>
-            <ExternalLink className="w-4 h-4 text-[#A8A49A]/40" />
+            <span className="text-sm text-gray-500">Email us</span>
+            <ExternalLink className="w-4 h-4 text-gray-400" />
           </a>
         </div>
 
-        <p className="text-xs text-[#A8A49A]/40 text-center mt-3 mb-2">
+        <p className="text-xs text-gray-400 text-center mt-3 mb-2">
           We usually reply within an hour
         </p>
       </div>
 
       {/* Bottom tabs */}
-      <div className="bg-[#0A0A0A] border-t border-white/[0.06] flex pb-[env(safe-area-inset-bottom)]">
+      <div className="bg-white border-t border-gray-200 flex pb-[env(safe-area-inset-bottom)]">
         <button className="flex-1 flex flex-col items-center py-3 text-[#C9A84C]">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path
@@ -116,13 +116,13 @@ export default function SupportHome({
         </button>
         <button
           onClick={onViewMessages}
-          className="flex-1 flex flex-col items-center py-3 text-[#A8A49A]/60 hover:text-white transition-colors relative"
+          className="flex-1 flex flex-col items-center py-3 text-gray-400 hover:text-gray-900 transition-colors relative"
         >
           <MessageSquare className="w-5 h-5" />
           <span className="text-[10px] mt-1 font-medium">Messages</span>
           {unreadCount > 0 && (
             <span className="absolute top-2 right-1/2 ml-3 translate-x-2 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-              <span className="text-[8px] text-white font-bold">
+              <span className="text-[8px] text-gray-900 font-bold">
                 {unreadCount}
               </span>
             </span>

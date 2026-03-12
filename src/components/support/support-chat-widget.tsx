@@ -24,13 +24,13 @@ export default function SupportChatWidget() {
       {open && (
         <div
           className={cn(
-            "fixed z-[70] overflow-hidden flex flex-col",
+            "fixed z-[70] overflow-hidden flex flex-col bg-white",
             // Mobile: full screen
             "inset-0 rounded-none",
             // Desktop: floating panel
-            "sm:inset-auto sm:bottom-[7.5rem] sm:right-5 sm:w-[380px] sm:max-w-[calc(100vw-40px)] sm:h-[560px] sm:max-h-[calc(100vh-160px)] sm:rounded-2xl"
+            "sm:inset-auto sm:bottom-[7.5rem] sm:right-5 sm:w-[380px] sm:max-w-[calc(100vw-40px)] sm:h-[560px] sm:max-h-[calc(100vh-160px)] sm:rounded-2xl sm:border sm:border-black/[0.08]"
           )}
-          style={{ boxShadow: "0 25px 60px rgba(0,0,0,0.4)" }}
+          style={{ boxShadow: "0 25px 60px rgba(0,0,0,0.15)" }}
         >
           <SupportChatPanel onClose={() => setOpen(false)} agentImages={AGENT_IMAGES} />
         </div>

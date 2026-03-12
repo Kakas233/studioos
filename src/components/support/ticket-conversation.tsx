@@ -550,7 +550,7 @@ export default function TicketConversation({
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#0A0A0A]">
+      <div className="flex-1 flex items-center justify-center bg-white">
         <Loader2 className="w-5 h-5 animate-spin text-[#C9A84C]" />
       </div>
     );
@@ -589,8 +589,8 @@ export default function TicketConversation({
               isUser
                 ? "bg-[#C9A84C] text-white rounded-br-sm"
                 : isSystem
-                  ? "bg-[#C9A84C]/5 border border-[#C9A84C]/20 text-[#A8A49A]/80 rounded-bl-sm"
-                  : "bg-white/[0.03] text-white rounded-bl-sm"
+                  ? "bg-amber-50 border border-amber-200/60 text-gray-600 rounded-bl-sm"
+                  : "bg-gray-100 text-gray-800 rounded-bl-sm"
             )}
           >
             <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -598,7 +598,7 @@ export default function TicketConversation({
           <p
             className={cn(
               "text-[9px] mt-0.5 px-1",
-              isUser ? "text-right text-[#A8A49A]/30" : "text-[#A8A49A]/30"
+              isUser ? "text-right text-gray-300" : "text-gray-300"
             )}
           >
             {formatTime(msg.timestamp)}
@@ -609,12 +609,12 @@ export default function TicketConversation({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0A0A0A]">
+    <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-black/[0.08]">
         <button
           onClick={onBack}
-          className="text-[#A8A49A]/60 hover:text-white transition-colors"
+          className="text-gray-400 hover:text-gray-700 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
@@ -630,18 +630,18 @@ export default function TicketConversation({
           </div>
         ) : null}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white">
+          <p className="text-sm font-semibold text-gray-900">
             {agentRevealed
               ? agent?.name || "Support"
               : "StudioOS Support"}
           </p>
-          <p className="text-[10px] text-[#A8A49A]/60">
+          <p className="text-[10px] text-gray-400">
             {agentRevealed ? agent?.title : "Connecting..."}
           </p>
         </div>
         <button
           onClick={onClose}
-          className="text-[#A8A49A]/60 hover:text-white transition-colors"
+          className="text-gray-400 hover:text-gray-700 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -666,7 +666,7 @@ export default function TicketConversation({
                 ) && (
                   <div className="flex items-center gap-2 justify-center py-2">
                     <Loader2 className="w-3 h-3 animate-spin text-[#C9A84C]" />
-                    <span className="text-xs text-[#A8A49A]/60">
+                    <span className="text-xs text-gray-400">
                       Connecting you to an agent...
                     </span>
                   </div>
@@ -689,7 +689,7 @@ export default function TicketConversation({
                   className="w-6 h-6 rounded-full object-cover mt-1 shrink-0"
                 />
               )}
-              <div className="bg-white/[0.03] rounded-2xl rounded-bl-sm px-4 py-3">
+              <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-3">
                 <div className="flex gap-1">
                   <span
                     className="w-1.5 h-1.5 bg-[#A8A49A]/40 rounded-full animate-bounce"
@@ -719,7 +719,7 @@ export default function TicketConversation({
                 />
               )}
               <div className="max-w-[80%]">
-                <div className="bg-white/[0.03] text-white rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
+                <div className="bg-gray-100 text-gray-800 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
                   <p>
                     If there&apos;s nothing else, mind if I close this
                     chat?
@@ -750,7 +750,7 @@ export default function TicketConversation({
                       setClosingFlow(null);
                       resetActivity();
                     }}
-                    className="px-4 py-1.5 bg-white/[0.06] text-[#A8A49A]/80 text-xs rounded-full hover:bg-white/[0.1] transition-colors"
+                    className="px-4 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-full hover:bg-gray-200 transition-colors"
                   >
                     No, I still need help
                   </button>
@@ -769,7 +769,7 @@ export default function TicketConversation({
                   </span>
                 </div>
                 <div className="max-w-[80%]">
-                  <div className="bg-[#C9A84C]/5 border border-[#C9A84C]/20 text-[#A8A49A]/80 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
+                  <div className="bg-amber-50 border border-amber-200/60 text-gray-600 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
                     <p>
                       Thanks for contacting StudioOS support! We hope
                       your issue has been resolved.
@@ -780,7 +780,7 @@ export default function TicketConversation({
               <div className="flex gap-2 justify-start">
                 <div className="w-6 h-6 shrink-0" />
                 <div className="max-w-[80%]">
-                  <div className="bg-[#C9A84C]/5 border border-[#C9A84C]/20 text-[#A8A49A]/80 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
+                  <div className="bg-amber-50 border border-amber-200/60 text-gray-600 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
                     <p className="mb-2">
                       Was your question answered or issue resolved?
                     </p>
@@ -833,7 +833,7 @@ export default function TicketConversation({
                 </span>
               </div>
               <div className="max-w-[90%] sm:max-w-[85%]">
-                <div className="bg-[#C9A84C]/5 border border-[#C9A84C]/20 text-[#A8A49A]/80 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
+                <div className="bg-amber-50 border border-amber-200/60 text-gray-600 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
                   <p className="mb-3">
                     On a scale of 1 to 10, how happy were you with the
                     support?
@@ -874,7 +874,7 @@ export default function TicketConversation({
                 </span>
               </div>
               <div className="max-w-[80%]">
-                <div className="bg-[#C9A84C]/5 border border-[#C9A84C]/20 text-[#A8A49A]/80 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
+                <div className="bg-amber-50 border border-amber-200/60 text-gray-600 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
                   <p>
                     Thanks for the feedback! Have a great day.
                   </p>
@@ -885,8 +885,8 @@ export default function TicketConversation({
 
           {/* Legacy resolved state */}
           {isResolved && !chatClosed && !closingFlow && (
-            <div className="mt-4 p-4 bg-white/[0.03] rounded-xl text-center">
-              <p className="text-sm text-[#A8A49A]/60 mb-1">
+            <div className="mt-4 p-4 bg-gray-100 rounded-xl text-center">
+              <p className="text-sm text-gray-400 mb-1">
                 This conversation has been resolved.
               </p>
               <button
@@ -904,13 +904,13 @@ export default function TicketConversation({
 
       {/* Input */}
       {!isResolved && !chatClosed && !closingFlow && (
-        <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-white/[0.06]">
+        <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-black/[0.08]">
           {/* Escalation button */}
           {!isEscalated && agentRevealed && !sending && (
             <button
               onClick={handleEscalate}
               disabled={escalating}
-              className="w-full flex items-center justify-center gap-1.5 text-[11px] text-[#A8A49A]/40 hover:text-red-500 transition-colors mb-2 py-1"
+              className="w-full flex items-center justify-center gap-1.5 text-[11px] text-gray-400 hover:text-red-600 transition-colors mb-2 py-1"
             >
               <AlertTriangle className="w-3 h-3" />
               {escalating
@@ -939,7 +939,7 @@ export default function TicketConversation({
                 }
               }}
               placeholder="Type a message..."
-              className="flex-1 text-sm text-white placeholder:text-[#A8A49A]/40 bg-white/[0.04] border border-white/[0.06] rounded-full px-4 py-2.5 outline-none focus:border-[#C9A84C]/50 transition-colors"
+              className="flex-1 text-sm text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-4 py-2.5 outline-none focus:border-[#C9A84C]/50 transition-colors"
               disabled={sending}
               onFocus={resetActivity}
             />
@@ -960,8 +960,8 @@ export default function TicketConversation({
 
       {/* Closed chat footer */}
       {chatClosed && (
-        <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-white/[0.06] text-center">
-          <p className="text-xs text-[#A8A49A]/40 mb-2">
+        <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-black/[0.08] text-center">
+          <p className="text-xs text-gray-400 mb-2">
             This chat has been closed.
           </p>
           <button

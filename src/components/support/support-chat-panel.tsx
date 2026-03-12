@@ -187,20 +187,20 @@ export default function SupportChatPanel({
 
   // Messages list view
   return (
-    <div className="flex flex-col h-full bg-[#0A0A0A]">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-black/[0.08]">
         <button
           onClick={() => setView("home")}
-          className="text-[#A8A49A]/60 hover:text-white transition-colors"
+          className="text-gray-400 hover:text-gray-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <span className="text-sm font-semibold text-white flex-1">
+        <span className="text-sm font-semibold text-gray-900 flex-1">
           Messages
         </span>
         <button
           onClick={onClose}
-          className="text-[#A8A49A]/60 hover:text-white transition-colors"
+          className="text-gray-400 hover:text-gray-900 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -213,11 +213,11 @@ export default function SupportChatPanel({
           </div>
         ) : tickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-            <MessageSquare className="w-8 h-8 text-[#A8A49A]/40 mb-3" />
-            <p className="text-sm text-[#A8A49A]/60 mb-1">
+            <MessageSquare className="w-8 h-8 text-gray-400 mb-3" />
+            <p className="text-sm text-gray-400 mb-1">
               No conversations yet
             </p>
-            <p className="text-xs text-[#A8A49A]/40">
+            <p className="text-xs text-gray-400">
               Start a new conversation to get help
             </p>
           </div>
@@ -225,7 +225,7 @@ export default function SupportChatPanel({
           <div className="divide-y divide-white/[0.06]">
             {activeTickets.length > 0 && (
               <>
-                <p className="text-[10px] font-semibold text-[#A8A49A]/40 uppercase tracking-wider px-4 pt-3 pb-1">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-4 pt-3 pb-1">
                   Active
                 </p>
                 {activeTickets.map((t) => (
@@ -240,7 +240,7 @@ export default function SupportChatPanel({
             )}
             {resolvedTickets.length > 0 && (
               <>
-                <p className="text-[10px] font-semibold text-[#A8A49A]/40 uppercase tracking-wider px-4 pt-3 pb-1">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-4 pt-3 pb-1">
                   Resolved
                 </p>
                 {resolvedTickets.map((t) => (
@@ -258,10 +258,10 @@ export default function SupportChatPanel({
       </div>
 
       {/* New conversation button */}
-      <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-white/[0.06]">
+      <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-black/[0.08]">
         <button
           onClick={() => setView("new")}
-          className="w-full py-2.5 bg-[#C9A84C] hover:bg-[#B8973B] text-white text-sm font-medium rounded-xl transition-colors"
+          className="w-full py-2.5 bg-[#C9A84C] hover:bg-[#B8973B] text-gray-900 text-sm font-medium rounded-xl transition-colors"
         >
           New Conversation
         </button>
@@ -300,7 +300,7 @@ function TicketListItem({
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors text-left"
+      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
     >
       {agentImg ? (
         <img
@@ -309,8 +309,8 @@ function TicketListItem({
           className="w-9 h-9 rounded-full object-cover shrink-0"
         />
       ) : (
-        <div className="w-9 h-9 rounded-full bg-white/[0.06] flex items-center justify-center shrink-0">
-          <MessageSquare className="w-4 h-4 text-[#A8A49A]/40" />
+        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+          <MessageSquare className="w-4 h-4 text-gray-400" />
         </div>
       )}
       <div className="flex-1 min-w-0">
@@ -318,20 +318,20 @@ function TicketListItem({
           <p
             className={cn(
               "text-sm font-medium truncate",
-              isResolved ? "text-[#A8A49A]/40" : "text-white"
+              isResolved ? "text-gray-400" : "text-gray-900"
             )}
           >
             {ticket.agent_name || "Support"}
           </p>
-          <span className="text-[10px] text-[#A8A49A]/40 shrink-0 ml-2">
+          <span className="text-[10px] text-gray-400 shrink-0 ml-2">
             {timeAgo(ticket.updated_date)}
           </span>
         </div>
-        <p className="text-xs text-[#A8A49A]/40 truncate mt-0.5">
+        <p className="text-xs text-gray-400 truncate mt-0.5">
           {ticket.last_message || ticket.subject}
         </p>
       </div>
-      <ChevronRight className="w-4 h-4 text-[#A8A49A]/30 shrink-0" />
+      <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
     </button>
   );
 }

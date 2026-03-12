@@ -93,20 +93,20 @@ export default function NewTicketForm({
 
   if (sent) {
     return (
-      <div className="flex flex-col h-full bg-[#0A0A0A]">
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
+      <div className="flex flex-col h-full bg-white">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
           <button
             onClick={onCancel}
-            className="text-[#A8A49A]/60 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <span className="text-sm font-semibold text-white flex-1">
+          <span className="text-sm font-semibold text-gray-900 flex-1">
             StudioOS
           </span>
           <button
             onClick={onClose}
-            className="text-[#A8A49A]/60 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-gray-900 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -115,10 +115,10 @@ export default function NewTicketForm({
           <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
             <span className="text-xl">{"\u2713"}</span>
           </div>
-          <p className="text-sm font-medium text-white mb-1">
+          <p className="text-sm font-medium text-gray-900 mb-1">
             Message sent!
           </p>
-          <p className="text-xs text-[#A8A49A]/60">
+          <p className="text-xs text-gray-400">
             We will get back to you at {email} within an hour.
           </p>
         </div>
@@ -127,11 +127,11 @@ export default function NewTicketForm({
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#0A0A0A]">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
         <button
           onClick={onCancel}
-          className="text-[#A8A49A]/60 hover:text-white transition-colors"
+          className="text-gray-400 hover:text-gray-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
@@ -141,41 +141,41 @@ export default function NewTicketForm({
               key={key}
               src={url}
               alt=""
-              className="w-6 h-6 rounded-full border-2 border-[#0A0A0A] object-cover"
+              className="w-6 h-6 rounded-full border-2 border-white object-cover"
             />
           ))}
         </div>
-        <span className="text-sm font-semibold text-white flex-1">
+        <span className="text-sm font-semibold text-gray-900 flex-1">
           StudioOS
         </span>
         <button
           onClick={onClose}
-          className="text-[#A8A49A]/60 hover:text-white transition-colors"
+          className="text-gray-400 hover:text-gray-900 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       <div className="px-5 py-4">
-        <p className="text-sm text-[#A8A49A]/60">
+        <p className="text-sm text-gray-400">
           Ask us anything, or share your feedback.
         </p>
-        <p className="text-xs text-[#A8A49A]/40 mt-1">
+        <p className="text-xs text-gray-400 mt-1">
           We usually reply within an hour.
         </p>
       </div>
 
       <div className="flex-1" />
 
-      <div className="p-4 border-t border-white/[0.06]">
-        <div className="border border-[#C9A84C]/30 rounded-xl p-3 focus-within:border-[#C9A84C]/60 transition-colors bg-white/[0.04]">
+      <div className="p-4 border-t border-gray-200">
+        <div className="border border-[#C9A84C]/30 rounded-xl p-3 focus-within:border-[#C9A84C]/60 transition-colors bg-gray-50">
           {isPublic && (
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="email@example.com"
-              className="w-full text-sm text-white placeholder:text-[#A8A49A]/40 bg-transparent outline-none mb-2 pb-2 border-b border-white/[0.06]"
+              className="w-full text-sm text-gray-900 placeholder:text-gray-400 bg-transparent outline-none mb-2 pb-2 border-b border-gray-200"
             />
           )}
           <textarea
@@ -183,7 +183,7 @@ export default function NewTicketForm({
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Message..."
             rows={3}
-            className="w-full text-sm text-white placeholder:text-[#A8A49A]/40 bg-transparent outline-none resize-none"
+            className="w-full text-sm text-gray-900 placeholder:text-gray-400 bg-transparent outline-none resize-none"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -198,9 +198,9 @@ export default function NewTicketForm({
               className="w-8 h-8 rounded-full bg-[#C9A84C] hover:bg-[#B8973B] disabled:opacity-40 disabled:hover:bg-[#C9A84C] flex items-center justify-center transition-colors"
             >
               {loading ? (
-                <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 text-gray-900 animate-spin" />
               ) : (
-                <Send className="w-3.5 h-3.5 text-white" />
+                <Send className="w-3.5 h-3.5 text-gray-900" />
               )}
             </button>
           </div>
