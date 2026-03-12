@@ -124,6 +124,18 @@ async function fetchRecentActivities(platform: string, username: string): Promis
   }
 }
 
+function filterActivitiesForDay(activities: Activity[], dayStr: string): Activity[] {
+  const dayStart = new Date(dayStr + "T00:00:00Z");
+  const dayEnd = new Date(dayStr + "T23:59:59.999Z");
+  return activities.filter((act) => {
+    const endTime = parseDate(act.created_at);
+    if (!endTime) return false;
+    const durationSec = act.seconds ?? 0;
+    const startTime = new Date(endTime.getTime() - durationSec * 1000);
+    return startTime <= dayEnd && endTime >= dayStart;
+  });
+}
+
 function randomDelay(minMs: number, maxMs: number) {
   return new Promise((resolve) =>
     setTimeout(resolve, Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs)
@@ -171,8 +183,17 @@ export async function GET(request: NextRequest) {
     let errors = 0;
     const now = new Date();
     const todayStr = toDateStr(now);
+    const yesterdayStr = toDateStr(new Date(now.getTime() - 86400000));
+
+    // Track model -> cam account IDs for cross-platform unique_minutes
+    const modelCamAccountIds: Record<string, string[]> = {};
+    const targetDays = new Set<string>();
 
     for (const ca of camAccounts) {
+      // Track model -> cam accounts mapping
+      if (!modelCamAccountIds[ca.model_id]) modelCamAccountIds[ca.model_id] = [];
+      modelCamAccountIds[ca.model_id].push(ca.id);
+
       try {
         const activities = await fetchRecentActivities(ca.platform, ca.username);
         if (!activities || activities.length === 0) {
@@ -204,20 +225,13 @@ export async function GET(request: NextRequest) {
 
         await upsertStreamingSession(admin, ca, isLive, isLive ? latestShowType : "offline");
 
-        // Process today's activities into segments and stats
-        const todayActivities = validActivities.filter((act) => {
-          const endTime = parseDate(act.created_at);
-          if (!endTime) return false;
-          const durationSec = act.seconds ?? 0;
-          const startTime = new Date(endTime.getTime() - durationSec * 1000);
-          // Include if the activity overlaps with today at all
-          const todayStart = new Date(todayStr + "T00:00:00Z");
-          const todayEnd = new Date(todayStr + "T23:59:59.999Z");
-          return startTime <= todayEnd && endTime >= todayStart;
-        });
-
-        if (todayActivities.length > 0) {
-          await processDayData(admin, ca, todayActivities, todayStr);
+        // Process today AND yesterday (Base44 processes both for segment accuracy)
+        for (const dayStr of [todayStr, yesterdayStr]) {
+          const dayActivities = filterActivitiesForDay(validActivities, dayStr);
+          if (dayActivities.length > 0) {
+            await processDayData(admin, ca, dayActivities, dayStr);
+            targetDays.add(dayStr);
+          }
         }
 
         updated++;
@@ -228,6 +242,66 @@ export async function GET(request: NextRequest) {
 
       // Delay between accounts to avoid rate limiting
       await randomDelay(2000, 4000);
+    }
+
+    // Cross-platform unique_minutes: for models with multiple cam accounts,
+    // merge online intervals across all platforms to avoid double-counting
+    for (const [modelId, caIds] of Object.entries(modelCamAccountIds)) {
+      if (caIds.length < 2) continue; // Only needed for multi-platform models
+
+      for (const dayStr of targetDays) {
+        try {
+          // Fetch all segments for this model on this day
+          const { data: modelSegments } = await admin
+            .from("stream_segments")
+            .select("start_time, end_time, show_type")
+            .in("cam_account_id", caIds)
+            .eq("date", dayStr)
+            .eq("source", "mycamgirlnet");
+
+          if (!modelSegments || modelSegments.length === 0) continue;
+
+          // Merge all online intervals
+          const onlineIntervals: { start: Date; end: Date }[] = [];
+          for (const seg of modelSegments) {
+            if (ONLINE_SHOW_TYPES.has(seg.show_type)) {
+              onlineIntervals.push({
+                start: new Date(seg.start_time),
+                end: new Date(seg.end_time),
+              });
+            }
+          }
+
+          if (onlineIntervals.length === 0) continue;
+
+          const sortedIvs = [...onlineIntervals].sort(
+            (a, b) => a.start.getTime() - b.start.getTime()
+          );
+          const merged: { start: Date; end: Date }[] = [];
+          for (const iv of sortedIvs) {
+            const last = merged[merged.length - 1];
+            if (last && iv.start <= last.end) {
+              if (iv.end > last.end) last.end = iv.end;
+            } else {
+              merged.push({ start: iv.start, end: iv.end });
+            }
+          }
+          const uniqueMins = Math.round(
+            merged.reduce((sum, iv) => sum + (iv.end.getTime() - iv.start.getTime()) / 60000, 0)
+          );
+
+          // Update unique_minutes for all cam accounts of this model on this day
+          for (const caId of caIds) {
+            await admin
+              .from("daily_stream_stats")
+              .update({ unique_minutes: uniqueMins })
+              .eq("cam_account_id", caId)
+              .eq("date", dayStr);
+          }
+        } catch (err) {
+          console.error(`Unique mins error for model ${modelId} on ${dayStr}:`, err);
+        }
+      }
     }
 
     console.log(`Scrape complete: ${updated} updated, ${errors} errors`);

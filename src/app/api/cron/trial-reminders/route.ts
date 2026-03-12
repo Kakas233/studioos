@@ -15,23 +15,37 @@ function daysUntil(dateStr: string): number | null {
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    // Verify cron secret — mandatory, timing-safe comparison
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret) {
-      console.error("CRON_SECRET environment variable is not set");
-      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-    }
-    const authHeader = request.headers.get("authorization") ?? "";
-    const expected = `Bearer ${cronSecret}`;
-    const isValid =
-      authHeader.length === expected.length &&
-      timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected));
-    if (!isValid) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+function verifyCronSecret(request: NextRequest): boolean {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) return false;
+  const authHeader = request.headers.get("authorization") ?? "";
+  const expected = `Bearer ${cronSecret}`;
+  if (authHeader.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected));
+}
 
+/**
+ * GET /api/cron/trial-reminders — Called by Vercel Cron.
+ */
+export async function GET(request: NextRequest) {
+  if (!verifyCronSecret(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return runTrialReminders();
+}
+
+/**
+ * POST /api/cron/trial-reminders — Called manually.
+ */
+export async function POST(request: NextRequest) {
+  if (!verifyCronSecret(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return runTrialReminders();
+}
+
+async function runTrialReminders() {
+  try {
     const admin = createAdminClient();
     let remindersSent = 0;
     let expired = 0;

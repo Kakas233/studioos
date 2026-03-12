@@ -6,7 +6,19 @@
     },
     {
       "path": "/api/cron/trial-reminders",
-      "schedule": "0 9 * * *"
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/correlate-shifts",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/admin-telegram-notify?action=daily_summary",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/admin-telegram-notify?action=payout_reminder",
+      "schedule": "0 7 * * *"
     }
   ]
 }
