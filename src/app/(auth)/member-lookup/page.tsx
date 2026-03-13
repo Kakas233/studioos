@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import MemberSearchBar from "@/components/memberlookup/member-search-bar";
 import MemberProfile from "@/components/memberlookup/member-profile";
 import FeatureGate from "@/components/shared/feature-gate";
+import DataAvailabilityTooltip from "@/components/shared/data-availability-tooltip";
 
 export default function MemberLookupPage() {
   const { account, loading: authLoading } = useAuth();
@@ -57,7 +58,7 @@ export default function MemberLookupPage() {
     <div className="max-w-5xl mx-auto space-y-4 sm:space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <h2 className="text-xl font-semibold text-white">Member Lookup</h2>
+        <h2 className="text-xl font-semibold text-white flex items-center gap-2">Member Lookup <DataAvailabilityTooltip /></h2>
       </div>
       <p className="text-sm text-[#A8A49A]/40 -mt-3">
         Search cam site members by username to view their tipping stats, history, and activity across MyFreeCams, Camsoda, Chaturbate, Stripchat, Bongacams, and LiveJasmin.

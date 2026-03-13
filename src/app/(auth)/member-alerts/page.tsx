@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import TelegramConnection from "@/components/memberalerts/telegram-connection";
 import RoomMemberAlerts from "@/components/memberalerts/room-member-alerts";
 import FeatureGate from "@/components/shared/feature-gate";
+import DataAvailabilityTooltip from "@/components/shared/data-availability-tooltip";
 
 export default function MemberAlertsPage() {
   const { account, loading: authLoading } = useAuth();
@@ -24,7 +25,7 @@ export default function MemberAlertsPage() {
       <div className="max-w-5xl mx-auto space-y-4 sm:space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-semibold text-white">Member Alerts</h2>
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">Member Alerts <DataAvailabilityTooltip /></h2>
         </div>
         <p className="text-sm text-[#A8A49A]/40 -mt-3">
           Get real-time Telegram alerts when high-spending members enter your monitored rooms.

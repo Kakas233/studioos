@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import FeatureGate from "@/components/shared/feature-gate";
+import DataAvailabilityTooltip from "@/components/shared/data-availability-tooltip";
 import ModelLookupSearch from "@/components/modellookup/model-lookup-search";
 import ModelLookupProfile from "@/components/modellookup/model-lookup-profile";
 
@@ -42,7 +43,7 @@ export default function ModelLookupPage() {
     <FeatureGate requiredTier="pro">
       <div className="max-w-7xl mx-auto space-y-5">
         <div>
-          <h2 className="text-xl font-semibold text-white">Model Lookup</h2>
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">Model Lookup <DataAvailabilityTooltip /></h2>
           <p className="text-sm text-[#A8A49A]/40 mt-1">
             Search cam models by username — view stats, sessions, tips, top members, chat history, and profile images.
           </p>
