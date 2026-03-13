@@ -26,24 +26,33 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Idempotency: skip already-processed events
-  const { data: existing } = await admin
-    .from("error_logs")
-    .select("id")
-    .eq("error_type", "stripe_webhook_processed")
-    .eq("message", event.id)
-    .limit(1);
+  // Idempotency: insert first, then check if we own the lock.
+  // This closes the race window between check and insert.
+  const idempotencyKey = `stripe_event_${event.id}`;
+  const { data: inserted } = await admin.from("error_logs").insert({
+    error_type: "stripe_webhook_processed",
+    message: idempotencyKey,
+    metadata: { event_type: event.type },
+  }).select("id").single();
 
-  if (existing && existing.length > 0) {
+  if (!inserted) {
+    // Insert failed (likely duplicate) — skip processing
     return NextResponse.json({ received: true, deduplicated: true });
   }
 
-  // Mark event as processing
-  await admin.from("error_logs").insert({
-    error_type: "stripe_webhook_processed",
-    message: event.id,
-    metadata: { event_type: event.type },
-  });
+  // Double-check: if another request slipped through, only the first inserted row should process
+  const { data: allEntries } = await admin
+    .from("error_logs")
+    .select("id")
+    .eq("error_type", "stripe_webhook_processed")
+    .eq("message", idempotencyKey)
+    .order("created_at", { ascending: true })
+    .limit(2);
+
+  if (allEntries && allEntries.length > 1 && allEntries[0].id !== inserted.id) {
+    // We lost the race — another row was inserted first
+    return NextResponse.json({ received: true, deduplicated: true });
+  }
 
   try {
     switch (event.type) {

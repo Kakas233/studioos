@@ -33,6 +33,9 @@ export function convertCurrency(
   usdAmount: number,
   exchangeRate: number
 ): number {
+  if (!exchangeRate || exchangeRate <= 0) {
+    return 0;
+  }
   return new Decimal(usdAmount)
     .mul(exchangeRate)
     .toDecimalPlaces(2)

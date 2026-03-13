@@ -60,6 +60,18 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validated = roomSchema.parse({ name: body.name });
 
+    // Check for duplicate room name in this studio
+    const { data: existingRoom } = await supabase
+      .from("rooms")
+      .select("id")
+      .eq("studio_id", account.studio_id)
+      .ilike("name", validated.name)
+      .limit(1);
+
+    if (existingRoom && existingRoom.length > 0) {
+      return NextResponse.json({ error: "A room with this name already exists" }, { status: 409 });
+    }
+
     const { data, error } = await supabase
       .from("rooms")
       .insert({

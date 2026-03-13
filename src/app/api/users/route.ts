@@ -58,6 +58,24 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Get the target account to check self-edit restrictions
+    const { data: targetAccount } = await supabase
+      .from("accounts")
+      .select("id, auth_user_id")
+      .eq("id", id)
+      .eq("studio_id", currentUser.studio_id)
+      .single();
+
+    if (!targetAccount) {
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
+    }
+
+    // Prevent users from editing their own financial fields (cut_percentage, role)
+    const isSelfEdit = targetAccount.auth_user_id === user.id;
+    if (isSelfEdit && (validated.cut_percentage !== undefined || validated.role !== undefined)) {
+      return NextResponse.json({ error: "You cannot change your own cut percentage or role" }, { status: 403 });
+    }
+
     if (validated.role === "owner" && currentUser.role !== "owner") {
       return NextResponse.json({ error: "Only owners can assign the owner role" }, { status: 403 });
     }

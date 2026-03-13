@@ -114,12 +114,13 @@ async function runTrialReminders() {
       }
     }
 
-    // Also check grace period studios
+    // Also check grace period / past_due studios with expired grace periods
     let graceExpired = 0;
     const { data: graceStudios } = await admin
       .from("studios")
-      .select("id, name, subdomain, grace_period_ends_at")
-      .eq("subscription_status", "grace_period");
+      .select("id, name, subdomain, grace_period_ends_at, subscription_status")
+      .not("grace_period_ends_at", "is", null)
+      .in("subscription_status", ["grace_period", "past_due"]);
 
     // Batch fetch all owners for grace period studios
     const graceStudioIds = (graceStudios || []).map((s) => s.id);

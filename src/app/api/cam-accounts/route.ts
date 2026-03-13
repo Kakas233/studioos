@@ -48,6 +48,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Model ID required" }, { status: 400 });
     }
 
+    // Prevent duplicate platform+username for the same model
+    if (body.username) {
+      const { data: existingCam } = await supabase
+        .from("cam_accounts")
+        .select("id")
+        .eq("studio_id", account.studio_id)
+        .eq("model_id", body.model_id)
+        .eq("platform", body.platform)
+        .ilike("username", body.username)
+        .limit(1);
+
+      if (existingCam && existingCam.length > 0) {
+        return NextResponse.json({ error: "This model already has an account on this platform with this username" }, { status: 409 });
+      }
+    }
+
     const { data, error } = await supabase
       .from("cam_accounts")
       .insert({

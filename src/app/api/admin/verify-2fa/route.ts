@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     // Set httpOnly cookie instead of returning token to client
     response.cookies.set("sa_session", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       sameSite: "lax",
       path: "/",
       maxAge: 8 * 60 * 60, // 8 hours

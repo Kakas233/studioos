@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const channelId = searchParams.get("channel_id");
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get("limit") || "50", 10)));
     const before = searchParams.get("before"); // cursor-based pagination
 
     if (!channelId || !UUID_REGEX.test(channelId)) {

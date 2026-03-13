@@ -57,20 +57,22 @@ export async function POST(request: NextRequest) {
 
     const parsed = earningsInsertSchema.parse(body);
 
-    // Prevent duplicate earnings for the same shift
-    if (parsed.shift_id) {
-      const { data: existing } = await supabase
-        .from("earnings")
-        .select("id")
-        .eq("shift_id", parsed.shift_id)
-        .eq("studio_id", account.studio_id)
-        .maybeSingle();
+    // Auto-calculate studio_cut_usd as the leftover (gross - model - operator)
+    // Studio/admin/owner share is always what's left after model and operator cuts
+    if (parsed.total_gross_usd !== undefined) {
+      const gross = parsed.total_gross_usd || 0;
+      const modelPay = parsed.model_pay_usd || 0;
+      const operatorPay = parsed.operator_pay_usd || 0;
 
-      if (existing) {
-        return NextResponse.json({ error: "Earnings already recorded for this shift" }, { status: 409 });
+      if (modelPay + operatorPay > gross) {
+        return NextResponse.json({ error: "Model pay + operator pay cannot exceed gross earnings" }, { status: 400 });
       }
+
+      // Studio always gets the leftover
+      parsed.studio_cut_usd = Math.round((gross - modelPay - operatorPay) * 100) / 100;
     }
 
+    // Insert first, then check for shift-level duplicates (closes race window)
     const { data, error } = await supabase
       .from("earnings")
       .insert({ studio_id: account.studio_id, ...parsed })
@@ -78,6 +80,24 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    // Post-insert duplicate check: if shift_id provided, verify no other row exists for same shift
+    if (parsed.shift_id && data) {
+      const { data: duplicates } = await supabase
+        .from("earnings")
+        .select("id")
+        .eq("shift_id", parsed.shift_id)
+        .eq("studio_id", account.studio_id)
+        .order("created_at", { ascending: true })
+        .limit(2);
+
+      if (duplicates && duplicates.length > 1 && duplicates[0].id !== data.id) {
+        // We lost the race — delete our duplicate and return the existing one
+        await supabase.from("earnings").delete().eq("id", data.id);
+        return NextResponse.json({ error: "Earnings already recorded for this shift" }, { status: 409 });
+      }
+    }
+
     return NextResponse.json(data);
   } catch (error) {
     if (error instanceof z.ZodError) {

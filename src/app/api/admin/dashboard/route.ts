@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import crypto from "crypto";
 import { z } from "zod";
+import Decimal from "decimal.js";
 
 const adminSettingsSchema = z.object({
   secondary_currency: z.string().max(10).optional(),
@@ -111,9 +112,9 @@ export async function POST(request: Request) {
       const alertsList: any[] = allActiveAlerts || [];
 
       const totalRevenue = earningsList.reduce(
-        (sum, e) => sum + (Number(e.total_gross_usd) || 0),
-        0
-      );
+        (sum: Decimal, e: { total_gross_usd?: number | string | null }) => sum.plus(new Decimal(Number(e.total_gross_usd) || 0)),
+        new Decimal(0)
+      ).toDecimalPlaces(2).toNumber();
       const totalModels = accountsList.filter(
         (a) => a.role === "model"
       ).length;
@@ -931,6 +932,23 @@ export async function POST(request: Request) {
           success: false,
           error: "studio_id required",
         });
+
+      // Cancel Stripe subscription before deleting studio data
+      const { data: studioToDelete } = await adminClient
+        .from("studios")
+        .select("stripe_subscription_id")
+        .eq("id", studioId)
+        .single();
+
+      if (studioToDelete?.stripe_subscription_id) {
+        try {
+          const Stripe = (await import("stripe")).default;
+          const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" });
+          await stripe.subscriptions.cancel(studioToDelete.stripe_subscription_id);
+        } catch (stripeErr) {
+          console.error("Failed to cancel Stripe subscription:", stripeErr);
+        }
+      }
 
       // Get all accounts (need auth_user_ids to delete auth users)
       const { data: studioAccounts } = await adminClient

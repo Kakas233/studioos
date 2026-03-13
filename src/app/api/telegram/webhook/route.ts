@@ -40,11 +40,18 @@ async function sendTelegramMessage(
 function verifyTelegramRequest(request: NextRequest): boolean {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!secret) {
-    // No secret configured — allow requests (Telegram doesn't send a secret unless one was set via setWebhook)
-    return true;
+    console.error("TELEGRAM_WEBHOOK_SECRET not configured — rejecting webhook");
+    return false;
   }
   const headerSecret = request.headers.get("x-telegram-bot-api-secret-token");
-  return headerSecret === secret;
+  if (!headerSecret) return false;
+  // Constant-time comparison
+  if (headerSecret.length !== secret.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < secret.length; i++) {
+    mismatch |= secret.charCodeAt(i) ^ headerSecret.charCodeAt(i);
+  }
+  return mismatch === 0;
 }
 
 export async function POST(request: NextRequest) {

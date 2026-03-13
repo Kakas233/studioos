@@ -104,15 +104,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check model limit if inviting a model
+    // Check model limit if inviting a model — increment atomically first
     if (parsed.role === "model") {
+      // Increment first, then check if we exceeded the limit
+      await admin.rpc("increment_model_count", { p_studio_id: inviter.studio_id });
+
       const { data: studio } = await admin
         .from("studios")
         .select("model_limit, current_model_count")
         .eq("id", inviter.studio_id)
         .single();
 
-      if (studio && studio.current_model_count >= studio.model_limit) {
+      if (studio && studio.current_model_count > studio.model_limit) {
+        // Over limit — rollback the increment and reject
+        await admin
+          .from("studios")
+          .update({ current_model_count: studio.current_model_count - 1 })
+          .eq("id", inviter.studio_id);
         return NextResponse.json(
           { error: "Model limit reached. Upgrade your plan to add more models." },
           { status: 403 }
@@ -171,35 +179,15 @@ export async function POST(request: NextRequest) {
 
     if (accountError) {
       await admin.auth.admin.deleteUser(authData.user.id);
+      // Rollback model count if we incremented it
+      if (parsed.role === "model") {
+        const { data: s } = await admin.from("studios").select("current_model_count").eq("id", inviter.studio_id).single();
+        if (s) await admin.from("studios").update({ current_model_count: Math.max(0, s.current_model_count - 1) }).eq("id", inviter.studio_id);
+      }
       return NextResponse.json(
         { error: "Failed to create account" },
         { status: 500 }
       );
-    }
-
-    // Update model count if applicable — re-check after increment to handle race conditions
-    if (parsed.role === "model") {
-      await admin.rpc("increment_model_count", { p_studio_id: inviter.studio_id });
-
-      const { data: updatedStudio } = await admin
-        .from("studios")
-        .select("model_limit, current_model_count")
-        .eq("id", inviter.studio_id)
-        .single();
-
-      if (updatedStudio && updatedStudio.current_model_count > updatedStudio.model_limit) {
-        // Race condition: another invite was processed simultaneously — rollback
-        await admin
-          .from("studios")
-          .update({ current_model_count: updatedStudio.current_model_count - 1 })
-          .eq("id", inviter.studio_id);
-        await admin.from("accounts").delete().eq("auth_user_id", authData.user.id);
-        await admin.auth.admin.deleteUser(authData.user.id);
-        return NextResponse.json(
-          { error: "Model limit reached. Please upgrade your plan to add more models." },
-          { status: 403 }
-        );
-      }
     }
 
     // Send styled invite email with credentials

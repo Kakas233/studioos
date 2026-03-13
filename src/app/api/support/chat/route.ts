@@ -231,8 +231,9 @@ function pickAgent(category: string): string {
 /** Sanitize user input before embedding in LLM prompts to prevent injection */
 function sanitizeForPrompt(input: string): string {
   return input
-    .replace(/[<>]/g, "") // strip angle brackets
+    .replace(/[<>]/g, "") // strip angle brackets (prevents HTML/XML injection)
     .replace(/\n{3,}/g, "\n\n") // collapse excessive newlines
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // strip control characters
     .trim();
 }
 

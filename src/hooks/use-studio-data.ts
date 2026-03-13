@@ -26,6 +26,7 @@ export function useShifts(options?: { dateFrom?: string; dateTo?: string }) {
         .gte("start_time", effectiveDateFrom)
         .order("start_time", { ascending: false });
       if (options?.dateTo) query = query.lte("start_time", options.dateTo);
+      query = query.limit(1000);
       const { data, error } = await query;
       if (error) throw new Error(error.message);
       return data || [];
@@ -238,7 +239,7 @@ export function usePayouts() {
         .select("*")
         .eq("studio_id", studioId)
         .order("period_end", { ascending: false })
-        .limit(500);
+        .limit(1000);
       return data || [];
     },
     enabled: !!studioId,

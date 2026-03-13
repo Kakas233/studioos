@@ -47,6 +47,7 @@ export default function AdminSettings() {
     flirt4free_rate: 0.03,
     livejasmin_rate: 1.0,
   });
+  const [studioTimezone, setStudioTimezone] = useState(studio?.timezone || "Europe/Bucharest");
   const [hasChanges, setHasChanges] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,6 +61,10 @@ export default function AdminSettings() {
       router.push("/dashboard");
     }
   }, [authLoading, account, isAdmin, router]);
+
+  useEffect(() => {
+    if (studio?.timezone) setStudioTimezone(studio.timezone);
+  }, [studio?.timezone]);
 
   useEffect(() => {
     if (settings) {
@@ -95,13 +100,23 @@ export default function AdminSettings() {
     setSaving(true);
     const supabase = createClient();
 
+    const parsedExchangeRate = Number(exchangeRate);
+    if (!parsedExchangeRate || parsedExchangeRate <= 0) {
+      toast.error("Exchange rate must be greater than 0");
+      setSaving(false);
+      return;
+    }
+
     const settingsData: Record<string, unknown> = {
       studio_id: account.studio_id,
       secondary_currency: secondaryCurrency,
-      exchange_rate: Number(exchangeRate),
+      exchange_rate: parsedExchangeRate,
       exchange_rate_mode: exchangeRateMode,
       ...Object.fromEntries(
-        Object.entries(siteRates).map(([key, val]) => [key, Number(val)])
+        Object.entries(siteRates).map(([key, val]) => {
+          const n = Number(val);
+          return [key, n >= 0 ? n : 0];
+        })
       ),
     };
 
@@ -124,6 +139,7 @@ export default function AdminSettings() {
             secondary_currency: secondaryCurrency,
             exchange_rate_mode: exchangeRateMode,
             manual_exchange_rate: Number(exchangeRate),
+            timezone: studioTimezone,
           })
           .eq("id", studio.id);
       }
@@ -436,6 +452,36 @@ export default function AdminSettings() {
             <SelectItem value="weekly" className="text-white hover:bg-white/[0.06] focus:bg-white/[0.06] focus:text-white">Weekly</SelectItem>
             <SelectItem value="biweekly" className="text-white hover:bg-white/[0.06] focus:bg-white/[0.06] focus:text-white">Bi-Weekly</SelectItem>
             <SelectItem value="monthly" className="text-white hover:bg-white/[0.06] focus:bg-white/[0.06] focus:text-white">Monthly</SelectItem>
+          </SelectContent>
+        </Select>
+      </section>
+
+      {/* Studio Timezone */}
+      <section className="rounded-lg border border-white/[0.04] bg-white/[0.02] p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-medium text-white">Studio Timezone</h3>
+          <p className="text-xs text-[#A8A49A]/40 mt-0.5">Used for shift scheduling, stream time tracking, and reports.</p>
+        </div>
+        <Select
+          value={studioTimezone}
+          onValueChange={(v) => { if (v) { setStudioTimezone(v); setHasChanges(true); } }}
+        >
+          <SelectTrigger className="w-full sm:w-[300px] bg-white/[0.04] border-white/[0.06] text-white h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-[#1a1a1a] border-white/[0.06] text-white max-h-60">
+            {[
+              "Europe/Bucharest", "Europe/London", "Europe/Berlin", "Europe/Paris",
+              "Europe/Madrid", "Europe/Rome", "Europe/Moscow", "Europe/Istanbul",
+              "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+              "America/Sao_Paulo", "America/Mexico_City", "America/Bogota",
+              "Asia/Tokyo", "Asia/Shanghai", "Asia/Kolkata", "Asia/Dubai", "Asia/Bangkok",
+              "Australia/Sydney", "Pacific/Auckland", "UTC",
+            ].map((tz) => (
+              <SelectItem key={tz} value={tz} className="text-white hover:bg-white/[0.06] focus:bg-white/[0.06] focus:text-white">
+                {tz.replace(/_/g, " ")}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </section>

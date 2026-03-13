@@ -61,7 +61,7 @@ export async function DELETE() {
     const response = NextResponse.json({ success: true });
     response.cookies.set("sa_session", "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       sameSite: "lax",
       path: "/",
       maxAge: 0,
