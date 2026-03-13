@@ -230,16 +230,16 @@ export default function UsersManagementPage() {
                       </TableCell>
                       <TableCell>
                         {(u.role === "model" || u.role === "operator") && (
-                          <span className="text-xs text-white/50">{u.cut_percentage ?? 33}%</span>
+                          <span className="text-xs text-white/50">{u.cut_percentage ?? 0}%</span>
                         )}
                         {(u.role === "admin" || u.role === "owner") && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span className="text-xs text-[#C9A84C]/70 cursor-help">{u.cut_percentage ?? 33}% studio</span>
+                                <span className="text-xs text-[#C9A84C]/70 cursor-help">Leftover</span>
                               </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[220px] bg-[#1A1A1A] border-white/10 text-xs text-white">
-                                <p>The studio&apos;s cut percentage applied per shift earnings.</p>
+                              <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs text-white">
+                                <p>Admins and owners share whatever is left from each shift after model and operator cuts are deducted.</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -514,7 +514,7 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
       return;
     }
     const data: Record<string, unknown> = { role };
-    if (role !== "accountant") {
+    if (role === "model" || role === "operator") {
       const clampedCut = Math.max(0, Math.min(100, Number(cutPercentage) || 0));
       data.cut_percentage = clampedCut;
       data.payout_method = payoutMethod;
@@ -564,30 +564,19 @@ function EditUserForm({ user, onClose }: { user: any; onClose: () => void }) {
         </div>
       )}
 
-      {role !== "accountant" && (
+      {(role === "model" || role === "operator") && (
         <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
-            <Label className="text-white/80 text-sm font-medium leading-none">
-              {(role === "admin" || role === "owner") ? "Studio Cut %" : "Cut Percentage"}
-            </Label>
-            {(role === "admin" || role === "owner") && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="w-3.5 h-3.5 text-white/30 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs text-white">
-                    <p>The studio&apos;s percentage from each shift&apos;s earnings. Per shift: model gets their cut, operator gets their cut, and the studio keeps this percentage.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
+          <Label className="text-white/80 text-sm font-medium leading-none">Cut Percentage</Label>
           <div className="flex items-center gap-2">
             <Input type="number" min="0" max="100" value={cutPercentage}
               onChange={(e) => setCutPercentage(Number(e.target.value))} className="bg-white/[0.04] border-white/[0.06] text-white" />
             <span className="text-xs text-white/40">%</span>
           </div>
+        </div>
+      )}
+      {(role === "admin" || role === "owner") && (
+        <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+          <p className="text-xs text-[#C9A84C]/70">Studio gets the leftover from each shift after model and operator cuts are deducted.</p>
         </div>
       )}
       {role !== "accountant" && (
@@ -718,8 +707,8 @@ function CreateUserForm({ studioId, onClose }: { studioId: string; onClose: () =
         role,
       };
 
-      // Only include financials for non-accountant roles
-      if (role !== "accountant") {
+      // Only include financials for model and operator roles
+      if (role === "model" || role === "operator") {
         payload.cut_percentage = cutPercentage;
         payload.payout_method = payoutMethod;
       }
@@ -822,27 +811,11 @@ function CreateUserForm({ studioId, onClose }: { studioId: string; onClose: () =
           </Select>
         </div>
       </div>
-      {role !== "accountant" && (
+      {(role === "model" || role === "operator") && (
         <div className="space-y-4 p-4 bg-white/[0.03] rounded-lg border border-white/[0.06]">
           <p className="text-sm font-medium text-white">Financials</p>
           <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Label className="text-white/70">
-                {(role === "admin") ? "Studio Cut %" : "Cut %"}
-              </Label>
-              {role === "admin" && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="w-3.5 h-3.5 text-white/30 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[240px] bg-[#1A1A1A] border-white/10 text-xs text-white">
-                      <p>The studio&apos;s percentage from each shift&apos;s earnings. Per shift: model gets their cut, operator gets their cut, and the studio keeps this percentage.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
+            <Label className="text-white/70">Cut %</Label>
             <div className="flex items-center gap-2">
               <Input type="number" min="0" max="100" value={cutPercentage}
                 onChange={(e) => setCutPercentage(Number(e.target.value))} className="bg-white/[0.04] border-white/[0.06] text-white" />
@@ -859,6 +832,11 @@ function CreateUserForm({ studioId, onClose }: { studioId: string; onClose: () =
               </SelectContent>
             </Select>
           </div>
+        </div>
+      )}
+      {role === "admin" && (
+        <div className="p-4 bg-white/[0.03] rounded-lg border border-white/[0.06]">
+          <p className="text-xs text-[#C9A84C]/70">Admins share the studio&apos;s leftover from each shift after model and operator cuts are deducted.</p>
         </div>
       )}
       <DialogFooter>

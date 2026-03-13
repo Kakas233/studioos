@@ -58,7 +58,7 @@ export function InviteModal({ open, onOpenChange, onInvite }: InviteModalProps) 
         first_name: formData.first_name,
         last_name: formData.last_name,
         role: formData.role,
-        cut_percentage: formData.role === "model" ? formData.cut_percentage : undefined,
+        cut_percentage: (formData.role === "model" || formData.role === "operator") ? formData.cut_percentage : undefined,
       });
       setFormData({ email: "", first_name: "", last_name: "", role: "model", cut_percentage: 50 });
       onOpenChange(false);
@@ -134,7 +134,7 @@ export function InviteModal({ open, onOpenChange, onInvite }: InviteModalProps) 
             </Select>
           </div>
 
-          {formData.role === "model" && (
+          {(formData.role === "model" || formData.role === "operator") && (
             <div className="space-y-1.5">
               <Label className="text-xs text-[#A8A49A]/60">Cut Percentage (%)</Label>
               <Input
@@ -146,7 +146,7 @@ export function InviteModal({ open, onOpenChange, onInvite }: InviteModalProps) 
                 className="bg-[#0A0A0A] border-white/[0.06] text-white"
               />
               <p className="text-[10px] text-[#A8A49A]/30">
-                The percentage of earnings the model keeps
+                The percentage of earnings this {formData.role} keeps
               </p>
             </div>
           )}

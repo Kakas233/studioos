@@ -137,20 +137,22 @@ export function EditUserDialog({ open, onOpenChange, account, onSave }: EditUser
             </Select>
           </div>
 
+          {(formData.role === "model" || formData.role === "operator") && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#A8A49A]/60">Cut Percentage (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={formData.cut_percentage}
+                onChange={(e) => setFormData({ ...formData, cut_percentage: Number(e.target.value) })}
+                className="bg-[#0A0A0A] border-white/[0.06] text-white"
+              />
+            </div>
+          )}
+
           {formData.role === "model" && (
             <>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[#A8A49A]/60">Cut Percentage (%)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={formData.cut_percentage}
-                  onChange={(e) => setFormData({ ...formData, cut_percentage: Number(e.target.value) })}
-                  className="bg-[#0A0A0A] border-white/[0.06] text-white"
-                />
-              </div>
-
               <div className="flex items-center justify-between rounded-lg bg-white/[0.02] border border-white/[0.04] px-3 py-2.5">
                 <div>
                   <p className="text-xs text-white">Works Alone</p>
