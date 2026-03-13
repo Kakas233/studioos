@@ -14,11 +14,19 @@ const shiftSchema = z.object({
 
 const ALLOWED_ROLES = ["owner", "admin", "operator", "model"];
 
-async function getAccountWithAuth(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+/**
+ * Get authenticated account using admin client for the DB lookup.
+ * Auth verification still uses the server supabase client (JWT check),
+ * but the account query bypasses RLS via admin client.
+ */
+async function getAuthAccount() {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return null;
 
-  const { data: account } = await supabase
+  // Use admin client to bypass RLS for account lookup
+  const adminDb = createAdminClient();
+  const { data: account } = await adminDb
     .from("accounts")
     .select("id, studio_id, role, works_alone")
     .eq("auth_user_id", user.id)
@@ -26,23 +34,22 @@ async function getAccountWithAuth(supabase: Awaited<ReturnType<typeof createClie
     .single();
 
   if (!account || !ALLOWED_ROLES.includes(account.role)) return null;
-
   return account;
 }
 
-async function getAccountWithAuthWrite(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const account = await getAccountWithAuth(supabase);
+async function getAuthAccountWrite() {
+  const account = await getAuthAccount();
   if (!account) return null;
-  // Models can only create/edit shifts if they work alone
   if (account.role === "model" && !account.works_alone) return null;
   return account;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const account = await getAccountWithAuth(supabase);
-    if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const account = await getAuthAccount();
+    if (!account) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const adminDb = createAdminClient();
     const { searchParams } = new URL(request.url);
@@ -59,9 +66,12 @@ export async function GET(request: NextRequest) {
     if (dateTo) query = query.lte("start_time", dateTo);
 
     const { data, error } = await query;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     return NextResponse.json(data || []);
-  } catch {
+  } catch (err) {
+    console.error("[shifts GET] Error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -70,12 +80,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const parsed = shiftSchema.parse(body);
-    const supabase = await createClient();
 
-    const account = await getAccountWithAuthWrite(supabase);
+    const account = await getAuthAccountWrite();
     if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    // Use admin client for DB operations (bypasses RLS since we already verified auth)
     const adminDb = createAdminClient();
 
     const { data: studio } = await adminDb
@@ -94,13 +102,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "End time must be after start time" }, { status: 400 });
     }
 
-    // Minimum duration: 2 hours (120 minutes)
     const durationMinutes = (end.getTime() - start.getTime()) / 60000;
     if (durationMinutes < 120) {
       return NextResponse.json({ error: "Shift must be at least 2 hours" }, { status: 400 });
     }
 
-    // Server-side overlap detection: check for existing shifts that overlap
+    // Model overlap check
     const { data: overlapping } = await adminDb
       .from("shifts")
       .select("id")
@@ -118,7 +125,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Operator overlap detection: prevent double-booking an operator
+    // Operator overlap check
     if (parsed.operator_id && parsed.operator_id !== parsed.model_id) {
       const { data: opOverlap } = await adminDb
         .from("shifts")
@@ -138,7 +145,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Room overlap detection: prevent double-booking a room
+    // Room overlap check
     if (parsed.room_id) {
       const { data: roomOverlap } = await adminDb
         .from("shifts")
@@ -178,6 +185,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
     }
+    console.error("[shifts POST] Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -189,9 +197,7 @@ export async function PUT(request: NextRequest) {
 
     if (!id) return NextResponse.json({ error: "Shift ID required" }, { status: 400 });
 
-    const supabase = await createClient();
-
-    const account = await getAccountWithAuthWrite(supabase);
+    const account = await getAuthAccountWrite();
     if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const adminDb = createAdminClient();
@@ -294,6 +300,7 @@ export async function PUT(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
     }
+    console.error("[shifts PUT] Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -304,9 +311,7 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "Shift ID required" }, { status: 400 });
 
-    const supabase = await createClient();
-
-    const account = await getAccountWithAuthWrite(supabase);
+    const account = await getAuthAccountWrite();
     if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const adminDb = createAdminClient();

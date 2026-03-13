@@ -62,7 +62,7 @@ export default function SchedulePage() {
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
 
-  const { data: shifts = [] } = useShifts();
+  const { data: shifts = [], error: shiftsError, isLoading: shiftsLoading } = useShifts();
   const { data: rooms = [] } = useRooms();
   const { data: assignments = [] } = useAssignments();
   const { data: allAccounts = [] } = useStudioAccounts();
@@ -273,6 +273,16 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {shiftsError && (
+        <Card className="bg-red-500/[0.06] border-red-500/10">
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-red-400 text-xs sm:text-sm">
+              Failed to load shifts: {shiftsError instanceof Error ? shiftsError.message : "Unknown error"}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {userRole === "model" && !isModelWorksAlone && (
         <Card className="bg-[#C9A84C]/[0.06] border-[#C9A84C]/10">
           <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:justify-between">
