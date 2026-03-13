@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  DollarSign, Radio, Trash2, Plus, Loader2, Lock, Info,
+  DollarSign, Radio, Trash2, Plus, Loader2, Lock, Info, AlertTriangle,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -56,8 +56,13 @@ export default function RoomMemberAlerts({ accountId, studioId }: RoomMemberAler
 
   const { account } = useAuth();
   const { data: allAccounts = [] } = useStudioAccounts();
-  const { data: allCamAccounts = [] } = useCamAccounts();
+  const { data: allCamAccounts = [], refetch: refetchCamAccounts } = useCamAccounts();
   const { data: allAssignments = [] } = useAssignments();
+
+  // Always refetch cam accounts on mount so changes from User Management are reflected
+  useEffect(() => {
+    refetchCamAccounts();
+  }, [refetchCamAccounts]);
 
   const supabase = createClient();
   const currentRole = account?.role;
@@ -200,6 +205,23 @@ export default function RoomMemberAlerts({ accountId, studioId }: RoomMemberAler
         <p className="text-[11px] text-[#A8A49A]/30 mt-2">
           Only public tips are tracked. Private/anonymous tips are not included.
         </p>
+      </div>
+
+      {/* Beta sites notice */}
+      <div className="flex gap-3 p-3.5 rounded-xl border border-[#C9A84C]/15 bg-[#C9A84C]/[0.04]">
+        <div className="shrink-0 mt-0.5">
+          <div className="w-5 h-5 rounded-full bg-[#C9A84C]/10 flex items-center justify-center">
+            <AlertTriangle className="w-3 h-3 text-[#C9A84C]/70" />
+          </div>
+        </div>
+        <div>
+          <p className="text-xs text-[#C9A84C]/80 font-medium leading-snug">
+            Chaturbate, LiveJasmin & Bongacams are in beta
+          </p>
+          <p className="text-[11px] text-[#A8A49A]/40 mt-1 leading-relaxed">
+            Approximately 20% of joining members are scanned on these sites. StripChat, MyFreeCams & Camsoda have full coverage.
+          </p>
+        </div>
       </div>
 
       {/* Capacity */}
