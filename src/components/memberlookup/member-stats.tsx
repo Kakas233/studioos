@@ -1,5 +1,7 @@
 "use client";
 
+import { getTokenRate, resolveStatbateSite } from "@/lib/platforms";
+
 function StatTile({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
     <div className="bg-[#111111] border border-white/[0.04] rounded-xl p-4">
@@ -19,11 +21,8 @@ export default function MemberStats({ info }: MemberStatsProps) {
 
   const allTimeTokens = info.all_time_tokens || 0;
   const site = info.site || "";
-  const SITE_TOKEN_RATES: Record<string, number> = {
-    livejasmin: 1.0, bongacams: 0.02, cam4: 0.1, flirt4free: 0.03,
-    myfreecams: 0.05, chaturbate: 0.05, stripchat: 0.05, camsoda: 0.05,
-  };
-  const tokenRate = SITE_TOKEN_RATES[site.toLowerCase()] ?? 0.05;
+  const statbateSite = resolveStatbateSite(site) || site.toLowerCase();
+  const tokenRate = getTokenRate(statbateSite);
   const allTimeUsd = (allTimeTokens * tokenRate).toFixed(0);
   const lastTipDate = info.last_tip_date ? new Date(info.last_tip_date).toLocaleDateString() : "\u2014";
   const lastTipAmount = info.last_tip_amount || 0;

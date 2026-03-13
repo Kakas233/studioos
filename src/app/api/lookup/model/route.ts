@@ -1,27 +1,19 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { STATBATE_SITE_MAP, PLATFORMS } from "@/lib/platforms";
 
 const STATBATE_BASE = "https://plus.statbate.com/api";
 const CGF_BASE = "https://api.camgirlfinder.net";
 const CGF_UA = "StudioOS/1.0 (cam studio management platform)";
 
-const SITE_MAP: Record<string, string> = {
-  chaturbate: "chaturbate",
-  stripchat: "stripchat",
-  bongacams: "bongacams",
-  camsoda: "camsoda",
-  mfc: "mfc",
-  livejasmin: "livejasmin",
-};
+// Use centralized maps — SITE_MAP for Statbate, CGF_MAP derived from PLATFORMS
+const SITE_MAP = STATBATE_SITE_MAP;
 
-const CGF_MAP: Record<string, string> = {
-  chaturbate: "cb",
-  stripchat: "sc",
-  bongacams: "bc",
-  camsoda: "cs",
-  mfc: "mfc",
-  livejasmin: "lj",
-};
+const CGF_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(PLATFORMS)
+    .map(([, config]) => [STATBATE_SITE_MAP[config.name.toLowerCase()] || config.name.toLowerCase(), config.cgfCode])
+    .filter(([key]) => key)
+);
 
 async function statbateFetch(
   path: string,

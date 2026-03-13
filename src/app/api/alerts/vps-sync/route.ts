@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       id: alert.id,
       model_username: alert.model_username,
       sites: (alert.sites as string[]) || [],
-      spending_threshold: alert.spending_threshold ?? 400,
+      spending_threshold: alert.spending_threshold ?? 0,
     }));
 
     return NextResponse.json({ models });

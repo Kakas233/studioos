@@ -121,3 +121,48 @@ export const MEMBER_ALERT_PLATFORMS = PLATFORM_NAMES.filter(
 export const BETA_ALERT_PLATFORMS = PLATFORM_NAMES.filter(
   (name) => PLATFORMS[name].memberAlertSupport === "beta"
 );
+
+/**
+ * Map various site name formats to Statbate API site names.
+ * Used by vps-webhook, model lookup, and member lookup to normalize site names.
+ */
+export const STATBATE_SITE_MAP: Record<string, string> = {
+  myfreecams: "mfc",
+  mfc: "mfc",
+  chaturbate: "chaturbate",
+  stripchat: "stripchat",
+  bongacams: "bongacams",
+  camsoda: "camsoda",
+  livejasmin: "livejasmin",
+  cam4: "cam4",
+  flirt4free: "flirt4free",
+};
+
+/** Valid Statbate site names (values of STATBATE_SITE_MAP) */
+export const VALID_STATBATE_SITES = new Set(Object.values(STATBATE_SITE_MAP));
+
+/**
+ * Token-to-USD conversion rates per Statbate site name.
+ * Single source of truth — used by vps-webhook, member-stats, and member lookup.
+ */
+export const STATBATE_TOKEN_RATES: Record<string, number> = {
+  mfc: 0.05,
+  chaturbate: 0.05,
+  stripchat: 0.05,
+  bongacams: 0.02,
+  camsoda: 0.05,
+  livejasmin: 1.0,
+  cam4: 0.1,
+  flirt4free: 0.03,
+};
+
+/** Resolve any site name variant to a valid Statbate site name, or null if unknown */
+export function resolveStatbateSite(site: string): string | null {
+  const mapped = STATBATE_SITE_MAP[site.toLowerCase()];
+  return mapped ?? null;
+}
+
+/** Get the token-to-USD rate for a Statbate site name */
+export function getTokenRate(statbateSite: string): number {
+  return STATBATE_TOKEN_RATES[statbateSite] ?? 0.05;
+}

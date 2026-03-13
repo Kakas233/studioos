@@ -1,30 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveStatbateSite, getTokenRate } from "@/lib/platforms";
 
 const VPS_SECRET = process.env.VPS_INTERNAL_SECRET;
 const TELEGRAM_API = "https://api.telegram.org/bot";
 const STATBATE_API = "https://plus.statbate.com/api";
-
-// Map VPS site names to Statbate API site names
-const SITE_MAP: Record<string, string> = {
-  myfreecams: "mfc",
-  mfc: "mfc",
-  chaturbate: "chaturbate",
-  stripchat: "stripchat",
-  bongacams: "bongacams",
-  camsoda: "camsoda",
-  livejasmin: "livejasmin",
-};
-
-// Token-to-USD conversion rates per Statbate site
-const TOKEN_RATES: Record<string, number> = {
-  mfc: 0.05,
-  chaturbate: 0.05,
-  stripchat: 0.05,
-  bongacams: 0.02,
-  camsoda: 0.05,
-  livejasmin: 1.0,
-};
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -108,8 +88,9 @@ async function getMemberSpending(
   const apiToken = process.env.STATBATE_API_TOKEN;
   if (!apiToken) return null;
 
-  const statbateSite = SITE_MAP[site.toLowerCase()] || site.toLowerCase();
-  const tokenRate = TOKEN_RATES[statbateSite] || 0.05;
+  const statbateSite = resolveStatbateSite(site);
+  if (!statbateSite) return null;
+  const tokenRate = getTokenRate(statbateSite);
 
   try {
     // Fetch member info (all-time tokens)
@@ -191,26 +172,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing room or member" }, { status: 400 });
     }
 
+    // Validate site name against known platforms
+    if (!site || !resolveStatbateSite(site)) {
+      console.error(`[VPS-Webhook] Unknown site: "${site}"`);
+      return NextResponse.json({ error: `Unknown site: ${site}` }, { status: 400 });
+    }
+
     const adminDb = createAdminClient();
 
-    // Look up the alert by model_username
+    // Look up the alert by model_username — use maybeSingle to avoid throwing on no match
     let alert = await adminDb
       .from("member_alerts")
       .select("id, studio_id, account_id, model_username, spending_threshold")
       .eq("model_username", modelUsername.toLowerCase())
       .eq("is_active", true)
       .limit(1)
-      .single()
+      .maybeSingle()
       .then(r => r.data);
 
     if (!alert) {
+      // Case-insensitive fallback
       alert = await adminDb
         .from("member_alerts")
         .select("id, studio_id, account_id, model_username, spending_threshold")
         .ilike("model_username", modelUsername)
         .eq("is_active", true)
         .limit(1)
-        .single()
+        .maybeSingle()
         .then(r => r.data);
     }
 
@@ -220,15 +208,25 @@ export async function POST(request: NextRequest) {
 
     // Fetch spending data from Statbate API
     const spending = await getMemberSpending(site, memberUsername);
-    const threshold = alert.spending_threshold ?? 400;
+    const threshold = alert.spending_threshold ?? 0;
 
     // If threshold is set: only alert if spending data exists AND meets threshold
     if (threshold > 0) {
-      if (!spending || spending.allTimeUsd < threshold) {
+      if (!spending) {
+        console.error(`[VPS-Webhook] Statbate API returned no data for ${memberUsername} on ${site}`);
         return NextResponse.json({
           filtered: true,
-          reason: spending ? "below_threshold" : "no_spending_data",
-          allTimeUsd: spending?.allTimeUsd ?? 0,
+          reason: "statbate_api_error",
+          member: memberUsername,
+          site,
+        });
+      }
+      if (spending.allTimeUsd < threshold) {
+        return NextResponse.json({
+          filtered: true,
+          reason: "below_threshold",
+          allTimeUsd: spending.allTimeUsd,
+          threshold,
         });
       }
     }
@@ -272,6 +270,7 @@ export async function POST(request: NextRequest) {
 
     // Send to all connected Telegram accounts in this studio
     let delivered = 0;
+    let failed = 0;
     for (const link of telegramLinks) {
       try {
         const res = await fetch(`${TELEGRAM_API}${botToken}/sendMessage`, {
@@ -284,15 +283,22 @@ export async function POST(request: NextRequest) {
           }),
           signal: AbortSignal.timeout(10000),
         });
-        if (res.ok) delivered++;
-      } catch {
-        // Continue delivering to other accounts
+        if (res.ok) {
+          delivered++;
+        } else {
+          failed++;
+          console.error(`[VPS-Webhook] Telegram send failed for chat_id ${link.telegram_chat_id}: ${res.status}`);
+        }
+      } catch (err) {
+        failed++;
+        console.error(`[VPS-Webhook] Telegram send error for chat_id ${link.telegram_chat_id}:`, err);
       }
     }
 
     return NextResponse.json({
       delivered: delivered > 0,
       count: delivered,
+      failed,
       allTimeUsd: spending?.allTimeUsd ?? 0,
     });
   } catch {
