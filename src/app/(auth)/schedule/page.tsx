@@ -78,7 +78,13 @@ export default function SchedulePage() {
     mutationFn: async (data: Record<string, unknown>) => {
       return apiShiftCreate(data);
     },
-    onSuccess: () => {
+    onSuccess: (newShift) => {
+      // Optimistically add the new shift to ALL shift query caches
+      queryClient.setQueriesData<Shift[]>(
+        { queryKey: ["shifts"] },
+        (old) => old ? [...old, newShift] : [newShift]
+      );
+      // Also refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
       setModalOpen(false);
       setSelectedShift(null);
@@ -91,7 +97,12 @@ export default function SchedulePage() {
     mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
       return apiShiftUpdate(id, data);
     },
-    onSuccess: () => {
+    onSuccess: (updatedShift) => {
+      // Optimistically update the shift in cache
+      queryClient.setQueriesData<Shift[]>(
+        { queryKey: ["shifts"] },
+        (old) => old ? old.map((s) => s.id === updatedShift.id ? updatedShift : s) : []
+      );
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
       setModalOpen(false);
       setSelectedShift(null);
@@ -102,9 +113,15 @@ export default function SchedulePage() {
 
   const deleteShiftMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiShiftDelete(id);
+      await apiShiftDelete(id);
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (deletedId) => {
+      // Optimistically remove the shift from cache
+      queryClient.setQueriesData<Shift[]>(
+        { queryKey: ["shifts"] },
+        (old) => old ? old.filter((s) => s.id !== deletedId) : []
+      );
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
       setModalOpen(false);
       setSelectedShift(null);

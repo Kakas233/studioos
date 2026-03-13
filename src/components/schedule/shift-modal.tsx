@@ -166,10 +166,14 @@ export function ShiftModal({
       return;
     }
     const selectedModel = models.find((m) => m.id === formData.model_id);
-    if ((isModelWorksAlone || selectedModel?.works_alone) && !formData.operator_id) {
-      formData.operator_id = formData.model_id;
-    }
-    if (!formData.operator_id) {
+
+    // Determine operator: for "works alone" models, set to model_id
+    const effectiveOperatorId =
+      (isModelWorksAlone || selectedModel?.works_alone) && !formData.operator_id
+        ? formData.model_id
+        : formData.operator_id;
+
+    if (!effectiveOperatorId) {
       setErrors(["Please select an operator"]);
       return;
     }
@@ -184,13 +188,9 @@ export function ShiftModal({
     const [startH, startM] = formData.start_time.split(":").map(Number);
     const [endH, endM] = formData.end_time.split(":").map(Number);
 
-    const model = models.find((m) => m.id === formData.model_id);
-    const operator = operators.find((o) => o.id === formData.operator_id);
-    const room = rooms.find((r) => r.id === formData.room_id);
-
     const shiftData = {
       model_id: formData.model_id,
-      operator_id: formData.operator_id,
+      operator_id: effectiveOperatorId,
       room_id: formData.room_id || null,
       start_time: setMinutes(setHours(selectedDate, startH), startM).toISOString(),
       end_time: setMinutes(setHours(selectedDate, endH), endM).toISOString(),

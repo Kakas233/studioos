@@ -118,6 +118,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Operator overlap detection: prevent double-booking an operator
+    if (parsed.operator_id && parsed.operator_id !== parsed.model_id) {
+      const { data: opOverlap } = await adminDb
+        .from("shifts")
+        .select("id")
+        .eq("studio_id", account.studio_id)
+        .eq("operator_id", parsed.operator_id)
+        .in("status", ["scheduled", "completed", "pending_approval"])
+        .lt("start_time", parsed.end_time)
+        .gt("end_time", parsed.start_time)
+        .limit(1);
+
+      if (opOverlap && opOverlap.length > 0) {
+        return NextResponse.json(
+          { error: "This operator already has a shift during this time period" },
+          { status: 409 }
+        );
+      }
+    }
+
     // Room overlap detection: prevent double-booking a room
     if (parsed.room_id) {
       const { data: roomOverlap } = await adminDb
@@ -214,6 +234,27 @@ export async function PUT(request: NextRequest) {
             { status: 409 }
           );
         }
+      }
+    }
+
+    // Operator overlap check on update
+    if (validatedUpdate.operator_id && validatedUpdate.start_time && validatedUpdate.end_time) {
+      const { data: opOverlap } = await adminDb
+        .from("shifts")
+        .select("id")
+        .eq("studio_id", account.studio_id)
+        .eq("operator_id", validatedUpdate.operator_id)
+        .neq("id", id)
+        .in("status", ["scheduled", "completed", "pending_approval"])
+        .lt("start_time", validatedUpdate.end_time)
+        .gt("end_time", validatedUpdate.start_time)
+        .limit(1);
+
+      if (opOverlap && opOverlap.length > 0) {
+        return NextResponse.json(
+          { error: "This operator already has a shift during this time period" },
+          { status: 409 }
+        );
       }
     }
 

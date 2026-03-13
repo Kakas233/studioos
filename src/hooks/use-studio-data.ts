@@ -17,14 +17,34 @@ export function useShifts(options?: { dateFrom?: string; dateTo?: string }) {
     queryKey: ["shifts", studio?.id, effectiveDateFrom, options?.dateTo],
     queryFn: async () => {
       if (!studio?.id) return [];
-      const params = new URLSearchParams({ dateFrom: effectiveDateFrom });
-      if (options?.dateTo) params.set("dateTo", options.dateTo);
-      const res = await fetch(`/api/shifts?${params.toString()}`);
-      if (!res.ok) return [];
-      return res.json();
+
+      // Primary: API route (bypasses RLS)
+      try {
+        const params = new URLSearchParams({ dateFrom: effectiveDateFrom });
+        if (options?.dateTo) params.set("dateTo", options.dateTo);
+        const res = await fetch(`/api/shifts?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) return data;
+        }
+      } catch {
+        // API route failed, fall through to direct query
+      }
+
+      // Fallback: direct Supabase query
+      let query = supabase
+        .from("shifts")
+        .select("*")
+        .eq("studio_id", studio.id)
+        .gte("start_time", effectiveDateFrom)
+        .order("start_time", { ascending: false });
+      if (options?.dateTo) query = query.lte("start_time", options.dateTo);
+      const { data } = await query;
+      return data || [];
     },
     enabled: !!studio?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 30_000, // 30 seconds
+    refetchOnWindowFocus: true,
   });
 }
 
