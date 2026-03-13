@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Crown, Users, ExternalLink, AlertTriangle, Clock } from "lucide-react";
-import { format, formatDistanceToNow, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 const PLAN_DETAILS: Record<
   string,
@@ -125,9 +125,8 @@ export default function PlanCard({
                 <p className="text-blue-400 text-sm font-medium">Free Trial</p>
               </div>
               <p className="text-blue-400/70 text-xs">
-                Your trial ends{" "}
-                {formatDistanceToNow(trialEndsAt, { addSuffix: true })} (
-                {format(trialEndsAt, "MMM d, yyyy")}). Subscribe to keep using
+                Your trial ends on{" "}
+                {format(trialEndsAt, "MMM d, yyyy")}. Subscribe to keep using
                 StudioOS.
               </p>
               <div className="mt-2">

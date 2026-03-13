@@ -28,46 +28,33 @@ export default function BillingCycleCard({ billing }: { billing: BillingData }) 
         </CardHeader>
         <CardContent>
           {isTrialing && billing.grace_period_ends_at ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-blue-400">
-                <Clock className="w-4 h-4" />
-                <span>Free Trial</span>
-              </div>
-              <p className="text-[#A8A49A]/50 text-sm">
-                Your trial ends{" "}
-                {format(parseISO(billing.grace_period_ends_at), "MMM d, yyyy")}
-              </p>
-              <div className="w-full bg-white/[0.04] rounded-full h-2">
-                <div
-                  className="bg-blue-500 h-2 rounded-full transition-all"
-                  style={{
-                    width: `${Math.max(
-                      0,
-                      Math.min(
-                        100,
-                        (1 -
-                          differenceInDays(
-                            parseISO(billing.grace_period_ends_at),
-                            new Date()
-                          ) /
-                            7) *
-                          100
-                      )
-                    )}%`,
-                  }}
-                />
-              </div>
-              <p className="text-xs text-[#A8A49A]/30">
-                {Math.max(
-                  0,
-                  differenceInDays(
-                    parseISO(billing.grace_period_ends_at),
-                    new Date()
-                  )
-                )}{" "}
-                days remaining
-              </p>
-            </div>
+            {(() => {
+              const trialEnd = parseISO(billing.grace_period_ends_at!);
+              const trialRemainingMs = Math.max(0, trialEnd.getTime() - Date.now());
+              const trialDaysLeft = Math.ceil(trialRemainingMs / (24 * 60 * 60 * 1000));
+              const trialProgressPct = Math.min(100, Math.max(0, (1 - trialDaysLeft / 7) * 100));
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-blue-400">
+                    <Clock className="w-4 h-4" />
+                    <span>Free Trial</span>
+                  </div>
+                  <p className="text-[#A8A49A]/50 text-sm">
+                    Your trial ends on{" "}
+                    {format(trialEnd, "MMM d, yyyy")}
+                  </p>
+                  <div className="w-full bg-white/[0.04] rounded-full h-2">
+                    <div
+                      className="bg-blue-500 h-2 rounded-full transition-all"
+                      style={{ width: `${trialProgressPct}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-[#A8A49A]/30">
+                    {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} remaining
+                  </p>
+                </div>
+              );
+            })()}
           ) : (
             <p className="text-[#A8A49A]/50 text-sm">
               No active subscription. Subscribe to a plan to get started.
@@ -80,7 +67,8 @@ export default function BillingCycleCard({ billing }: { billing: BillingData }) 
 
   const periodStart = parseISO(sub.current_period_start);
   const periodEnd = parseISO(sub.current_period_end);
-  const daysLeft = differenceInDays(periodEnd, new Date());
+  const remainingMs = Math.max(0, periodEnd.getTime() - Date.now());
+  const daysLeft = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
   const totalDays = differenceInDays(periodEnd, periodStart);
   const progressPct = totalDays > 0
     ? Math.max(0, Math.min(100, ((totalDays - daysLeft) / totalDays) * 100))
@@ -102,7 +90,7 @@ export default function BillingCycleCard({ billing }: { billing: BillingData }) 
         <div>
           <div className="flex justify-between text-xs text-[#A8A49A]/40 mb-1.5">
             <span>Current period</span>
-            <span>{daysLeft} days left</span>
+            <span>{daysLeft} day{daysLeft !== 1 ? "s" : ""} remaining</span>
           </div>
           <div className="w-full bg-white/[0.04] rounded-full h-2">
             <div
