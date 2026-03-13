@@ -283,6 +283,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cam account not found" }, { status: 404 });
     }
 
+    // Verify cam account belongs to the user's studio
+    if (ca.studio_id !== account.studio_id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Mark job as in_progress
     await admin.from("data_fetch_jobs").update({
       status: "in_progress",

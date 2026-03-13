@@ -53,6 +53,7 @@ export function useEarnings(options?: { dateFrom?: string; dateTo?: string }) {
         .gte("shift_date", effectiveDateFrom)
         .order("shift_date", { ascending: false });
       if (options?.dateTo) query = query.lte("shift_date", options.dateTo);
+      query = query.limit(1000);
       const { data } = await query;
       return data || [];
     },
@@ -317,7 +318,8 @@ export function useAssignments() {
       const { data } = await supabase
         .from("assignments")
         .select("*")
-        .eq("studio_id", studioId);
+        .eq("studio_id", studioId)
+        .limit(500);
       return data || [];
     },
     enabled: !!studioId,
