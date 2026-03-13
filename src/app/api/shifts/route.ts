@@ -46,12 +46,33 @@ async function getAuthAccountWrite() {
 
 export async function GET(request: NextRequest) {
   try {
-    const account = await getAuthAccount();
-    if (!account) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error("[shifts GET] Auth failed:", authError?.message || "no user");
+      return NextResponse.json({ error: "Unauthorized", debug: { authError: authError?.message } }, { status: 401 });
     }
 
     const adminDb = createAdminClient();
+
+    const { data: account, error: accountError } = await adminDb
+      .from("accounts")
+      .select("id, studio_id, role, works_alone")
+      .eq("auth_user_id", user.id)
+      .eq("is_active", true)
+      .single();
+
+    if (accountError || !account) {
+      console.error("[shifts GET] Account lookup failed:", accountError?.message, "user.id:", user.id);
+      return NextResponse.json({ error: "Forbidden", debug: { accountError: accountError?.message, userId: user.id } }, { status: 403 });
+    }
+
+    if (!ALLOWED_ROLES.includes(account.role)) {
+      console.error("[shifts GET] Role not allowed:", account.role);
+      return NextResponse.json({ error: "Forbidden", debug: { role: account.role } }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
@@ -66,12 +87,17 @@ export async function GET(request: NextRequest) {
     if (dateTo) query = query.lte("start_time", dateTo);
 
     const { data, error } = await query;
+
     if (error) {
+      console.error("[shifts GET] Query error:", error.message, "studio_id:", account.studio_id);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    console.log("[shifts GET] Success: studio_id:", account.studio_id, "shifts found:", (data || []).length, "dateFrom:", dateFrom);
+
     return NextResponse.json(data || []);
   } catch (err) {
-    console.error("[shifts GET] Error:", err);
+    console.error("[shifts GET] Unexpected error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

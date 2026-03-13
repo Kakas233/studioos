@@ -282,6 +282,15 @@ export default function SchedulePage() {
           </CardContent>
         </Card>
       )}
+      {!shiftsLoading && !shiftsError && shifts.length === 0 && (
+        <Card className="bg-yellow-500/[0.06] border-yellow-500/10">
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-yellow-400/80 text-xs">
+              Debug: 0 shifts loaded. Studio ID: {account?.studio_id || "none"}. This banner will be removed once scheduling works.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {userRole === "model" && !isModelWorksAlone && (
         <Card className="bg-[#C9A84C]/[0.06] border-[#C9A84C]/10">
