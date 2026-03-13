@@ -130,6 +130,7 @@ export default function UsersManagementPage() {
       studio_id: account?.studio_id,
       operator_id: operatorId,
       model_id: selectedUser.id,
+      room_id: roomId || null,
     };
 
     if (existingAssignment) {
