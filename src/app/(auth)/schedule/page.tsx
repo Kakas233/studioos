@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useShifts, useRooms, useAssignments, useStudioAccounts, useShiftRequests } from "@/hooks/use-studio-data";
 import { createClient } from "@/lib/supabase/client";
 import ShiftCalendar from "@/components/schedule/shift-calendar";
@@ -62,44 +62,7 @@ export default function SchedulePage() {
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
 
-  // Direct Supabase query for shifts (bypass hook + API route entirely)
-  const directShiftsQuery = useQuery<Shift[]>({
-    queryKey: ["shifts-direct", account?.studio_id],
-    queryFn: async () => {
-      if (!account?.studio_id) return [];
-      const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
-      const { data, error } = await supabase
-        .from("shifts")
-        .select("*")
-        .eq("studio_id", account.studio_id)
-        .gte("start_time", sixtyDaysAgo)
-        .order("start_time", { ascending: false });
-      if (error) throw new Error(error.message);
-      return (data as Shift[]) || [];
-    },
-    enabled: !!account?.studio_id,
-    staleTime: 30_000,
-    refetchOnWindowFocus: true,
-  });
-
-  // Also try the hook (API route + fallback)
-  const hookShifts = useShifts();
-
-  // Use whichever has data, prefer direct query
-  const shifts = directShiftsQuery.data && directShiftsQuery.data.length > 0
-    ? directShiftsQuery.data
-    : hookShifts.data || [];
-  const shiftsError = directShiftsQuery.error || hookShifts.error;
-  const shiftsLoading = directShiftsQuery.isLoading && hookShifts.isLoading;
-
-  // Debug log
-  const [debugInfo, setDebugInfo] = useState("");
-  useEffect(() => {
-    if (!account?.studio_id) return;
-    const info = `Direct: ${directShiftsQuery.data?.length ?? "loading"}${directShiftsQuery.error ? ` ERR:${(directShiftsQuery.error as Error).message}` : ""} | Hook: ${hookShifts.data?.length ?? "loading"}${hookShifts.error ? ` ERR:${(hookShifts.error as Error).message}` : ""} | Studio: ${account.studio_id}`;
-    setDebugInfo(info);
-  }, [directShiftsQuery.data, directShiftsQuery.error, hookShifts.data, hookShifts.error, account?.studio_id]);
-
+  const { data: shifts = [], error: shiftsError, isLoading: shiftsLoading } = useShifts();
   const { data: rooms = [] } = useRooms();
   const { data: assignments = [] } = useAssignments();
   const { data: allAccounts = [] } = useStudioAccounts();
@@ -108,26 +71,20 @@ export default function SchedulePage() {
   const models = allAccounts.filter((u) => u.role === "model" && u.is_active !== false);
   const operators = allAccounts.filter((u) => (u.role === "operator" || u.role === "admin" || u.role === "owner") && u.is_active !== false);
 
-  // Check if current model works alone
   const isModelWorksAlone = userRole === "model" && account?.works_alone === true;
 
+  const invalidateShifts = () => {
+    queryClient.invalidateQueries({ queryKey: ["shifts"] });
+  };
+
   const createShiftMutation = useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      return apiShiftCreate(data);
-    },
+    mutationFn: apiShiftCreate,
     onSuccess: (newShift) => {
-      // Optimistically add the new shift to ALL shift query caches
       queryClient.setQueriesData<Shift[]>(
         { queryKey: ["shifts"] },
         (old) => old ? [...old, newShift] : [newShift]
       );
-      queryClient.setQueriesData<Shift[]>(
-        { queryKey: ["shifts-direct"] },
-        (old) => old ? [...old, newShift] : [newShift]
-      );
-      // Also refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ["shifts"] });
-      queryClient.invalidateQueries({ queryKey: ["shifts-direct"] });
+      invalidateShifts();
       setModalOpen(false);
       setSelectedShift(null);
       toast.success("Shift created successfully");
@@ -136,20 +93,13 @@ export default function SchedulePage() {
   });
 
   const updateShiftMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
-      return apiShiftUpdate(id, data);
-    },
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => apiShiftUpdate(id, data),
     onSuccess: (updatedShift) => {
       queryClient.setQueriesData<Shift[]>(
         { queryKey: ["shifts"] },
         (old) => old ? old.map((s) => s.id === updatedShift.id ? updatedShift : s) : []
       );
-      queryClient.setQueriesData<Shift[]>(
-        { queryKey: ["shifts-direct"] },
-        (old) => old ? old.map((s) => s.id === updatedShift.id ? updatedShift : s) : []
-      );
-      queryClient.invalidateQueries({ queryKey: ["shifts"] });
-      queryClient.invalidateQueries({ queryKey: ["shifts-direct"] });
+      invalidateShifts();
       setModalOpen(false);
       setSelectedShift(null);
       toast.success("Shift updated successfully");
@@ -158,21 +108,13 @@ export default function SchedulePage() {
   });
 
   const deleteShiftMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiShiftDelete(id);
-      return id;
-    },
+    mutationFn: async (id: string) => { await apiShiftDelete(id); return id; },
     onSuccess: (deletedId) => {
       queryClient.setQueriesData<Shift[]>(
         { queryKey: ["shifts"] },
         (old) => old ? old.filter((s) => s.id !== deletedId) : []
       );
-      queryClient.setQueriesData<Shift[]>(
-        { queryKey: ["shifts-direct"] },
-        (old) => old ? old.filter((s) => s.id !== deletedId) : []
-      );
-      queryClient.invalidateQueries({ queryKey: ["shifts"] });
-      queryClient.invalidateQueries({ queryKey: ["shifts-direct"] });
+      invalidateShifts();
       setModalOpen(false);
       setSelectedShift(null);
       toast.success("Shift deleted");
@@ -216,7 +158,6 @@ export default function SchedulePage() {
     if (ok) deleteShiftMutation.mutate(id);
   };
 
-  // Shift request mutations (direct Supabase — shift_requests RLS allows model insert)
   const createShiftRequestMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
       const { error } = await supabase.from("shift_requests").insert(data);
@@ -256,7 +197,6 @@ export default function SchedulePage() {
   };
 
   const handleApproveRequest = async (req: ShiftRequest) => {
-    // Create the actual shift from the request
     const selectedDate = parseISO(req.requested_date);
     const [startH, startM] = req.start_time.split(":").map(Number);
     const [endH, endM] = req.end_time.split(":").map(Number);
@@ -265,7 +205,6 @@ export default function SchedulePage() {
     const endDateTime = new Date(selectedDate);
     endDateTime.setHours(endH, endM, 0);
 
-    // Find the model's assignment to get operator
     const modelAssignment = assignments.find((a) => a.model_id === req.model_id);
     const modelAccount = allAccounts.find((a) => a.id === req.model_id);
 
@@ -297,7 +236,6 @@ export default function SchedulePage() {
     toast.success(`Rejected shift request from ${modelName}`);
   };
 
-  // Filter shift requests relevant to this user
   const relevantRequests = shiftRequests.filter((r) => {
     if (isAdmin) return true;
     if (userRole === "operator") {
@@ -323,15 +261,6 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Debug banner — always visible until shifts work */}
-      <Card className="bg-blue-500/[0.06] border-blue-500/10">
-        <CardContent className="p-3">
-          <p className="text-blue-400/80 text-xs font-mono">
-            {debugInfo || "Loading..."} | Shifts: {shifts.length} | Role: {userRole}
-          </p>
-        </CardContent>
-      </Card>
-
       {shiftsError && (
         <Card className="bg-red-500/[0.06] border-red-500/10">
           <CardContent className="p-3 sm:p-4">
@@ -391,7 +320,7 @@ export default function SchedulePage() {
         rooms={rooms}
       />
 
-      {/* Mobile schedule navigation + add shift */}
+      {/* Mobile schedule list */}
       <div className="md:hidden">
         <Card className="bg-[#111111]/80 border-white/[0.04]">
           <CardHeader className="pb-3 border-b border-white/[0.04]">

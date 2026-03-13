@@ -17,21 +17,6 @@ export function useShifts(options?: { dateFrom?: string; dateTo?: string }) {
     queryKey: ["shifts", studio?.id, effectiveDateFrom, options?.dateTo],
     queryFn: async () => {
       if (!studio?.id) return [];
-
-      // Try API route first (uses admin client, bypasses RLS)
-      try {
-        const params = new URLSearchParams({ dateFrom: effectiveDateFrom });
-        if (options?.dateTo) params.set("dateTo", options.dateTo);
-        const res = await fetch(`/api/shifts?${params.toString()}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (Array.isArray(json) && json.length > 0) return json;
-        }
-      } catch {
-        // fall through to direct query
-      }
-
-      // Fallback: direct Supabase query (same pattern as useShiftAnalysis which works)
       let query = supabase
         .from("shifts")
         .select("*")
@@ -40,16 +25,12 @@ export function useShifts(options?: { dateFrom?: string; dateTo?: string }) {
         .order("start_time", { ascending: false });
       if (options?.dateTo) query = query.lte("start_time", options.dateTo);
       const { data, error } = await query;
-      if (error) {
-        console.error("[useShifts] Direct query error:", error.message);
-        throw new Error(error.message);
-      }
+      if (error) throw new Error(error.message);
       return data || [];
     },
     enabled: !!studio?.id,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
-    retry: 2,
   });
 }
 
