@@ -285,6 +285,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccount((prev) => (prev ? { ...prev, ...updates } : prev));
   }, []);
 
+  // Heartbeat: update last_seen_at every 60s while authenticated
+  useEffect(() => {
+    if (!account) return;
+    const sendHeartbeat = () => {
+      const page = typeof window !== "undefined" ? window.location.pathname : null;
+      fetch("/api/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page }),
+      }).catch(() => {});
+    };
+    sendHeartbeat(); // immediate on mount
+    const interval = setInterval(sendHeartbeat, 60_000);
+    return () => clearInterval(interval);
+  }, [account]);
+
   const role = account?.role ?? null;
 
   const value: AuthState = {

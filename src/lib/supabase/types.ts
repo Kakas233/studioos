@@ -94,6 +94,8 @@ type AccountRow = {
   payout_method: string;
   onboarding_dismissed: boolean;
   onboarding_completed_steps: string[];
+  last_seen_at: string | null;
+  last_seen_page: string | null;
   created_at: string;
   updated_at: string;
 }

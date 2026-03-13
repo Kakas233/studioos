@@ -814,6 +814,83 @@ export async function POST(request: Request) {
       });
     }
 
+    if (action === "getLiveUsers") {
+      // Get all accounts with recent heartbeats (last 5 minutes = online)
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
+      const [
+        { data: onlineAccounts },
+        { data: recentAccounts },
+        { data: allStudios },
+      ] = await Promise.all([
+        adminClient
+          .from("accounts")
+          .select("id, studio_id, first_name, last_name, email, role, last_seen_at, last_seen_page")
+          .eq("is_active", true)
+          .gte("last_seen_at", fiveMinAgo)
+          .order("last_seen_at", { ascending: false }),
+        adminClient
+          .from("accounts")
+          .select("id, studio_id, first_name, last_name, email, role, last_seen_at, last_seen_page")
+          .eq("is_active", true)
+          .gte("last_seen_at", thirtyMinAgo)
+          .lt("last_seen_at", fiveMinAgo)
+          .order("last_seen_at", { ascending: false }),
+        adminClient
+          .from("studios")
+          .select("id, name, subdomain, subscription_tier, subscription_status"),
+      ]);
+
+      const studioMap: Record<string, { name: string; subdomain: string; tier: string; status: string }> = {};
+      (allStudios || []).forEach((s: any) => {
+        studioMap[s.id] = { name: s.name, subdomain: s.subdomain, tier: s.subscription_tier, status: s.subscription_status };
+      });
+
+      // Group online users by studio
+      const studioGroups: Record<string, { studio: typeof studioMap[string]; online: any[]; recent: any[] }> = {};
+
+      const mapUser = (a: any) => ({
+        id: a.id,
+        first_name: a.first_name,
+        last_name: a.last_name,
+        email: a.email,
+        role: a.role,
+        last_seen_at: a.last_seen_at,
+        last_seen_page: a.last_seen_page,
+      });
+
+      for (const a of (onlineAccounts || [])) {
+        const sid = a.studio_id;
+        if (!studioGroups[sid]) {
+          studioGroups[sid] = { studio: studioMap[sid] || { name: "Unknown", subdomain: "", tier: "", status: "" }, online: [], recent: [] };
+        }
+        studioGroups[sid].online.push(mapUser(a));
+      }
+
+      for (const a of (recentAccounts || [])) {
+        const sid = a.studio_id;
+        if (!studioGroups[sid]) {
+          studioGroups[sid] = { studio: studioMap[sid] || { name: "Unknown", subdomain: "", tier: "", status: "" }, online: [], recent: [] };
+        }
+        studioGroups[sid].recent.push(mapUser(a));
+      }
+
+      // Sort studios: most online users first
+      const sortedStudios = Object.entries(studioGroups)
+        .map(([studio_id, data]) => ({ studio_id, ...data }))
+        .sort((a, b) => b.online.length - a.online.length);
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          total_online: (onlineAccounts || []).length,
+          total_recent: (recentAccounts || []).length,
+          studios: sortedStudios,
+        },
+      });
+    }
+
     if (action === "deleteStudio") {
       const studioId = payload?.studio_id;
       if (!studioId)

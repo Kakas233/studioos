@@ -33,6 +33,7 @@ import {
   Send,
   FileText,
   UserPlus,
+  Wifi,
   type LucideIcon,
 } from "lucide-react";
 import SuperAdminStudioDetail from "@/components/superadmin/studio-detail";
@@ -41,6 +42,7 @@ import ActivityFeed from "@/components/superadmin/activity-feed";
 import VPSMonitor from "@/components/superadmin/vps-monitor";
 import TelegramTab from "@/components/superadmin/telegram-tab";
 import DailyLogTab from "@/components/superadmin/daily-log-tab";
+import LiveUsersTab from "@/components/superadmin/live-users-tab";
 
 interface DashStats {
   total_studios?: number;
@@ -365,6 +367,12 @@ export default function SuperAdminPanel() {
             >
               <FileText className="w-4 h-4 mr-1.5" /> Daily Log
             </TabsTrigger>
+            <TabsTrigger
+              value="liveusers"
+              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400"
+            >
+              <Wifi className="w-4 h-4 mr-1.5" /> Live Users
+            </TabsTrigger>
           </TabsList>
 
           {/* Studios Tab */}
@@ -541,6 +549,11 @@ export default function SuperAdminPanel() {
           {/* Daily Log Tab */}
           <TabsContent value="dailylog" className="mt-4">
             <DailyLogTab />
+          </TabsContent>
+
+          {/* Live Users Tab */}
+          <TabsContent value="liveusers" className="mt-4">
+            <LiveUsersTab />
           </TabsContent>
         </Tabs>
       </div>
