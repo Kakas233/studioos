@@ -18,14 +18,14 @@ import { format, parseISO } from "date-fns";
 import { getCurrencyInfo } from "@/lib/currencies";
 
 const SITES = [
-  { key: "myfreecams", dbKey: "mfc_usd", name: "MyFreeCams", rateKey: "myfreecams_rate" as const, isSpecial: false },
-  { key: "chaturbate", dbKey: "cb_usd", name: "Chaturbate", rateKey: "chaturbate_rate" as const, isSpecial: false },
-  { key: "stripchat", dbKey: "sc_usd", name: "Stripchat", rateKey: "stripchat_rate" as const, isSpecial: false },
-  { key: "bongacams", dbKey: "bc_usd", name: "BongaCams", rateKey: "bongacams_rate" as const, isSpecial: false },
-  { key: "cam4", dbKey: "c4_usd", name: "Cam4", rateKey: "cam4_rate" as const, isSpecial: false },
-  { key: "camsoda", dbKey: "cs_usd", name: "Camsoda", rateKey: "camsoda_rate" as const, isSpecial: false },
-  { key: "flirt4free", dbKey: "f4f_usd", name: "Flirt4Free", rateKey: "flirt4free_rate" as const, isSpecial: false },
-  { key: "livejasmin", dbKey: "lj_usd", name: "LiveJasmin", rateKey: "livejasmin_rate" as const, isSpecial: false },
+  { key: "myfreecams", dbKey: "myfreecams_usd", name: "MyFreeCams", rateKey: "myfreecams_rate" as const, isSpecial: false },
+  { key: "chaturbate", dbKey: "chaturbate_usd", name: "Chaturbate", rateKey: "chaturbate_rate" as const, isSpecial: false },
+  { key: "stripchat", dbKey: "stripchat_usd", name: "Stripchat", rateKey: "stripchat_rate" as const, isSpecial: false },
+  { key: "bongacams", dbKey: "bongacams_usd", name: "BongaCams", rateKey: "bongacams_rate" as const, isSpecial: false },
+  { key: "cam4", dbKey: "cam4_usd", name: "Cam4", rateKey: "cam4_rate" as const, isSpecial: false },
+  { key: "camsoda", dbKey: "camsoda_usd", name: "Camsoda", rateKey: "camsoda_rate" as const, isSpecial: false },
+  { key: "flirt4free", dbKey: "flirt4free_usd", name: "Flirt4Free", rateKey: "flirt4free_rate" as const, isSpecial: false },
+  { key: "livejasmin", dbKey: "livejasmin_usd", name: "LiveJasmin", rateKey: "livejasmin_rate" as const, isSpecial: false },
   { key: "onlyfans", dbKey: "onlyfans_usd", name: "OnlyFans", rateKey: "onlyfans" as const, isSpecial: true },
 ] as const;
 
@@ -109,10 +109,14 @@ export default function EarningsForm({
     if (existingEarning) {
       const newValues: Record<string, number | string> = {};
       SITES.forEach((site) => {
+        const storedUsd = (existingEarning[site.dbKey] as number) || 0;
         if (site.isSpecial) {
-          newValues[site.key] = (existingEarning.onlyfans_gross_usd as number) || 0;
+          // OnlyFans: stored as USD after 20% commission, reverse: input = usd / 0.8
+          newValues[site.key] = storedUsd > 0 ? Math.round((storedUsd / 0.8) * 100) / 100 : 0;
         } else {
-          newValues[site.key] = (existingEarning[`${site.key}_tokens`] as number) || 0;
+          // Token sites: stored as USD, reverse: tokens = usd / rate
+          const rate = (globalSettings?.[site.rateKey] as number) || 0.05;
+          newValues[site.key] = storedUsd > 0 ? Math.round(storedUsd / rate) : 0;
         }
       });
       setValues(newValues);
@@ -123,7 +127,7 @@ export default function EarningsForm({
       });
       setValues(newValues);
     }
-  }, [existingEarning, open]);
+  }, [existingEarning, open, globalSettings]);
 
   const secondaryCurrency = globalSettings?.secondary_currency || "USD";
   const exchangeRateMode = globalSettings?.exchange_rate_mode || "manual";
