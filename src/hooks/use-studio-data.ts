@@ -10,41 +10,28 @@ type Tables = Database["public"]["Tables"];
 const supabase = createClient();
 
 export function useShifts(options?: { dateFrom?: string; dateTo?: string }) {
-  const { studio } = useAuth();
+  const { account } = useAuth();
   const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
   const effectiveDateFrom = options?.dateFrom ?? sixtyDaysAgo;
   return useQuery<Tables["shifts"]["Row"][]>({
-    queryKey: ["shifts", studio?.id, effectiveDateFrom, options?.dateTo],
+    queryKey: ["shifts", account?.studio_id, effectiveDateFrom, options?.dateTo],
     queryFn: async () => {
-      if (!studio?.id) return [];
-
-      // Primary: API route (bypasses RLS)
-      try {
-        const params = new URLSearchParams({ dateFrom: effectiveDateFrom });
-        if (options?.dateTo) params.set("dateTo", options.dateTo);
-        const res = await fetch(`/api/shifts?${params.toString()}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) return data;
-        }
-      } catch {
-        // API route failed, fall through to direct query
+      // Primary: API route (bypasses RLS, determines studio from session)
+      const params = new URLSearchParams({ dateFrom: effectiveDateFrom });
+      if (options?.dateTo) params.set("dateTo", options.dateTo);
+      const res = await fetch(`/api/shifts?${params.toString()}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Failed to fetch shifts" }));
+        throw new Error(err.error || "Failed to fetch shifts");
       }
-
-      // Fallback: direct Supabase query
-      let query = supabase
-        .from("shifts")
-        .select("*")
-        .eq("studio_id", studio.id)
-        .gte("start_time", effectiveDateFrom)
-        .order("start_time", { ascending: false });
-      if (options?.dateTo) query = query.lte("start_time", options.dateTo);
-      const { data } = await query;
-      return data || [];
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+      return [];
     },
-    enabled: !!studio?.id,
-    staleTime: 30_000, // 30 seconds
+    enabled: !!account,
+    staleTime: 30_000,
     refetchOnWindowFocus: true,
+    retry: 2,
   });
 }
 

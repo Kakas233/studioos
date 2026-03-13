@@ -105,7 +105,7 @@ export default function UsersManagementPage() {
   if (!account || !isAdmin) return null;
 
   const models = allAccounts.filter((u) => u.role === "model" && u.is_active !== false);
-  const operators = allAccounts.filter((u) => u.role === "operator" && u.is_active !== false);
+  const operators = allAccounts.filter((u) => (u.role === "operator" || u.role === "admin" || u.role === "owner") && u.is_active !== false);
 
   const getAssignmentForModel = (modelId: string) => {
     return assignments.find((a) => a.model_id === modelId);
