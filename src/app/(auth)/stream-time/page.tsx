@@ -10,6 +10,7 @@ import {
   useStreamSegments,
   useShifts,
   useShiftAnalysis,
+  useModelCurrentActivity,
 } from "@/hooks/use-studio-data";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,6 +64,7 @@ export default function StreamTimePage() {
   const { data: rawSessions = [], isLoading: loadingSessions } =
     useStreamingSessions(studioCamAccountIds);
   const studioSessions = rawSessions;
+  const { data: realTimeActivity = {} } = useModelCurrentActivity();
 
   const { data: allStats = [], isLoading: loadingStats } =
     useStudioDailyStats(studioCamAccountIds);
@@ -208,6 +210,7 @@ export default function StreamTimePage() {
               sessions={studioSessions}
               camAccounts={studioCamAccounts}
               models={models}
+              realTimeActivity={realTimeActivity}
             />
 
             {/* Enhanced Session Breakdown with shift correlation & multi-platform timelines */}

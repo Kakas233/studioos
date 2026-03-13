@@ -10,6 +10,7 @@ import {
   useCamAccounts,
   useStudioDailyStats,
   useStreamingSessions,
+  useModelCurrentActivity,
 } from "@/hooks/use-studio-data";
 import { useCurrency } from "@/hooks/use-currency";
 import { parseISO, startOfMonth, endOfMonth, subDays, format } from "date-fns";
@@ -77,6 +78,7 @@ export default function DashboardPage() {
 
   // Fetch live sessions for LiveStatus
   const { data: studioSessions = [] } = useStreamingSessions(studioCamAccountIds);
+  const { data: realTimeActivity = {} } = useModelCurrentActivity();
 
   // Mutations for change requests
   const updateEarningMutation = useMutation({
@@ -262,7 +264,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:gap-5">
           <OperatorAgenda shifts={filteredShifts} />
-          <LiveStatus sessions={studioSessions} camAccounts={studioCamAccounts} models={studioModels} />
+          <LiveStatus sessions={studioSessions} camAccounts={studioCamAccounts} models={studioModels} realTimeActivity={realTimeActivity} />
         </div>
       </div>
     );

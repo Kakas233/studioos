@@ -7,6 +7,7 @@ import { Radio, User } from "lucide-react";
 import { getShowType } from "@/lib/show-types";
 import { formatDistanceToNow } from "date-fns";
 import type { Database } from "@/lib/supabase/types";
+import type { ModelActivity } from "@/hooks/use-studio-data";
 
 type StreamingSession = Database["public"]["Tables"]["streaming_sessions"]["Row"];
 type CamAccount = Database["public"]["Tables"]["cam_accounts"]["Row"];
@@ -20,6 +21,7 @@ interface ModelGroup {
     isLive: boolean;
     showType: string;
     scrapedAt: string | undefined;
+    activityUpdatedAt: string | null;
   }[];
 }
 
@@ -27,10 +29,11 @@ interface LiveStatusProps {
   sessions: StreamingSession[];
   camAccounts: CamAccount[];
   models: Account[];
+  realTimeActivity?: Record<string, ModelActivity>;
   compact?: boolean;
 }
 
-export default function LiveStatus({ sessions, camAccounts, models, compact = false }: LiveStatusProps) {
+export default function LiveStatus({ sessions, camAccounts, models, realTimeActivity = {}, compact = false }: LiveStatusProps) {
   const modelIds = new Set(models.map((m) => m.id));
   const validCamAccounts = camAccounts.filter((ca) => modelIds.has(ca.model_id) && ca.is_active !== false);
   const validCamIds = new Set(validCamAccounts.map((ca) => ca.id));
@@ -44,14 +47,19 @@ export default function LiveStatus({ sessions, camAccounts, models, compact = fa
         groups[ca.model_id] = { model, platforms: [] };
       }
       const session = validSessions.find((s) => s.cam_account_id === ca.id);
-      const showType = session?.show_type || "offline";
-      const isLive = session?.is_currently_live === true;
+      const rt = realTimeActivity[ca.id];
+
+      // Real-time activity overrides scraped session data
+      const showType = rt ? rt.show_type : (session?.show_type || "offline");
+      const isLive = rt ? rt.is_live : (session?.is_currently_live === true);
+
       groups[ca.model_id].platforms.push({
         camAccount: ca,
         session,
         isLive,
         showType,
         scrapedAt: session?.scraped_at,
+        activityUpdatedAt: rt?.updated_at || null,
       });
     });
     return Object.values(groups).sort((a, b) => {
@@ -60,7 +68,7 @@ export default function LiveStatus({ sessions, camAccounts, models, compact = fa
       if (aLive !== bLive) return bLive ? 1 : -1;
       return (a.model?.first_name || "").localeCompare(b.model?.first_name || "");
     });
-  }, [validCamAccounts, validSessions, models]);
+  }, [validCamAccounts, validSessions, models, realTimeActivity]);
 
   const totalLive = modelGroups.filter((g) => g.platforms.some((p) => p.isLive)).length;
 
@@ -84,9 +92,10 @@ export default function LiveStatus({ sessions, camAccounts, models, compact = fa
           <div className="space-y-2">
             {modelGroups.map((group) => {
               const isLive = group.platforms.some((p) => p.isLive);
-              const latestScrape = group.platforms
-                .filter((p) => p.scrapedAt)
-                .sort((a, b) => new Date(b.scrapedAt!).getTime() - new Date(a.scrapedAt!).getTime())[0]?.scrapedAt;
+              const latestUpdate = group.platforms
+                .map((p) => p.activityUpdatedAt || p.scrapedAt)
+                .filter(Boolean)
+                .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime())[0];
 
               return (
                 <div
@@ -127,9 +136,9 @@ export default function LiveStatus({ sessions, camAccounts, models, compact = fa
                     {isLive ? (
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     ) : (
-                      latestScrape && (
+                      latestUpdate && (
                         <span className="text-[10px] text-[#A8A49A]/25">
-                          {formatDistanceToNow(new Date(latestScrape), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(latestUpdate.includes("T") ? latestUpdate : latestUpdate.replace(" ", "T") + "Z"), { addSuffix: true })}
                         </span>
                       )
                     )}

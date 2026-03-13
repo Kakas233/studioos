@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Radio, User } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useCamAccounts, useStudioAccounts, useStreamingSessions } from "@/hooks/use-studio-data";
+import { useCamAccounts, useStudioAccounts, useStreamingSessions, useModelCurrentActivity } from "@/hooks/use-studio-data";
 import { useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { getShowType } from "@/lib/show-types";
@@ -22,6 +22,7 @@ export default function LiveMonitor() {
   const validCamIds = useMemo(() => validCamAccounts.map((ca) => ca.id), [validCamAccounts]);
 
   const { data: rawSessions = [] } = useStreamingSessions(validCamIds);
+  const { data: realTimeActivity = {} } = useModelCurrentActivity();
 
   const validCamIdSet = new Set(validCamIds);
 
@@ -32,7 +33,23 @@ export default function LiveMonitor() {
 
   const getCamAccount = (session: typeof rawSessions[0]) => validCamAccounts.find((ca) => ca.id === session.cam_account_id);
 
-  const validSessions = rawSessions.filter((s) => validCamIdSet.has(s.cam_account_id));
+  // Merge real-time activity into sessions: override is_currently_live and show_type
+  const validSessions = useMemo(() => {
+    return rawSessions
+      .filter((s) => validCamIdSet.has(s.cam_account_id))
+      .map((s) => {
+        const rt = realTimeActivity[s.cam_account_id];
+        if (rt) {
+          return {
+            ...s,
+            is_currently_live: rt.is_live,
+            show_type: rt.show_type as typeof s.show_type,
+          };
+        }
+        return s;
+      });
+  }, [rawSessions, realTimeActivity, validCamIdSet]);
+
   const liveSessions = validSessions.filter((s) => s.is_currently_live);
   const offlineSessions = validSessions.filter((s) => !s.is_currently_live);
 
@@ -57,6 +74,7 @@ export default function LiveMonitor() {
             {liveSessions.map((session) => {
               const ca = getCamAccount(session);
               const style = getShowType(session.show_type);
+              const rt = realTimeActivity[session.cam_account_id];
               return (
                 <div key={session.id} className="flex items-center justify-between p-3 bg-emerald-500/[0.06] rounded-lg border border-emerald-500/10">
                   <div className="flex items-center gap-3">
@@ -77,6 +95,12 @@ export default function LiveMonitor() {
             })}
             {offlineSessions.map((session) => {
               const ca = getCamAccount(session);
+              const rt = realTimeActivity[session.cam_account_id];
+              const offlineSince = rt?.updated_at
+                ? formatDistanceToNow(new Date(rt.updated_at.replace(" ", "T") + "Z"), { addSuffix: true })
+                : session.scraped_at
+                  ? formatDistanceToNow(new Date(session.scraped_at), { addSuffix: true })
+                  : null;
               return (
                 <div key={session.id} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.04] opacity-50">
                   <div className="flex items-center gap-3">
@@ -90,7 +114,7 @@ export default function LiveMonitor() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge className="bg-white/[0.04] text-[#A8A49A]/40 text-xs border-0">Offline</Badge>
-                    {session.scraped_at && <span className="text-[10px] text-[#A8A49A]/30">{formatDistanceToNow(new Date(session.scraped_at), { addSuffix: true })}</span>}
+                    {offlineSince && <span className="text-[10px] text-[#A8A49A]/30">{offlineSince}</span>}
                   </div>
                 </div>
               );

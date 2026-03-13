@@ -149,6 +149,30 @@ export function useStreamingSessions(camAccountIds: string[]) {
   });
 }
 
+export interface ModelActivity {
+  cam_account_id: string;
+  is_live: boolean;
+  show_type: string;
+  display_name: string;
+  updated_at: string | null;
+}
+
+export function useModelCurrentActivity() {
+  const { studio } = useAuth();
+  return useQuery<Record<string, ModelActivity>>({
+    queryKey: ["modelCurrentActivity", studio?.id],
+    queryFn: async () => {
+      if (!studio?.id) return {};
+      const res = await fetch("/api/model-activity");
+      if (!res.ok) return {};
+      return res.json();
+    },
+    enabled: !!studio?.id,
+    refetchInterval: 30_000, // 30 seconds
+    staleTime: 20_000,
+  });
+}
+
 export function useRooms() {
   const { studio } = useAuth();
   return useQuery<Tables["rooms"]["Row"][]>({
