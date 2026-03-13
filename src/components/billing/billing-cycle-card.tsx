@@ -28,7 +28,7 @@ export default function BillingCycleCard({ billing }: { billing: BillingData }) 
         </CardHeader>
         <CardContent>
           {isTrialing && billing.grace_period_ends_at ? (
-            {(() => {
+            (() => {
               const trialEnd = parseISO(billing.grace_period_ends_at!);
               const trialRemainingMs = Math.max(0, trialEnd.getTime() - Date.now());
               const trialDaysLeft = Math.ceil(trialRemainingMs / (24 * 60 * 60 * 1000));
@@ -54,7 +54,7 @@ export default function BillingCycleCard({ billing }: { billing: BillingData }) 
                   </p>
                 </div>
               );
-            })()}
+            })()
           ) : (
             <p className="text-[#A8A49A]/50 text-sm">
               No active subscription. Subscribe to a plan to get started.

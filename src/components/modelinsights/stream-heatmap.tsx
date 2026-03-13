@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { motion } from "framer-motion";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -63,63 +62,15 @@ interface StreamHeatmapProps {
   hue?: string;
 }
 
-interface TooltipInfo {
-  day: number;
-  hour: number;
-  val: number;
-  dayName: string;
-  rect: { top: number; left: number; width: number; bottom: number };
-}
-
-function HeatmapTooltip({ info }: { info: TooltipInfo }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    const el = ref.current;
-    const { rect } = info;
-    const centerX = rect.left + rect.width / 2;
-    const tooltipH = el.offsetHeight;
-
-    // Show below if too close to top
-    const top = rect.top < 60
-      ? rect.bottom + 8
-      : rect.top - tooltipH - 8;
-
-    setPos({ top, left: centerX });
-  }, [info]);
-
-  return createPortal(
-    <div
-      ref={ref}
-      className="bg-[#1a1a1a] border border-white/[0.08] rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl pointer-events-none"
-      style={{
-        position: "fixed",
-        zIndex: 9999,
-        left: pos ? pos.left : -9999,
-        top: pos ? pos.top : -9999,
-        transform: "translateX(-50%)",
-        opacity: pos ? 1 : 0,
-      }}
-    >
-      <p className="text-[9px] text-[#A8A49A]/50">
-        {info.dayName} {String(info.hour).padStart(2, "0")}:00
-      </p>
-      <p className="text-[11px] text-white font-medium">
-        {Math.round(info.val)} min
-      </p>
-    </div>,
-    document.body
-  );
-}
-
 export default function StreamHeatmap({
   title,
   data,
   hue = "gold",
 }: StreamHeatmapProps) {
-  const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
+  const [hoveredCell, setHoveredCell] = useState<{
+    day: number;
+    hour: number;
+  } | null>(null);
 
   let max = 0;
   for (const day of Object.values(data || {})) {
@@ -130,38 +81,18 @@ export default function StreamHeatmap({
 
   const c = HUE_CONFIGS[hue] || HUE_CONFIGS.gold;
 
-  const handleMouseEnter = (
-    e: React.MouseEvent<HTMLDivElement>,
-    di: number,
-    h: number,
-    val: number
-  ) => {
-    if (val <= 0) {
-      setTooltip(null);
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTooltip({
-      day: di,
-      hour: h,
-      val,
-      dayName: DAYS[di],
-      rect: { top: rect.top, left: rect.left, width: rect.width, bottom: rect.bottom },
-    });
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="bg-[#111111] border border-white/[0.04] rounded-xl p-5"
+      className="bg-[#111111] border border-white/[0.04] rounded-xl p-5 overflow-visible"
     >
       <p className="text-xs text-[#A8A49A]/40 font-medium tracking-wide mb-4">
         {title}
       </p>
-      <div className="overflow-x-auto">
-        <div className="min-w-[600px]">
+      <div className="overflow-x-auto overflow-y-visible">
+        <div className="min-w-[600px] pt-8">
           {/* Hour labels */}
           <div className="flex items-center mb-1 pl-10">
             {HOURS.filter((_, i) => i % 3 === 0).map((h) => (
@@ -184,11 +115,11 @@ export default function StreamHeatmap({
                 {HOURS.map((h) => {
                   const val = data?.[di]?.[h] || 0;
                   const isHovered =
-                    tooltip?.day === di && tooltip?.hour === h;
+                    hoveredCell?.day === di && hoveredCell?.hour === h;
                   return (
                     <div
                       key={h}
-                      className="flex-1 h-5 rounded-[3px] cursor-crosshair"
+                      className="flex-1 h-5 rounded-[3px] cursor-crosshair relative"
                       style={{
                         backgroundColor: getInlineColor(val, max, hue),
                         transition:
@@ -199,9 +130,42 @@ export default function StreamHeatmap({
                           ? `0 0 8px ${c.colors[3]}`
                           : "none",
                       }}
-                      onMouseEnter={(e) => handleMouseEnter(e, di, h, val)}
-                      onMouseLeave={() => setTooltip(null)}
-                    />
+                      onMouseEnter={() =>
+                        setHoveredCell({ day: di, hour: h })
+                      }
+                      onMouseLeave={() => setHoveredCell(null)}
+                    >
+                      {isHovered && val > 0 && (
+                        <div
+                          className="bg-[#1a1a1a] border border-white/[0.08] rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-xl pointer-events-none"
+                          style={{
+                            position: "fixed",
+                            zIndex: 9999,
+                          }}
+                          ref={(el) => {
+                            if (!el) return;
+                            const parent = el.parentElement;
+                            if (!parent) return;
+                            const rect = parent.getBoundingClientRect();
+                            el.style.left = `${rect.left + rect.width / 2}px`;
+                            el.style.transform = "translateX(-50%)";
+                            // Show below if too close to top of viewport
+                            if (rect.top < 60) {
+                              el.style.top = `${rect.bottom + 8}px`;
+                            } else {
+                              el.style.top = `${rect.top - el.offsetHeight - 8}px`;
+                            }
+                          }}
+                        >
+                          <p className="text-[9px] text-[#A8A49A]/50">
+                            {day} {String(h).padStart(2, "0")}:00
+                          </p>
+                          <p className="text-[11px] text-white font-medium">
+                            {Math.round(val)} min
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -224,9 +188,6 @@ export default function StreamHeatmap({
           </div>
         </div>
       </div>
-
-      {/* Tooltip rendered via portal outside all containers */}
-      {tooltip && <HeatmapTooltip info={tooltip} />}
     </motion.div>
   );
 }

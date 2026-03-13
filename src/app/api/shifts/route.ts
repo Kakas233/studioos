@@ -27,10 +27,43 @@ async function getAccountWithAuth(supabase: Awaited<ReturnType<typeof createClie
 
   if (!account || !ALLOWED_ROLES.includes(account.role)) return null;
 
-  // Models can only create shifts if they work alone
-  if (account.role === "model" && !account.works_alone) return null;
-
   return account;
+}
+
+async function getAccountWithAuthWrite(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const account = await getAccountWithAuth(supabase);
+  if (!account) return null;
+  // Models can only create/edit shifts if they work alone
+  if (account.role === "model" && !account.works_alone) return null;
+  return account;
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const account = await getAccountWithAuth(supabase);
+    if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const adminDb = createAdminClient();
+    const { searchParams } = new URL(request.url);
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
+
+    let query = adminDb
+      .from("shifts")
+      .select("*")
+      .eq("studio_id", account.studio_id)
+      .order("start_time", { ascending: false });
+
+    if (dateFrom) query = query.gte("start_time", dateFrom);
+    if (dateTo) query = query.lte("start_time", dateTo);
+
+    const { data, error } = await query;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data || []);
+  } catch {
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -39,7 +72,7 @@ export async function POST(request: NextRequest) {
     const parsed = shiftSchema.parse(body);
     const supabase = await createClient();
 
-    const account = await getAccountWithAuth(supabase);
+    const account = await getAccountWithAuthWrite(supabase);
     if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     // Use admin client for DB operations (bypasses RLS since we already verified auth)
@@ -138,7 +171,7 @@ export async function PUT(request: NextRequest) {
 
     const supabase = await createClient();
 
-    const account = await getAccountWithAuth(supabase);
+    const account = await getAccountWithAuthWrite(supabase);
     if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const adminDb = createAdminClient();
@@ -232,7 +265,7 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = await createClient();
 
-    const account = await getAccountWithAuth(supabase);
+    const account = await getAccountWithAuthWrite(supabase);
     if (!account) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const adminDb = createAdminClient();

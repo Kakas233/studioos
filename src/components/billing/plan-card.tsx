@@ -154,8 +154,8 @@ export default function PlanCard({
               </p>
             </div>
             <p className="text-yellow-400/70 text-xs">
-              Please update your payment method. Your account will be suspended{" "}
-              {formatDistanceToNow(graceEndsAt, { addSuffix: true })}.
+              Please update your payment method. Your account will be suspended on{" "}
+              {format(graceEndsAt, "MMM d, yyyy")}.
             </p>
           </div>
         )}
