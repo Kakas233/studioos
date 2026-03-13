@@ -61,13 +61,14 @@ export default function EnhancedSessionBreakdown({
       });
   }, [shiftAnalyses, streamSegments, shifts, selectedModel]);
 
+  // Build date groups INCLUDING all segments (offline, away, etc.)
   const dateGroups = useMemo(() => {
     if (!streamSegments?.length) return [];
 
     const filtered = streamSegments.filter((seg: any) => {
       if (selectedModel !== "all" && seg.model_id !== selectedModel)
         return false;
-      if (seg.show_type === "offline") return false;
+      // Include ALL segment types now — offline and away too
       return true;
     });
 
@@ -88,8 +89,27 @@ export default function EnhancedSessionBreakdown({
     );
   }, [streamSegments, selectedModel]);
 
+  // Match shift analyses to date groups for adherence data
+  const dateGroupsWithAdherence = useMemo(() => {
+    return dateGroups.map((group: any) => {
+      const analysis = shiftAnalyses?.find(
+        (a: any) =>
+          a.model_id === group.model_id && a.shift_date === group.date
+      );
+      // Find shifts for this day/model to pass to session detection
+      const dayShifts = (shifts || []).filter(
+        (s: any) =>
+          s.model_id === group.model_id &&
+          s.start_time?.startsWith(group.date)
+      );
+      return { ...group, shiftAnalysis: analysis || null, dayShifts };
+    });
+  }, [dateGroups, shiftAnalyses, shifts]);
+
   const displayShifts = showAll ? shiftViews : shiftViews.slice(0, 8);
-  const displayDates = showAll ? dateGroups : dateGroups.slice(0, 8);
+  const displayDates = showAll
+    ? dateGroupsWithAdherence
+    : dateGroupsWithAdherence.slice(0, 8);
 
   if (isLoading) {
     return (
@@ -102,7 +122,7 @@ export default function EnhancedSessionBreakdown({
   }
 
   const hasShiftData = shiftViews.length > 0;
-  const hasSegmentData = dateGroups.length > 0;
+  const hasSegmentData = dateGroupsWithAdherence.length > 0;
 
   if (!hasShiftData && !hasSegmentData) {
     return (
@@ -197,10 +217,12 @@ export default function EnhancedSessionBreakdown({
                 modelId={group.model_id}
                 segments={group.segments}
                 models={models}
+                shifts={group.dayShifts}
+                shiftAnalysis={group.shiftAnalysis}
               />
             ))
           )}
-          {dateGroups.length > 8 && (
+          {dateGroupsWithAdherence.length > 8 && (
             <Button
               variant="ghost"
               size="sm"
@@ -209,7 +231,7 @@ export default function EnhancedSessionBreakdown({
             >
               {showAll
                 ? "Show Less"
-                : `Show All ${dateGroups.length} Days`}
+                : `Show All ${dateGroupsWithAdherence.length} Days`}
             </Button>
           )}
         </div>

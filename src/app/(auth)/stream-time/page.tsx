@@ -242,6 +242,8 @@ export default function StreamTimePage() {
               models={models}
               allAccounts={studioAccounts}
               shifts={shifts}
+              shiftAnalyses={shiftAnalyses}
+              streamSegments={streamSegments}
               isLoading={loadingStats}
             />
           </>
