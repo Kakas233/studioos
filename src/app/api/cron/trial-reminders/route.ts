@@ -50,10 +50,12 @@ async function runTrialReminders() {
     let remindersSent = 0;
     let expired = 0;
 
+    const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
     // Get all trialing studios
     const { data: trialStudios } = await admin
       .from("studios")
-      .select("id, name, subdomain, trial_ends_at, grace_period_ends_at")
+      .select("id, name, subdomain, trial_ends_at, grace_period_ends_at, last_trial_reminder_sent")
       .eq("subscription_status", "trialing");
 
     // Batch fetch all owners for trial studios in one query
@@ -87,15 +89,21 @@ async function runTrialReminders() {
       const studioName = studio.name || "Your Studio";
       const subdomain = studio.subdomain || "";
 
+      // Dedup: skip if we already sent a reminder today for this studio
+      const lastSent = (studio as Record<string, unknown>).last_trial_reminder_sent as string | null;
+      const alreadySentToday = lastSent?.slice(0, 10) === todayStr;
+
       // 3 days left
-      if (daysLeft === 3) {
+      if (daysLeft === 3 && !alreadySentToday) {
         await sendTrial3DayEmail(ownerEmail, studioName, subdomain);
+        await admin.from("studios").update({ last_trial_reminder_sent: new Date().toISOString() }).eq("id", studio.id);
         remindersSent++;
       }
 
       // 1 day left
-      if (daysLeft === 1) {
+      if (daysLeft === 1 && !alreadySentToday) {
         await sendTrial1DayEmail(ownerEmail, studioName, subdomain);
+        await admin.from("studios").update({ last_trial_reminder_sent: new Date().toISOString() }).eq("id", studio.id);
         remindersSent++;
       }
 
@@ -106,6 +114,7 @@ async function runTrialReminders() {
           .update({
             subscription_status: "suspended",
             model_limit: 0,
+            last_trial_reminder_sent: new Date().toISOString(),
           })
           .eq("id", studio.id);
 

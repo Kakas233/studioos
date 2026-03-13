@@ -203,6 +203,11 @@ export async function POST(request: NextRequest) {
 
     if (!emailResult.success) {
       console.error("Verification email failed:", emailResult.error);
+      return NextResponse.json({
+        success: true,
+        email_failed: true,
+        message: "Account created but the verification email could not be sent. Please try logging in or contact support.",
+      });
     }
 
     return NextResponse.json({

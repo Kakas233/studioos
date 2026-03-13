@@ -200,6 +200,13 @@ export async function POST(request: NextRequest) {
 
     if (!emailResult.success) {
       console.error("Invite email failed:", emailResult.error);
+      // Account was created but email failed — return the password so admin can share it manually
+      return NextResponse.json({
+        success: true,
+        email_failed: true,
+        temporary_password: password,
+        message: `${parsed.first_name} was added but the invite email could not be sent. Please share these credentials manually.`,
+      });
     }
 
     return NextResponse.json({

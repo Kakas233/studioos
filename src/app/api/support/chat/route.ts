@@ -46,6 +46,16 @@ const ESCALATION_MESSAGE_THRESHOLD = 10;
 const ESCALATION_TIME_THRESHOLD_MS = 30 * 60 * 1000;
 const SUPERVISOR_EMAIL = "support@getstudioos.com";
 
+/** Escape HTML special characters to prevent XSS in escalation emails */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 interface Message {
   role: string;
   content: string;
@@ -105,8 +115,8 @@ async function sendEscalationEmail(
             ? "#fef3c7"
             : "#e0f2fe";
       return `<div style="background:${bgColor};padding:10px 14px;border-radius:8px;margin-bottom:6px;">
-      <div style="font-size:11px;color:#666;margin-bottom:3px;"><strong>${sender}</strong> &middot; ${time}</div>
-      <div style="font-size:14px;color:#1f2937;">${m.content}</div>
+      <div style="font-size:11px;color:#666;margin-bottom:3px;"><strong>${escapeHtml(sender)}</strong> &middot; ${time}</div>
+      <div style="font-size:14px;color:#1f2937;">${escapeHtml(m.content)}</div>
     </div>`;
     })
     .join("");
@@ -128,11 +138,11 @@ async function sendEscalationEmail(
       <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
         <table style="width:100%;font-size:13px;margin-bottom:16px;">
           <tr><td style="color:#6b7280;padding:4px 0;">Reason:</td><td style="font-weight:600;">${reasonText}</td></tr>
-          <tr><td style="color:#6b7280;padding:4px 0;">Customer:</td><td>${ticket.account_name || "Unknown"} (${ticket.account_email || "N/A"})</td></tr>
-          <tr><td style="color:#6b7280;padding:4px 0;">Studio:</td><td>${studio?.name || "Unknown"} (${studio?.subscription_tier || "free"})</td></tr>
-          <tr><td style="color:#6b7280;padding:4px 0;">Category:</td><td>${ticket.category}</td></tr>
-          <tr><td style="color:#6b7280;padding:4px 0;">AI Agent:</td><td>${agentName}</td></tr>
-          <tr><td style="color:#6b7280;padding:4px 0;">Subject:</td><td>${ticket.subject}</td></tr>
+          <tr><td style="color:#6b7280;padding:4px 0;">Customer:</td><td>${escapeHtml(ticket.account_name || "Unknown")} (${escapeHtml(ticket.account_email || "N/A")})</td></tr>
+          <tr><td style="color:#6b7280;padding:4px 0;">Studio:</td><td>${escapeHtml(studio?.name || "Unknown")} (${escapeHtml(studio?.subscription_tier || "free")})</td></tr>
+          <tr><td style="color:#6b7280;padding:4px 0;">Category:</td><td>${escapeHtml(ticket.category)}</td></tr>
+          <tr><td style="color:#6b7280;padding:4px 0;">AI Agent:</td><td>${escapeHtml(agentName)}</td></tr>
+          <tr><td style="color:#6b7280;padding:4px 0;">Subject:</td><td>${escapeHtml(ticket.subject)}</td></tr>
           <tr><td style="color:#6b7280;padding:4px 0;">Messages:</td><td>${(ticket.messages || []).length}</td></tr>
           <tr><td style="color:#6b7280;padding:4px 0;">Created:</td><td>${ticket.created_date ? new Date(ticket.created_date).toLocaleString() : "N/A"}</td></tr>
         </table>
@@ -159,7 +169,7 @@ async function escalateTicket(
   ticket: Ticket,
   reason: string,
   studio: Studio | null
-) {
+): Promise<boolean> {
   const now = new Date().toISOString();
   const currentMessages = ticket.messages || [];
 
@@ -170,7 +180,8 @@ async function escalateTicket(
     timestamp: now,
   });
 
-  await (getSupabase()
+  // Atomic conditional update: only escalate if not already escalated
+  const { data: updated } = await (getSupabase()
     .from("support_tickets") as any)
     .update({
       is_escalated: true,
@@ -180,7 +191,15 @@ async function escalateTicket(
       priority: "high",
       messages: currentMessages,
     })
-    .eq("id", ticket.id);
+    .eq("id", ticket.id)
+    .eq("is_escalated", false) // Only update if not yet escalated
+    .select("id")
+    .single();
+
+  if (!updated) {
+    // Already escalated by another request — skip
+    return false;
+  }
 
   ticket.is_escalated = true;
   ticket.escalated_at = now;
@@ -189,6 +208,7 @@ async function escalateTicket(
   ticket.messages = currentMessages;
 
   await sendEscalationEmail(ticket, reason, studio);
+  return true;
 }
 
 async function checkAutoEscalation(

@@ -177,17 +177,31 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (studio) {
-            // Set grace period (5 days) and mark as past_due
-            const gracePeriodEnds = new Date();
-            gracePeriodEnds.setDate(gracePeriodEnds.getDate() + 5);
+            // Only set grace period if not already in an active grace period
+            const existingGrace = studio.grace_period_ends_at;
+            const hasActiveGrace = existingGrace && new Date(existingGrace) > new Date();
+
+            const updateData: Record<string, unknown> = {
+              subscription_status: "past_due",
+            };
+
+            if (!hasActiveGrace) {
+              // First failure — set 5-day grace period
+              const gracePeriodEnds = new Date();
+              gracePeriodEnds.setDate(gracePeriodEnds.getDate() + 5);
+              updateData.grace_period_ends_at = gracePeriodEnds.toISOString();
+            }
 
             await admin
               .from("studios")
-              .update({
-                subscription_status: "past_due",
-                grace_period_ends_at: gracePeriodEnds.toISOString(),
-              })
+              .update(updateData)
               .eq("id", studio.id);
+
+            // Calculate remaining grace days for the email
+            const graceEnd = hasActiveGrace
+              ? new Date(existingGrace)
+              : new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+            const graceDaysLeft = Math.max(1, Math.ceil((graceEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
 
             // Send payment failed email to owner
             try {
@@ -203,7 +217,7 @@ export async function POST(request: NextRequest) {
                 await sendPaymentFailedEmail(
                   owners[0].email,
                   studio.name || "Your Studio",
-                  5
+                  graceDaysLeft
                 );
               }
             } catch (emailErr) {
