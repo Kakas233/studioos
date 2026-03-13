@@ -3,27 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import bcrypt from "bcryptjs";
 import { sendAdmin2FAEmail } from "@/lib/email";
 import crypto from "crypto";
-
-// Simple in-memory rate limiter
-const loginAttempts = new Map<string, number[]>();
-const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = loginAttempts.get(ip);
-  if (!entry) return true;
-  const recent = entry.filter((t) => now - t < WINDOW_MS);
-  loginAttempts.set(ip, recent);
-  return recent.length < MAX_ATTEMPTS;
-}
-
-function recordAttempt(ip: string): void {
-  const now = Date.now();
-  const entry = loginAttempts.get(ip) || [];
-  entry.push(now);
-  loginAttempts.set(ip, entry);
-}
+import { checkRateLimit, recordRateLimitAttempt } from "@/lib/rate-limit";
 
 function generateCode(): string {
   const bytes = crypto.randomBytes(4);
@@ -37,7 +17,7 @@ export async function POST(request: Request) {
       request.headers.get("cf-connecting-ip") ||
       "unknown";
 
-    if (!checkRateLimit(ip)) {
+    if (!(await checkRateLimit(ip, "login"))) {
       return NextResponse.json(
         {
           success: false,
@@ -62,7 +42,7 @@ export async function POST(request: Request) {
         !SUPER_ADMIN_EMAIL ||
         email.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase()
       ) {
-        recordAttempt(ip);
+        await recordRateLimitAttempt(ip, "login");
         return NextResponse.json({
           success: false,
           error: "Invalid credentials",
@@ -78,7 +58,7 @@ export async function POST(request: Request) {
         .limit(1);
 
       if (!accounts || accounts.length === 0) {
-        recordAttempt(ip);
+        await recordRateLimitAttempt(ip, "login");
         return NextResponse.json({
           success: false,
           error: "Super admin account not found",
@@ -88,7 +68,7 @@ export async function POST(request: Request) {
       const account = accounts[0] as any;
 
       if (!account.is_super_admin) {
-        recordAttempt(ip);
+        await recordRateLimitAttempt(ip, "login");
         return NextResponse.json({
           success: false,
           error: "Invalid credentials",
@@ -100,7 +80,7 @@ export async function POST(request: Request) {
         account.password_hash
       );
       if (!passwordMatch) {
-        recordAttempt(ip);
+        await recordRateLimitAttempt(ip, "login");
         return NextResponse.json({
           success: false,
           error: "Invalid credentials",

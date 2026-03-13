@@ -1,40 +1,44 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+async function validateSuperAdminSession() {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("sa_session")?.value;
+  if (!sessionToken) return null;
+
+  const adminClient = createAdminClient();
+
+  const { data: sessions } = await (adminClient.from("sessions") as any)
+    .select("id, account_id, expires_at")
+    .eq("token", sessionToken)
+    .limit(1);
+
+  if (!sessions || sessions.length === 0) return null;
+  if (new Date(sessions[0].expires_at) < new Date()) return null;
+
+  const { data: accounts } = await adminClient
+    .from("accounts")
+    .select("id, email, is_super_admin")
+    .eq("id", sessions[0].account_id)
+    .limit(1);
+
+  if (!accounts || accounts.length === 0 || !accounts[0].is_super_admin) return null;
+  return accounts[0];
+}
 
 /**
  * GET /api/admin/studios — List all studios with account counts and subscription info.
- * Super admin only.
+ * Super admin only (requires 2FA session).
  */
 export async function GET() {
   try {
-    const supabase = await createClient();
-
-    // Verify authenticated user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    const account = await validateSuperAdminSession();
+    if (!account) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check super admin status
     const adminClient = createAdminClient();
-
-    const { data: account } = await adminClient
-      .from("accounts")
-      .select("id, email, is_super_admin")
-      .eq("auth_user_id", user.id)
-      .eq("is_active", true)
-      .single();
-
-    const isSuperAdmin =
-      account?.is_super_admin === true ||
-      user.email === process.env.SUPER_ADMIN_EMAIL;
-
-    if (!isSuperAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     // Fetch all studios
     const { data: studios, error: studiosError } = await adminClient

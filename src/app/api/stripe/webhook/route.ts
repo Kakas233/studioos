@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
               subscription_status: "active",
               stripe_subscription_id: session.subscription as string,
               model_limit: MODEL_LIMITS[planId] || 1,
+              last_payment_date: new Date().toISOString(),
             })
             .eq("id", studioId);
         }
@@ -83,11 +84,22 @@ export async function POST(request: NextRequest) {
             unpaid: "suspended",
           };
 
+          const updateData: Record<string, unknown> = {
+            subscription_status: (statusMap[subscription.status] || "active") as import("@/lib/supabase/types").SubscriptionStatus,
+          };
+
+          // Track payment dates from subscription billing cycle
+          const subAny = subscription as unknown as Record<string, unknown>;
+          if (subAny.current_period_end) {
+            updateData.next_payment_date = new Date((subAny.current_period_end as number) * 1000).toISOString();
+          }
+          if (subAny.current_period_start) {
+            updateData.last_payment_date = new Date((subAny.current_period_start as number) * 1000).toISOString();
+          }
+
           await admin
             .from("studios")
-            .update({
-              subscription_status: (statusMap[subscription.status] || "active") as import("@/lib/supabase/types").SubscriptionStatus,
-            })
+            .update(updateData)
             .eq("id", studio.id);
         }
         break;
@@ -113,6 +125,32 @@ export async function POST(request: NextRequest) {
               grace_period_ends_at: gracePeriodEnds.toISOString(),
             })
             .eq("id", studio.id);
+        }
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        const paidInvoice = event.data.object as Stripe.Invoice;
+        const paidSubId = (paidInvoice as unknown as { subscription?: string | { id: string } }).subscription
+          ?? paidInvoice.parent?.subscription_details?.subscription;
+        if (paidSubId) {
+          const paidSubIdStr = typeof paidSubId === "string" ? paidSubId : paidSubId.id;
+          const { data: paidStudio } = await admin
+            .from("studios")
+            .select("id")
+            .eq("stripe_subscription_id", paidSubIdStr)
+            .single();
+
+          if (paidStudio) {
+            await admin
+              .from("studios")
+              .update({
+                last_payment_date: new Date().toISOString(),
+                subscription_status: "active",
+                grace_period_ends_at: null,
+              })
+              .eq("id", paidStudio.id);
+          }
         }
         break;
       }

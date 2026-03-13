@@ -34,6 +34,7 @@ import {
   FileText,
   UserPlus,
   Wifi,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import SuperAdminStudioDetail from "@/components/superadmin/studio-detail";
@@ -43,6 +44,8 @@ import VPSMonitor from "@/components/superadmin/vps-monitor";
 import TelegramTab from "@/components/superadmin/telegram-tab";
 import DailyLogTab from "@/components/superadmin/daily-log-tab";
 import LiveUsersTab from "@/components/superadmin/live-users-tab";
+import ErrorLogsTab from "@/components/superadmin/error-logs-tab";
+import SupportTicketsTab from "@/components/superadmin/support-tickets-tab";
 
 interface DashStats {
   total_studios?: number;
@@ -373,6 +376,18 @@ export default function SuperAdminPanel() {
             >
               <Wifi className="w-4 h-4 mr-1.5" /> Live Users
             </TabsTrigger>
+            <TabsTrigger
+              value="errors"
+              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400"
+            >
+              <AlertTriangle className="w-4 h-4 mr-1.5" /> Errors
+            </TabsTrigger>
+            <TabsTrigger
+              value="tickets"
+              className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-400"
+            >
+              <MessageSquare className="w-4 h-4 mr-1.5" /> Tickets
+            </TabsTrigger>
           </TabsList>
 
           {/* Studios Tab */}
@@ -554,6 +569,16 @@ export default function SuperAdminPanel() {
           {/* Live Users Tab */}
           <TabsContent value="liveusers" className="mt-4">
             <LiveUsersTab />
+          </TabsContent>
+
+          {/* Error Logs Tab */}
+          <TabsContent value="errors" className="mt-4">
+            <ErrorLogsTab />
+          </TabsContent>
+
+          {/* Support Tickets Tab */}
+          <TabsContent value="tickets" className="mt-4">
+            <SupportTicketsTab />
           </TabsContent>
         </Tabs>
       </div>

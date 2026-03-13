@@ -1,27 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import crypto from "crypto";
-
-// Rate limiter for 2FA attempts
-const twoFaAttempts = new Map<string, number[]>();
-const MAX_2FA_ATTEMPTS = 5;
-const WINDOW_MS = 15 * 60 * 1000;
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = twoFaAttempts.get(ip);
-  if (!entry) return true;
-  const recent = entry.filter((t) => now - t < WINDOW_MS);
-  twoFaAttempts.set(ip, recent);
-  return recent.length < MAX_2FA_ATTEMPTS;
-}
-
-function recordAttempt(ip: string): void {
-  const now = Date.now();
-  const entry = twoFaAttempts.get(ip) || [];
-  entry.push(now);
-  twoFaAttempts.set(ip, entry);
-}
+import { checkRateLimit, recordRateLimitAttempt } from "@/lib/rate-limit";
 
 function generateSessionToken(): string {
   const bytes = crypto.randomBytes(64);
@@ -35,7 +15,7 @@ export async function POST(request: Request) {
       request.headers.get("cf-connecting-ip") ||
       "unknown";
 
-    if (!checkRateLimit(ip)) {
+    if (!(await checkRateLimit(ip, "2fa"))) {
       return NextResponse.json(
         {
           success: false,
@@ -75,7 +55,7 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (!verifications || verifications.length === 0) {
-      recordAttempt(ip);
+      await recordRateLimitAttempt(ip, "2fa");
       return NextResponse.json({
         success: false,
         error: "Invalid or expired verification code",
