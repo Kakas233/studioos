@@ -60,6 +60,7 @@ interface StudioData {
     current_model_count?: number;
     timezone?: string;
     payout_frequency?: string;
+    created_at?: string;
     created_date?: string;
   };
   accounts: Account[];
@@ -291,8 +292,8 @@ export default function StudioDetail({
               <div>
                 <p className="text-gray-500">Created</p>
                 <p className="text-white font-medium">
-                  {studio?.created_date
-                    ? new Date(studio.created_date).toLocaleDateString()
+                  {(studio?.created_at || studio?.created_date)
+                    ? new Date(studio.created_at || studio.created_date!).toLocaleDateString()
                     : "N/A"}
                 </p>
               </div>

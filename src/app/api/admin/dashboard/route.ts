@@ -183,7 +183,7 @@ export async function POST(request: Request) {
             },
             total_active_alerts: alertsList.length,
             room_member_alerts: alertsList.filter(
-              (a: any) => a.alert_type === "room_member"
+              (a: any) => !a.alert_type || a.alert_type === "room_member"
             ).length,
             online_tracking_alerts: alertsList.filter(
               (a: any) => a.alert_type === "online_tracking"
@@ -196,42 +196,51 @@ export async function POST(request: Request) {
     if (action === "getActivityFeed") {
       const { studio_id, date_from, date_to } = payload || {};
 
+      // audit_logs columns: id, studio_id, entity_type, entity_id, event_type, summary, actor_email, old_data, new_data, created_at
       let query = adminClient
         .from("audit_logs")
-        .select("id, studio_id, studio_name, event_type, entity_type, entity_id, actor_id, actor_email, actor_name, summary, created_at, created_date")
+        .select("id, studio_id, event_type, entity_type, entity_id, actor_email, summary, created_at")
         .order("created_at", { ascending: false })
         .limit(200);
 
       if (studio_id) {
         query = query.eq("studio_id", studio_id);
       }
-
-      const { data: auditLogs } = await query;
-      let filtered = auditLogs || [];
-
       if (date_from) {
-        filtered = filtered.filter(
-          (l: any) => (l.created_at || l.created_date) >= date_from
-        );
+        query = query.gte("created_at", date_from + "T00:00:00Z");
       }
       if (date_to) {
-        const endDate = date_to + "T23:59:59";
-        filtered = filtered.filter(
-          (l: any) => (l.created_at || l.created_date) <= endDate
-        );
+        query = query.lte("created_at", date_to + "T23:59:59Z");
       }
 
-      const studioNames: Record<string, string> = {};
-      (auditLogs || []).forEach((l: any) => {
-        if (l.studio_id && l.studio_name)
-          studioNames[l.studio_id] = l.studio_name;
-      });
+      const { data: auditLogs } = await query;
+      const logsList = auditLogs || [];
+
+      // Resolve studio names by fetching studios
+      const studioIds = [...new Set(logsList.map((l: any) => l.studio_id).filter(Boolean))];
+      let studioNameMap: Record<string, string> = {};
+      if (studioIds.length > 0) {
+        const { data: studioRows } = await adminClient
+          .from("studios")
+          .select("id, name")
+          .in("id", studioIds);
+        for (const s of studioRows || []) {
+          studioNameMap[s.id] = s.name;
+        }
+      }
+
+      // Enrich logs with studio_name for display
+      const enrichedLogs = logsList.map((l: any) => ({
+        ...l,
+        studio_name: studioNameMap[l.studio_id] || null,
+        created_date: l.created_at,
+      }));
 
       return NextResponse.json({
         success: true,
         data: {
-          logs: filtered,
-          studios: Object.entries(studioNames).map(([id, name]) => ({
+          logs: enrichedLogs,
+          studios: Object.entries(studioNameMap).map(([id, name]) => ({
             id,
             name,
           })),
@@ -249,7 +258,7 @@ export async function POST(request: Request) {
 
       const { data: studioData } = await adminClient
         .from("studios")
-        .select("id, name, subdomain, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, onboarding_completed, created_at, updated_at, last_payment_date, next_payment_date, grace_period_ends_at")
+        .select("id, name, subdomain, timezone, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, onboarding_completed, created_at, updated_at, last_payment_date, next_payment_date, grace_period_ends_at")
         .eq("id", studioId)
         .limit(1);
 
@@ -264,31 +273,60 @@ export async function POST(request: Request) {
         { data: studioEarnings },
         { data: studioShifts },
         { data: studioRooms },
+        { data: studioSettings },
       ] = await Promise.all([
         adminClient
           .from("accounts")
-          .select("id, studio_id, first_name, last_name, email, role, is_active, created_at, updated_at")
+          .select("id, studio_id, first_name, last_name, email, role, is_active, cut_percentage, created_at, updated_at")
           .eq("studio_id", studioId),
         adminClient
           .from("earnings")
-          .select("id, studio_id, account_id, total_gross_usd, total_net_usd, total_tokens, site, date, created_at")
-          .eq("studio_id", studioId),
+          .select("id, studio_id, model_id, shift_date, total_gross_usd, model_pay_usd, operator_pay_usd, created_at")
+          .eq("studio_id", studioId)
+          .order("shift_date", { ascending: false })
+          .limit(50),
         adminClient
           .from("shifts")
-          .select("id, studio_id, account_id, room_id, start_time, end_time, status, created_at")
-          .eq("studio_id", studioId),
+          .select("id, studio_id, model_id, room_id, start_time, end_time, status, created_at")
+          .eq("studio_id", studioId)
+          .order("start_time", { ascending: false })
+          .limit(100),
         adminClient
           .from("rooms")
           .select("id, studio_id, name, is_active, created_at")
           .eq("studio_id", studioId),
+        adminClient
+          .from("global_settings")
+          .select("payout_frequency")
+          .eq("studio_id", studioId)
+          .limit(1),
       ]);
+
+      // Build model name lookup from accounts
+      const accountMap: Record<string, string> = {};
+      for (const a of studioAccounts || []) {
+        accountMap[a.id] = `${a.first_name} ${a.last_name || ""}`.trim();
+      }
+
+      // Enrich earnings with model_name
+      const enrichedEarnings = (studioEarnings || []).map((e: any) => ({
+        ...e,
+        model_name: accountMap[e.model_id] || "Unknown",
+      }));
+
+      // Merge payout_frequency into studio response
+      const studioResponse = {
+        ...studioData[0],
+        created_date: studioData[0].created_at,
+        payout_frequency: studioSettings?.[0]?.payout_frequency || "biweekly",
+      };
 
       return NextResponse.json({
         success: true,
         data: {
-          studio: studioData[0],
+          studio: studioResponse,
           accounts: studioAccounts || [],
-          earnings: studioEarnings || [],
+          earnings: enrichedEarnings,
           shifts: studioShifts || [],
           rooms: studioRooms || [],
         },
@@ -368,28 +406,23 @@ export async function POST(request: Request) {
         Date.now() + 2 * 60 * 60 * 1000
       ).toISOString();
 
+      // Sessions table: id, account_id, token, expires_at, created_at
       await (adminClient.from("sessions") as any).insert({
         account_id: ownerAccount.id,
         token: impersonationToken,
         expires_at: expiresAt,
-        is_impersonation: true,
-        impersonated_by: superAdminAccount.id,
-        is_read_only: readOnly,
       });
 
       // Log the impersonation
+      // audit_logs: id, studio_id, entity_type, entity_id, event_type, summary, actor_email, old_data, new_data, created_at
       try {
         await adminClient.from("audit_logs").insert({
           studio_id: studioId,
-          studio_name: studio.name || "Unknown",
           event_type: "create",
           entity_type: "Session",
-          entity_id: "impersonation",
-          actor_id: superAdminAccount.id,
+          entity_id: ownerAccount.id,
           actor_email: superAdminAccount.email,
-          actor_name: "Admin Support",
           summary: `Admin Support entered studio "${studio.name}" as ${ownerAccount.first_name}`,
-          synced_to_sheets: false,
         });
       } catch (e) {
         console.error(
@@ -463,7 +496,7 @@ export async function POST(request: Request) {
       } else {
         await (adminClient.from("telegram_links") as any).insert({
           account_id: superAdminAccount.id,
-          studio_id: "",
+          studio_id: superAdminAccount.studio_id,
           link_token: token,
           is_active: true,
         });
@@ -530,7 +563,7 @@ export async function POST(request: Request) {
         { data: allAccounts },
         { data: allActiveAlerts },
       ] = await Promise.all([
-        adminClient.from("studios").select("id, name, subdomain, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, created_at, created_date, last_payment_date, next_payment_date, grace_period_ends_at"),
+        adminClient.from("studios").select("id, name, subdomain, subscription_tier, subscription_status, stripe_customer_id, stripe_subscription_id, model_limit, current_model_count, created_at, last_payment_date, next_payment_date, grace_period_ends_at"),
         adminClient.from("accounts").select("id, studio_id, role, is_active"),
         adminClient
           .from("member_alerts")
@@ -548,7 +581,7 @@ export async function POST(request: Request) {
         { name: string; tier: string; status: string }[]
       > = {};
       studiosList.forEach((s) => {
-        const day = (s.created_at || s.created_date)?.split("T")[0];
+        const day = s.created_at?.split("T")[0];
         if (day) {
           if (!dailyRegistrations[day]) dailyRegistrations[day] = [];
           dailyRegistrations[day].push({
@@ -656,7 +689,7 @@ export async function POST(request: Request) {
           name: s.name,
           tier: s.subscription_tier,
           grace_ends: s.grace_period_ends_at,
-          created: s.created_at || s.created_date,
+          created: s.created_at,
         }));
 
       return NextResponse.json({
@@ -736,7 +769,6 @@ export async function POST(request: Request) {
           model_limit: finalModelLimit,
           current_model_count: 0,
           onboarding_completed: false,
-          payout_frequency: "biweekly",
         })
         .select("id")
         .single();
@@ -788,18 +820,19 @@ export async function POST(request: Request) {
       });
 
       // Log it
-      await adminClient.from("audit_logs").insert({
-        studio_id: studioData.id,
-        studio_name: studio_name,
-        event_type: "create",
-        entity_type: "Studio",
-        entity_id: studioData.id,
-        actor_id: superAdminAccount.id,
-        actor_email: superAdminAccount.email,
-        actor_name: "Super Admin",
-        summary: `Super Admin created free Elite studio "${studio_name}" with ${finalModelLimit} model slots`,
-        synced_to_sheets: false,
-      });
+      // audit_logs: id, studio_id, entity_type, entity_id, event_type, summary, actor_email, old_data, new_data, created_at
+      try {
+        await adminClient.from("audit_logs").insert({
+          studio_id: studioData.id,
+          event_type: "create",
+          entity_type: "Studio",
+          entity_id: studioData.id,
+          actor_email: superAdminAccount.email,
+          summary: `Super Admin created free Elite studio "${studio_name}" with ${finalModelLimit} model slots`,
+        });
+      } catch (e) {
+        console.error("Failed to log studio creation:", e instanceof Error ? e.message : e);
+      }
 
       return NextResponse.json({
         success: true,

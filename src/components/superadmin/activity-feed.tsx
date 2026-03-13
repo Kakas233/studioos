@@ -44,6 +44,7 @@ interface LogEntry {
   summary: string;
   studio_name?: string;
   actor_email?: string;
+  created_at?: string;
   created_date?: string;
 }
 
@@ -256,11 +257,11 @@ export default function ActivityFeed(_props: ActivityFeedProps) {
                   </div>
                   <div className="shrink-0 text-right mt-1">
                     <span className="text-[10px] text-gray-600">
-                      {timeAgo(log.created_date)}
+                      {timeAgo(log.created_at || log.created_date)}
                     </span>
                     <p className="text-[9px] text-gray-700">
-                      {log.created_date
-                        ? new Date(log.created_date).toLocaleDateString()
+                      {(log.created_at || log.created_date)
+                        ? new Date(log.created_at || log.created_date!).toLocaleDateString()
                         : ""}
                     </p>
                   </div>
