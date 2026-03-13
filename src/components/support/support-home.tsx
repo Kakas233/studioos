@@ -76,7 +76,7 @@ export default function SupportHome({
         {/* Links */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-3 border border-gray-200">
           <a
-            href="/help"
+            href="/help-center"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors border-b border-gray-200"

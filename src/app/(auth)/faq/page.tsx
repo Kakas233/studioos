@@ -384,7 +384,7 @@ export default function FAQPage() {
         <p className="text-xs text-[#A8A49A]/40 text-center">
           Can&apos;t find what you need?{" "}
           <a
-            href="/support"
+            href="mailto:support@getstudioos.com"
             className="text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors"
           >
             Contact support
