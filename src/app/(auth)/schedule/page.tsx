@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useShifts, useRooms, useAssignments, useStudioAccounts, useShiftRequests } from "@/hooks/use-studio-data";
 import { createClient } from "@/lib/supabase/client";
 import ShiftCalendar from "@/components/schedule/shift-calendar";
@@ -62,7 +62,44 @@ export default function SchedulePage() {
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
 
-  const { data: shifts = [], error: shiftsError, isLoading: shiftsLoading } = useShifts();
+  // Direct Supabase query for shifts (bypass hook + API route entirely)
+  const directShiftsQuery = useQuery<Shift[]>({
+    queryKey: ["shifts-direct", account?.studio_id],
+    queryFn: async () => {
+      if (!account?.studio_id) return [];
+      const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from("shifts")
+        .select("*")
+        .eq("studio_id", account.studio_id)
+        .gte("start_time", sixtyDaysAgo)
+        .order("start_time", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data as Shift[]) || [];
+    },
+    enabled: !!account?.studio_id,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  // Also try the hook (API route + fallback)
+  const hookShifts = useShifts();
+
+  // Use whichever has data, prefer direct query
+  const shifts = directShiftsQuery.data && directShiftsQuery.data.length > 0
+    ? directShiftsQuery.data
+    : hookShifts.data || [];
+  const shiftsError = directShiftsQuery.error || hookShifts.error;
+  const shiftsLoading = directShiftsQuery.isLoading && hookShifts.isLoading;
+
+  // Debug log
+  const [debugInfo, setDebugInfo] = useState("");
+  useEffect(() => {
+    if (!account?.studio_id) return;
+    const info = `Direct: ${directShiftsQuery.data?.length ?? "loading"}${directShiftsQuery.error ? ` ERR:${(directShiftsQuery.error as Error).message}` : ""} | Hook: ${hookShifts.data?.length ?? "loading"}${hookShifts.error ? ` ERR:${(hookShifts.error as Error).message}` : ""} | Studio: ${account.studio_id}`;
+    setDebugInfo(info);
+  }, [directShiftsQuery.data, directShiftsQuery.error, hookShifts.data, hookShifts.error, account?.studio_id]);
+
   const { data: rooms = [] } = useRooms();
   const { data: assignments = [] } = useAssignments();
   const { data: allAccounts = [] } = useStudioAccounts();
@@ -84,8 +121,13 @@ export default function SchedulePage() {
         { queryKey: ["shifts"] },
         (old) => old ? [...old, newShift] : [newShift]
       );
+      queryClient.setQueriesData<Shift[]>(
+        { queryKey: ["shifts-direct"] },
+        (old) => old ? [...old, newShift] : [newShift]
+      );
       // Also refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
+      queryClient.invalidateQueries({ queryKey: ["shifts-direct"] });
       setModalOpen(false);
       setSelectedShift(null);
       toast.success("Shift created successfully");
@@ -98,12 +140,16 @@ export default function SchedulePage() {
       return apiShiftUpdate(id, data);
     },
     onSuccess: (updatedShift) => {
-      // Optimistically update the shift in cache
       queryClient.setQueriesData<Shift[]>(
         { queryKey: ["shifts"] },
         (old) => old ? old.map((s) => s.id === updatedShift.id ? updatedShift : s) : []
       );
+      queryClient.setQueriesData<Shift[]>(
+        { queryKey: ["shifts-direct"] },
+        (old) => old ? old.map((s) => s.id === updatedShift.id ? updatedShift : s) : []
+      );
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
+      queryClient.invalidateQueries({ queryKey: ["shifts-direct"] });
       setModalOpen(false);
       setSelectedShift(null);
       toast.success("Shift updated successfully");
@@ -117,12 +163,16 @@ export default function SchedulePage() {
       return id;
     },
     onSuccess: (deletedId) => {
-      // Optimistically remove the shift from cache
       queryClient.setQueriesData<Shift[]>(
         { queryKey: ["shifts"] },
         (old) => old ? old.filter((s) => s.id !== deletedId) : []
       );
+      queryClient.setQueriesData<Shift[]>(
+        { queryKey: ["shifts-direct"] },
+        (old) => old ? old.filter((s) => s.id !== deletedId) : []
+      );
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
+      queryClient.invalidateQueries({ queryKey: ["shifts-direct"] });
       setModalOpen(false);
       setSelectedShift(null);
       toast.success("Shift deleted");
@@ -273,20 +323,20 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Debug banner — always visible until shifts work */}
+      <Card className="bg-blue-500/[0.06] border-blue-500/10">
+        <CardContent className="p-3">
+          <p className="text-blue-400/80 text-xs font-mono">
+            {debugInfo || "Loading..."} | Shifts: {shifts.length} | Role: {userRole}
+          </p>
+        </CardContent>
+      </Card>
+
       {shiftsError && (
         <Card className="bg-red-500/[0.06] border-red-500/10">
           <CardContent className="p-3 sm:p-4">
             <p className="text-red-400 text-xs sm:text-sm">
               Failed to load shifts: {shiftsError instanceof Error ? shiftsError.message : "Unknown error"}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-      {!shiftsLoading && !shiftsError && shifts.length === 0 && (
-        <Card className="bg-yellow-500/[0.06] border-yellow-500/10">
-          <CardContent className="p-3 sm:p-4">
-            <p className="text-yellow-400/80 text-xs">
-              Debug: 0 shifts loaded. Studio ID: {account?.studio_id || "none"}. This banner will be removed once scheduling works.
             </p>
           </CardContent>
         </Card>
