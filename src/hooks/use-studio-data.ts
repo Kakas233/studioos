@@ -10,17 +10,19 @@ type Tables = Database["public"]["Tables"];
 const supabase = createClient();
 
 export function useShifts(options?: { dateFrom?: string; dateTo?: string }) {
-  const { studio } = useAuth();
-  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
+  // Stable date string (day precision) so query key doesn't change on every render
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const effectiveDateFrom = options?.dateFrom ?? sixtyDaysAgo;
   return useQuery<Tables["shifts"]["Row"][]>({
-    queryKey: ["shifts", studio?.id, effectiveDateFrom, options?.dateTo],
+    queryKey: ["shifts", studioId, effectiveDateFrom, options?.dateTo],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       let query = supabase
         .from("shifts")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .gte("start_time", effectiveDateFrom)
         .order("start_time", { ascending: false });
       if (options?.dateTo) query = query.lte("start_time", options.dateTo);
@@ -28,7 +30,7 @@ export function useShifts(options?: { dateFrom?: string; dateTo?: string }) {
       if (error) throw new Error(error.message);
       return data || [];
     },
-    enabled: !!studio?.id,
+    enabled: !!studioId,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
