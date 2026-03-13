@@ -96,9 +96,9 @@ export function ShiftModal({
       validationErrors.push("Shifts can only be booked for next week");
     }
 
-    // Rule 2: Sunday lock (SKIP FOR ADMIN)
-    if (!isAdmin && isSunday(now) && isAfter(now, setHours(setMinutes(now, 59), 23))) {
-      validationErrors.push("Editing is locked after Sunday 23:59");
+    // Rule 2: Sunday lock (SKIP FOR ADMIN) — no edits on Sunday after 20:00
+    if (!isAdmin && isSunday(now) && now.getHours() >= 20) {
+      validationErrors.push("Editing is locked on Sunday after 20:00");
     }
 
     // Parse times
@@ -132,11 +132,10 @@ export function ShiftModal({
       const sStart = parseISO(s.start_time);
       const sEnd = parseISO(s.end_time);
 
+      // Two ranges overlap if one starts before the other ends and vice versa.
+      // Use strict inequality to allow back-to-back shifts (end === start is OK).
       const hasOverlap =
-        (isAfter(startDateTime, sStart) && isBefore(startDateTime, sEnd)) ||
-        (isAfter(endDateTime, sStart) && isBefore(endDateTime, sEnd)) ||
-        (isBefore(startDateTime, sStart) && isAfter(endDateTime, sEnd)) ||
-        (startDateTime.getTime() === sStart.getTime());
+        isBefore(startDateTime, sEnd) && isAfter(endDateTime, sStart);
 
       if (!hasOverlap) return false;
 

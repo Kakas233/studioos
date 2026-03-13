@@ -55,11 +55,11 @@ export default function EarningsPerHourChart({
     end: dateRange.end,
   });
 
-  // Group by week for cleaner data
+  // Group by week for cleaner data (include year to avoid cross-year collision)
   const weekMap: Record<string, { label: string; revenue: number; hours: number }> = {};
   days.forEach((d) => {
-    const weekKey = format(d, "w");
-    const weekLabel = `W${format(d, "w")}`;
+    const weekKey = `${format(d, "RRRR")}-W${format(d, "II")}`;
+    const weekLabel = `W${format(d, "II")}`;
     if (!weekMap[weekKey])
       weekMap[weekKey] = { label: weekLabel, revenue: 0, hours: 0 };
     const dk = format(d, "yyyy-MM-dd");

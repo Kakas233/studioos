@@ -11,10 +11,12 @@ const PUBLIC_TYPES = new Set(["free_chat", "public"]);
 const PRIVATE_TYPES = new Set([
   "private_chat", "nude_chat", "semiprivate", "vip_chat",
   "true_private", "paid_chat", "private", "hidden", "p2p",
+  "spy", "voyeur", "cam2cam", "exclusive_private",
 ]);
 const GROUP_TYPES = new Set([
   "member_chat", "group_chat", "happy_hour", "party_chat",
   "pre_gold_show", "gold_show", "group", "ticket",
+  "club_show", "fan_club",
 ]);
 
 function verifyCronSecret(request: NextRequest): boolean {

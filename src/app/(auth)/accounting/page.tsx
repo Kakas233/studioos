@@ -113,21 +113,41 @@ export default function AccountingPage() {
       return;
     }
 
+    // Round all numeric values to avoid NUMERIC(12,2) precision issues
+    const roundedData = { ...earningData };
+    for (const key of Object.keys(roundedData)) {
+      const val = roundedData[key];
+      if (typeof val === "number" && !Number.isNaN(val)) {
+        roundedData[key] = Math.round(val * 100) / 100;
+      }
+    }
+
+    console.log("[Earnings] Saving:", JSON.stringify(roundedData, null, 2));
+
     let earningsError;
     if (existingEarning) {
-      const { error } = await supabase.from("earnings").update(earningData).eq("id", existingEarning.id);
+      // Don't send studio_id in updates (it can't change and some RLS configs reject it)
+      const { studio_id: _sid, ...updatePayload } = roundedData;
+      const { error } = await supabase.from("earnings").update(updatePayload).eq("id", existingEarning.id);
       earningsError = error;
     } else {
-      const { error } = await supabase.from("earnings").insert(earningData);
+      const { data: inserted, error } = await supabase.from("earnings").insert(roundedData).select().single();
       earningsError = error;
+      if (inserted) console.log("[Earnings] Inserted:", inserted.id);
     }
 
     if (earningsError) {
+      console.error("[Earnings] Error:", earningsError);
       toast.error(`Failed to save earnings: ${earningsError.message}`);
       return;
     }
 
-    await supabase.from("shifts").update({ status: "completed" }).eq("id", selectedShift.id);
+    const { error: shiftError } = await supabase.from("shifts").update({ status: "completed" }).eq("id", selectedShift.id);
+    if (shiftError) {
+      console.error("[Shifts] Error updating status:", shiftError);
+      toast.error(`Earnings saved, but failed to update shift status: ${shiftError.message}`);
+    }
+
     queryClient.invalidateQueries({ queryKey: ["earnings"] });
     queryClient.invalidateQueries({ queryKey: ["shifts"] });
     setEarningsModalOpen(false);

@@ -218,10 +218,6 @@ export default function EarningsForm({
         model_pay_secondary: Math.round(finalModelPaySecondary * 100) / 100,
         operator_pay_usd: Math.round(operatorPayUsd * 100) / 100,
         operator_pay_secondary: Math.round(finalOperatorPaySecondary * 100) / 100,
-        model_cut_percentage: modelCutPercentage,
-        operator_cut_percentage: operatorCutPercentage,
-        secondary_currency_code: secondaryCurrency,
-        exchange_rate_used: finalRate,
       };
 
       // Add site-specific USD data using abbreviated DB field names

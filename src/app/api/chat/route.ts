@@ -95,6 +95,16 @@ export async function POST(request: NextRequest) {
 
     const parsed = chatMessageSchema.parse(body);
 
+    // Verify the channel belongs to this studio before allowing message
+    const { data: channel } = await supabase
+      .from("chat_channels")
+      .select("id")
+      .eq("id", parsed.channel_id)
+      .eq("studio_id", account.studio_id)
+      .single();
+
+    if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 });
+
     const { data, error } = await supabase
       .from("chat_messages")
       .insert({

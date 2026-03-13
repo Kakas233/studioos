@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Target, TrendingDown, Calendar, Clock, Flame } from "lucide-react";
-import { parseISO, startOfWeek, endOfWeek, addWeeks, isWithinInterval, differenceInHours } from "date-fns";
+import { parseISO, startOfWeek, endOfWeek, addWeeks, isWithinInterval, differenceInMinutes } from "date-fns";
 import type { Database } from "@/lib/supabase/types";
 
 type Shift = Database["public"]["Tables"]["shifts"]["Row"];
@@ -25,8 +25,12 @@ export default function WeeklyGoal({ shifts, targetHours = 20, enabled = true }:
   const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 });
   const currentWeekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
+  const isActiveShift = (shift: Shift) =>
+    shift.status !== "cancelled" && shift.status !== "no_show";
+
   const nextWeekShifts = shifts.filter((shift) => {
     try {
+      if (!isActiveShift(shift)) return false;
       const start = parseISO(shift.start_time);
       return isWithinInterval(start, { start: nextWeekStart, end: nextWeekEnd });
     } catch { return false; }
@@ -34,22 +38,23 @@ export default function WeeklyGoal({ shifts, targetHours = 20, enabled = true }:
 
   const currentWeekShifts = shifts.filter((shift) => {
     try {
+      if (!isActiveShift(shift)) return false;
       const start = parseISO(shift.start_time);
       return isWithinInterval(start, { start: currentWeekStart, end: currentWeekEnd });
     } catch { return false; }
   });
 
-  const bookedHoursNext = nextWeekShifts.reduce((total, shift) => {
+  const bookedHoursNext = Math.round(nextWeekShifts.reduce((total, shift) => {
     try {
-      return total + differenceInHours(parseISO(shift.end_time), parseISO(shift.start_time));
+      return total + differenceInMinutes(parseISO(shift.end_time), parseISO(shift.start_time)) / 60;
     } catch { return total; }
-  }, 0);
+  }, 0) * 10) / 10;
 
-  const bookedHoursThis = currentWeekShifts.reduce((total, shift) => {
+  const bookedHoursThis = Math.round(currentWeekShifts.reduce((total, shift) => {
     try {
-      return total + differenceInHours(parseISO(shift.end_time), parseISO(shift.start_time));
+      return total + differenceInMinutes(parseISO(shift.end_time), parseISO(shift.start_time)) / 60;
     } catch { return total; }
-  }, 0);
+  }, 0) * 10) / 10;
 
   const percentageNext = Math.min((bookedHoursNext / targetHours) * 100, 100);
   const isOnTrack = bookedHoursNext >= targetHours;

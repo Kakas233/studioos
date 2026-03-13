@@ -115,6 +115,16 @@ export async function POST(req: NextRequest) {
     const { post_id, emoji } = body;
     if (!post_id || !emoji) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
+    // Verify the post belongs to this studio
+    const { data: post } = await supabaseAdmin
+      .from("news_posts")
+      .select("id")
+      .eq("id", post_id)
+      .eq("studio_id", account.studio_id)
+      .single();
+
+    if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+
     // Check if already reacted
     const { data: existing } = await supabaseAdmin
       .from("news_reactions")
