@@ -26,8 +26,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Return in the format the old Base44 listMonitoredModels used
+    // Return models with alert IDs so VPS uses consistent model IDs
     const models = (alerts || []).map(alert => ({
+      id: alert.id,
       model_username: alert.model_username,
       sites: (alert.sites as string[]) || [],
       spending_threshold: alert.spending_threshold ?? 400,
