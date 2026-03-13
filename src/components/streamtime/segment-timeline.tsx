@@ -201,22 +201,6 @@ export default function SegmentTimeline({
                         <span className="text-[10px] text-white/30 ml-auto">
                           {fmtDuration(seg.duration_minutes)}
                         </span>
-                        {seg.source && (
-                          <Badge
-                            variant="outline"
-                            className={`text-[7px] px-1 py-0 border-white/[0.04] ${
-                              seg.source === "mycamgirlnet"
-                                ? "bg-blue-500/5 text-blue-300/40"
-                                : seg.source === "merged"
-                                ? "bg-purple-500/5 text-purple-300/40"
-                                : "bg-white/[0.02] text-white/20"
-                            }`}
-                          >
-                            {seg.source === "mycamgirlnet"
-                              ? "mcg"
-                              : seg.source}
-                          </Badge>
-                        )}
                       </div>
                     );
                   })}
