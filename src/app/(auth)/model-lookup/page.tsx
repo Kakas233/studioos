@@ -48,6 +48,12 @@ export default function ModelLookupPage() {
           </p>
         </div>
 
+        <div className="bg-amber-500/[0.06] border border-amber-500/15 rounded-lg px-4 py-2.5">
+          <p className="text-xs text-amber-400/70">
+            <strong className="text-amber-400">Note:</strong> The tipping data shown here reflects <strong>public tips only</strong> — tips made in the public chat room. Tips from private shows, group shows, and secret tips are not included in these numbers.
+          </p>
+        </div>
+
         {!selectedModel ? (
           <ModelLookupSearch onSelect={setSelectedModel} />
         ) : (

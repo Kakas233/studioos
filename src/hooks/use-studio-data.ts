@@ -37,122 +37,128 @@ export function useShifts(options?: { dateFrom?: string; dateTo?: string }) {
 }
 
 export function useEarnings(options?: { dateFrom?: string; dateTo?: string }) {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const effectiveDateFrom = options?.dateFrom ?? ninetyDaysAgo;
   return useQuery<Tables["earnings"]["Row"][]>({
-    queryKey: ["earnings", studio?.id, effectiveDateFrom, options?.dateTo],
+    queryKey: ["earnings", studioId, effectiveDateFrom, options?.dateTo],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       let query = supabase
         .from("earnings")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .gte("shift_date", effectiveDateFrom)
         .order("shift_date", { ascending: false });
       if (options?.dateTo) query = query.lte("shift_date", options.dateTo);
       const { data } = await query;
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: !!studioId,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
 export function useStudioAccounts() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["accounts"]["Row"][]>({
-    queryKey: ["accounts", studio?.id],
+    queryKey: ["accounts", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data, error } = await supabase
         .from("accounts")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("first_name");
       if (error) throw new Error(`useStudioAccounts: ${error.message}`);
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes — accounts change rarely
+    enabled: !!studioId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useChangeRequests() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["shift_change_requests"]["Row"][]>({
-    queryKey: ["shiftChangeRequests", studio?.id],
+    queryKey: ["shiftChangeRequests", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data } = await supabase
         .from("shift_change_requests")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("created_at", { ascending: false })
         .limit(200);
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: !!studioId,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
 export function useCamAccounts() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["cam_accounts"]["Row"][]>({
-    queryKey: ["camAccounts", studio?.id],
+    queryKey: ["camAccounts", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data } = await supabase
         .from("cam_accounts")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("platform");
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!studioId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useStudioDailyStats(camAccountIds: string[]) {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   return useQuery<Tables["daily_stream_stats"]["Row"][]>({
-    queryKey: ["dailyStreamStats", studio?.id, camAccountIds, ninetyDaysAgo],
+    queryKey: ["dailyStreamStats", studioId, camAccountIds, ninetyDaysAgo],
     queryFn: async () => {
-      if (!studio?.id || !camAccountIds.length) return [];
+      if (!studioId || !camAccountIds.length) return [];
       const { data } = await supabase
         .from("daily_stream_stats")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .in("cam_account_id", camAccountIds)
         .gte("date", ninetyDaysAgo)
         .order("date", { ascending: false })
         .limit(1000);
       return data || [];
     },
-    enabled: !!studio?.id && camAccountIds.length > 0,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: !!studioId && camAccountIds.length > 0,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
 export function useStreamingSessions(camAccountIds: string[]) {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["streaming_sessions"]["Row"][]>({
-    queryKey: ["streamingSessions", studio?.id, camAccountIds],
+    queryKey: ["streamingSessions", studioId, camAccountIds],
     queryFn: async () => {
-      if (!studio?.id || !camAccountIds.length) return [];
+      if (!studioId || !camAccountIds.length) return [];
       const { data } = await supabase
         .from("streaming_sessions")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .in("cam_account_id", camAccountIds)
         .limit(200);
       return data || [];
     },
-    enabled: !!studio?.id && camAccountIds.length > 0,
-    refetchInterval: 60000, // 60 seconds — reduces API load
+    enabled: !!studioId && camAccountIds.length > 0,
+    refetchInterval: 60000,
     staleTime: 30 * 1000,
   });
 }
@@ -166,166 +172,175 @@ export interface ModelActivity {
 }
 
 export function useModelCurrentActivity() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Record<string, ModelActivity>>({
-    queryKey: ["modelCurrentActivity", studio?.id],
+    queryKey: ["modelCurrentActivity", studioId],
     queryFn: async () => {
-      if (!studio?.id) return {};
+      if (!studioId) return {};
       const res = await fetch("/api/model-activity");
       if (!res.ok) return {};
       return res.json();
     },
-    enabled: !!studio?.id,
-    refetchInterval: 30_000, // 30 seconds
+    enabled: !!studioId,
+    refetchInterval: 30_000,
     staleTime: 20_000,
   });
 }
 
 export function useRooms() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["rooms"]["Row"][]>({
-    queryKey: ["rooms", studio?.id],
+    queryKey: ["rooms", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data } = await supabase
         .from("rooms")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("name");
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes — rooms change rarely
+    enabled: !!studioId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useGlobalSettings() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["global_settings"]["Row"] | null>({
-    queryKey: ["globalSettings", studio?.id],
+    queryKey: ["globalSettings", studioId],
     queryFn: async () => {
-      if (!studio?.id) return null;
+      if (!studioId) return null;
       const { data } = await supabase
         .from("global_settings")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .single();
       return data;
     },
-    enabled: !!studio?.id,
-    staleTime: 10 * 60 * 1000, // 10 minutes — settings change very rarely
+    enabled: !!studioId,
+    staleTime: 10 * 60 * 1000,
   });
 }
 
 export function usePayouts() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["payouts"]["Row"][]>({
-    queryKey: ["payouts", studio?.id],
+    queryKey: ["payouts", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data } = await supabase
         .from("payouts")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("period_end", { ascending: false })
         .limit(500);
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: !!studioId,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
 export function useSupportTickets() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["support_tickets"]["Row"][]>({
-    queryKey: ["supportTickets", studio?.id],
+    queryKey: ["supportTickets", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data } = await supabase
         .from("support_tickets")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("created_at", { ascending: false })
         .limit(100);
       return data || [];
     },
-    enabled: !!studio?.id,
+    enabled: !!studioId,
   });
 }
 
 export function useAuditLogs(page = 0, pageSize = 50) {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<{ data: Tables["audit_logs"]["Row"][]; count: number }>({
-    queryKey: ["auditLogs", studio?.id, page, pageSize],
+    queryKey: ["auditLogs", studioId, page, pageSize],
     queryFn: async () => {
-      if (!studio?.id) return { data: [], count: 0 };
+      if (!studioId) return { data: [], count: 0 };
       const from = page * pageSize;
       const to = from + pageSize - 1;
       const { data, count } = await supabase
         .from("audit_logs")
         .select("*", { count: "exact" })
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("created_at", { ascending: false })
         .range(from, to);
       return { data: data || [], count: count || 0 };
     },
-    enabled: !!studio?.id,
+    enabled: !!studioId,
   });
 }
 
 export function useChatChannels() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["chat_channels"]["Row"][]>({
-    queryKey: ["chatChannels", studio?.id],
+    queryKey: ["chatChannels", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data, error } = await supabase
         .from("chat_channels")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("name");
       if (error) throw new Error(`useChatChannels: ${error.message}`);
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes — channels change rarely
+    enabled: !!studioId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useAssignments() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["assignments"]["Row"][]>({
-    queryKey: ["assignments", studio?.id],
+    queryKey: ["assignments", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data } = await supabase
         .from("assignments")
         .select("*")
-        .eq("studio_id", studio.id);
+        .eq("studio_id", studioId);
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes — assignments change rarely
+    enabled: !!studioId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useShiftRequests() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["shift_requests"]["Row"][]>({
-    queryKey: ["shiftRequests", studio?.id],
+    queryKey: ["shiftRequests", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data } = await supabase
         .from("shift_requests")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("created_at", { ascending: false })
         .limit(200);
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: !!studioId,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -334,16 +349,17 @@ export function useStreamSegments(
   dateFrom?: string,
   dateTo?: string
 ) {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   const effectiveDateFrom = dateFrom || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   return useQuery<Tables["stream_segments"]["Row"][]>({
-    queryKey: ["streamSegments", studio?.id, camAccountIds, effectiveDateFrom, dateTo],
+    queryKey: ["streamSegments", studioId, camAccountIds, effectiveDateFrom, dateTo],
     queryFn: async () => {
-      if (!studio?.id || !camAccountIds.length) return [];
+      if (!studioId || !camAccountIds.length) return [];
       let query = supabase
         .from("stream_segments")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .in("cam_account_id", camAccountIds)
         .gte("date", effectiveDateFrom)
         .order("start_time", { ascending: false });
@@ -352,46 +368,48 @@ export function useStreamSegments(
       const { data } = await query;
       return data || [];
     },
-    enabled: !!studio?.id && camAccountIds.length > 0,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: !!studioId && camAccountIds.length > 0,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
 export function useShiftAnalysis() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["shift_analyses"]["Row"][]>({
-    queryKey: ["shiftAnalyses", studio?.id],
+    queryKey: ["shiftAnalyses", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data } = await supabase
         .from("shift_analyses")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("shift_date", { ascending: false })
         .limit(500);
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes — historical data
+    enabled: !!studioId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useDataFetchJobs() {
-  const { studio } = useAuth();
+  const { account } = useAuth();
+  const studioId = account?.studio_id;
   return useQuery<Tables["data_fetch_jobs"]["Row"][]>({
-    queryKey: ["dataFetchJobs", studio?.id],
+    queryKey: ["dataFetchJobs", studioId],
     queryFn: async () => {
-      if (!studio?.id) return [];
+      if (!studioId) return [];
       const { data } = await supabase
         .from("data_fetch_jobs")
         .select("*")
-        .eq("studio_id", studio.id)
+        .eq("studio_id", studioId)
         .order("created_at", { ascending: false })
         .limit(100);
       return data || [];
     },
-    enabled: !!studio?.id,
-    staleTime: 5 * 1000, // 5 seconds
-    refetchInterval: 15000, // 15 seconds — enough for progress updates
+    enabled: !!studioId,
+    staleTime: 5 * 1000,
+    refetchInterval: 15000,
   });
 }

@@ -113,10 +113,18 @@ export default function AccountingPage() {
       return;
     }
 
+    let earningsError;
     if (existingEarning) {
-      await supabase.from("earnings").update(earningData).eq("id", existingEarning.id);
+      const { error } = await supabase.from("earnings").update(earningData).eq("id", existingEarning.id);
+      earningsError = error;
     } else {
-      await supabase.from("earnings").insert(earningData);
+      const { error } = await supabase.from("earnings").insert(earningData);
+      earningsError = error;
+    }
+
+    if (earningsError) {
+      toast.error(`Failed to save earnings: ${earningsError.message}`);
+      return;
     }
 
     await supabase.from("shifts").update({ status: "completed" }).eq("id", selectedShift.id);

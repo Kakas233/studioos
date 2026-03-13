@@ -202,6 +202,7 @@ export default function EarningsForm({
       const studioCutUsd = Math.round((totalGrossUsd - modelPayUsd - operatorPayUsd) * 100) / 100;
 
       const earningData: Record<string, unknown> = {
+        studio_id: shift.studio_id,
         shift_id: shift.id,
         model_id: shift.model_id,
         operator_id: shift.operator_id,
